@@ -1,0 +1,98 @@
+{% extends "base.html" %} {% block body %} {% if user.is_authenticated %}
+<h4>
+  <span id="greet"></span>
+  {{ user.get_full_name|default:user.username }}, what would you like to do?
+</h4>
+{% endif %}
+
+<h5>Browse</h5>
+<div class="list-group">
+  <a href="/view" class="list-group-item list-group-item-action"
+    >View the database</a
+  >
+  <a href="/view/all" class="list-group-item list-group-item-action"
+    >Search the database</a
+  >
+</div>
+
+<br />
+
+{% if user.is_authenticated and user.is_staff %}
+<h5>Update</h5>
+<div class="list-group">
+  <a href="/register/item" class="list-group-item list-group-item-action"
+    >Add a new item</a
+  >
+  <a href="/search/check_in" class="list-group-item list-group-item-action"
+    >Search and check in an item</a
+  >
+  <a href="/search/check_out" class="list-group-item list-group-item-action"
+    >Search and check out an item</a
+  >
+</div>
+
+<br />
+
+<h5>Administrate</h5>
+<div class="list-group">
+  {% if user.is_superuser %}
+  <a href="/view/users" class="list-group-item list-group-item-action"
+    >Manage users</a
+  >
+  <a href="/view/audit" class="list-group-item list-group-item-action"
+    >View audit logs</a
+  >
+  {% endif %}
+
+  <a href="/view/deleted" class="list-group-item list-group-item-action"
+    >View deleted items</a
+  >
+
+  {% if user.is_superuser %}
+  <a
+    href="/view/deleted_categories"
+    class="list-group-item list-group-item-action"
+    >View deleted categories</a
+  >
+  <a href="/register/category" class="list-group-item list-group-item-action"
+    >Create a new category</a
+  >
+  <a href="/register/subcategory" class="list-group-item list-group-item-action"
+    >Create a new subcategory</a
+  >
+  <a href="/delete/category" class="list-group-item list-group-item-action"
+    ><div style="color: red">Delete a category</div></a
+  >
+  <a href="/delete/subcategory" class="list-group-item list-group-item-action"
+    ><div style="color: red">Delete a subcategory</div></a
+  >
+  {% endif %}
+
+  <a href="/delete/image" class="list-group-item list-group-item-action"
+    ><div style="color: red">Delete an image</div></a
+  >
+</div>
+
+<br />
+{% endif %}
+
+<h5>Account</h5>
+<div class="list-group">
+  {% if user.is_authenticated %}
+  <a href="/logout" class="list-group-item list-group-item-action">Log out</a>
+  {% else %}
+  <a href="/login" class="list-group-item list-group-item-action">Log in</a>
+  {% endif %}
+</div>
+
+<script>
+  (function () {
+    var el = document.getElementById("greet");
+    if (!el) return;
+    var hrs = new Date().getHours();
+    el.textContent =
+      hrs < 12 ? "Good morning" : hrs <= 17 ? "Good afternoon" : "Good evening";
+  })();
+</script>
+
+{% endblock body %}

@@ -1,26 +1,24 @@
-from rest_framework import permissions, viewsets
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
+from django.template import loader
 
-from inventory.models import Category, Item
-from inventory.serializers import ItemSerializer, CategorySerializer
+from inventory.models import Category
 
-# Create your views here.
+def index(request):
+    # Redirect to dashboard
+    return HttpResponseRedirect(reverse("dashboard"))
 
+def dashboard(request):
+    template = loader.get_template("dashboard.html")
+    return HttpResponse(template.render({}, request))
 
-class ItemViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows items to be viewed or edited.
-    """
+def view_database(request):
+    # Fetch all categories and prefetch related subcategories
+    categories = Category.objects.prefetch_related('subcategories').all()
 
-    queryset = Item.objects.all()
-    serializer_class = ItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    context = {
+        'categories': categories,
+    }
 
-
-class CategoryViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows categories to be viewed or edited.
-    """
-
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    template = loader.get_template("view.html")
+    return HttpResponse(template.render(context, request))
