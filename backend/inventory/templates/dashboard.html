@@ -48,7 +48,7 @@
     >View deleted items</a
   >
 
-  {% if user.is_superuser %}
+  {% if perms.inventory.view_deletedcategory %}
   <a
     href="/view/deleted_categories"
     class="list-group-item list-group-item-action"
@@ -60,7 +60,9 @@
   <a href="/register/subcategory" class="list-group-item list-group-item-action"
     >Create a new subcategory</a
   >
-  <a href="/delete/category" class="list-group-item list-group-item-action"
+  <a
+    href="{% url 'delete_category_list_view' %}"
+    class="list-group-item list-group-item-action"
     ><div style="color: red">Delete a category</div></a
   >
   <a href="/delete/subcategory" class="list-group-item list-group-item-action"
@@ -81,7 +83,9 @@
   {% if user.is_authenticated %}
   <a href="/logout" class="list-group-item list-group-item-action">Log out</a>
   {% else %}
-  <a href="/login" class="list-group-item list-group-item-action">Log in</a>
+  <a href="{% url 'login' %}" class="list-group-item list-group-item-action"
+    >Log in</a
+  >
   {% endif %}
 </div>
 

@@ -14,6 +14,20 @@ class Category(models.Model):
         return self.name
 
 
+class DeletedCategory(models.Model):
+    """
+    This model exists purely to hold the 'view_deletedcategory' permission.
+    """
+    class Meta:
+        managed = False  # Tells Django not to create a database table for this model
+        default_permissions = () # Tells Django not to create default add/change/delete permissions
+        permissions = [
+            ("view_deletedcategory", "Can view deleted categories"),
+        ]
+
+    def __str__(self):
+        return "DeletedCategory permissions holder"
+
 class Subcategory(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     category = models.ForeignKey(

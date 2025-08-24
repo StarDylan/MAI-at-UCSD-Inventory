@@ -1,5 +1,9 @@
 from django.contrib import admin
+from django import forms
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.contrib.auth.models import User, Group
+from django.db import OperationalError
 from django.utils.html import format_html
 from . import models
 
@@ -104,6 +108,65 @@ class MyUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
             (None, {'fields': ('user_picture',)}),
     )
+
+
+# A helper function to get the 'Normal' group, which we will use as a callable
+def get_normal_group():
+    """Returns the 'Normal' group object, or None if the table doesn't exist yet."""
+    try:
+        return Group.objects.get(name='Normal')
+    except (Group.DoesNotExist, OperationalError):
+        # This will happen during the makemigrations command, so we return None
+        return None
+
+# Define a custom form for creating a new user in the admin
+class CustomUserCreationForm(UserCreationForm):
+    # This field will list the groups you want to show
+    group = forms.ModelChoiceField(
+        queryset=Group.objects.filter(name__in=['Admin', 'Normal']),
+        label='User Group',
+        # Use our helper function as a callable for the initial value
+        # This defers the database query until the form is instantiated
+        initial=get_normal_group,
+        help_text='Select the user\'s group.',
+        empty_label=None # Don't show a blank option
+    )
+
+    class Meta(UserCreationForm.Meta):
+        # We need to explicitly define the fields from the base form
+        # and add our custom 'group' field
+        fields = ('username',)
+
+# Define our custom UserAdmin class
+class CustomUserAdmin(UserAdmin):
+    # Use our custom form for the user creation page
+    add_form = CustomUserCreationForm
+
+    # Hide the default 'Groups' and 'User permissions' fields
+    # so we can use our custom 'group' field
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
+    )
+
+    # Add the custom 'group' field to the list of fields displayed in the add_form
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'group'), # Add our custom field here
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        # This method is called when a user is saved via the admin
+        super().save_model(request, obj, form, change)
+        if not change: # Only on creation of a new user
+            group = form.cleaned_data['group']
+            obj.groups.add(group)
+
+# Unregister the default UserAdmin and register our custom one
+admin.site.register(User, CustomUserAdmin)
 
 @admin.register(models.AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
