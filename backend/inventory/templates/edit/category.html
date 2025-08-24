@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block body %}
+
+<h4>Edit category</h4>
+
+<form method="POST">
+  {% csrf_token %}
+  <div class="form-group">
+    {{ form.category.label_tag }} {{ form.category }}
+  </div>
+  <p><input type="submit" class="btn btn-primary" value="Rename" /></p>
+</form>
+
+{% endblock %}

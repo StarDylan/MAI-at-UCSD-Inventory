@@ -29,7 +29,7 @@
     if (confirm("Are you sure you want to delete '" + name + "'?")) {
       window.location.href =
         "{% url 'delete_category' uuid='00000000-0000-0000-0000-000000000000' %}".replace(
-          "/0",
+          "/00000000-0000-0000-0000-000000000000",
           "/" + id
         );
     }

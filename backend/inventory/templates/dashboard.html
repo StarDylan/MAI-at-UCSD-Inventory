@@ -65,7 +65,9 @@
     class="list-group-item list-group-item-action"
     ><div style="color: red">Delete a category</div></a
   >
-  <a href="/delete/subcategory" class="list-group-item list-group-item-action"
+  <a
+    href="{% url 'delete_subcategory_list_view' %}"
+    class="list-group-item list-group-item-action"
     ><div style="color: red">Delete a subcategory</div></a
   >
   {% endif %}

@@ -1,11 +1,12 @@
 import json
 from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
 
-from inventory.models import AuditEvent, Category, Image
+from inventory.forms import CategoryForm
+from inventory.models import AuditEvent, Category, Image, Subcategory
 
 def index(request):
     # Redirect to dashboard
@@ -55,8 +56,8 @@ def delete_category_list_view(request):
 @login_required
 def delete_category(request, uuid):
     # Check for admin privileges
-    if not request.user.has_perm('inventory.delete_category'):
-        return #redirect('permission_error') # You need to create this URL
+    # if not request.user.has_perm('inventory.delete_category'):
+    #     return #redirect('permission_error') # You need to create this URL
 
     # Get the category object or return a 404 error if not found
     category = get_object_or_404(Category, pk=uuid)
@@ -64,12 +65,7 @@ def delete_category(request, uuid):
     # Perform the deletion
     category.delete()
 
-    # Redirect to the 'view_category' page for the deleted item's uuid.
-    # Note: Redirecting to a deleted item's page is unusual.
-    # A more common practice is to redirect to the category list page.
-    # I have kept the original logic, but a better redirect would be:
-    # return redirect('view_database') # URL for the category list page
-    return redirect('view_category', uuid=uuid)
+    return redirect('dashboard')
 
 def delete_image_list_view(request):
     # Use select_related('item') to join the Image and Item tables in the database query.
@@ -84,3 +80,49 @@ def delete_image_list_view(request):
 
 def profile_view(request):
     return HttpResponseRedirect(reverse("dashboard"))
+
+def delete_subcategory_list_view(request):
+    """
+    Fetches all subcategories from the database and pre-fetches
+    their related category data using select_related() for efficiency.
+    """
+    subcategories = Subcategory.objects.select_related('category').all().order_by('name')
+
+
+    context = {
+        'subcategories': subcategories
+    }
+    
+    # Render the template and pass the context data.
+    template = loader.get_template("delete/subcategory.html")
+    return HttpResponse(template.render(context, request))
+
+
+@login_required
+def delete_subcategory(request, uuid):
+    # Check for admin privileges
+    # if not request.user.has_perm('inventory.delete_subcategory'):
+    #     return #redirect('permission_error') # You need to create this URL
+
+    # Get the subcategory object or return a 404 error if not found
+    subcategory = get_object_or_404(Subcategory, pk=uuid)
+
+    # Perform the deletion
+    subcategory.delete()
+
+    return redirect('dashboard')
+
+
+@login_required
+def edit_category(request, uuid):
+    category = get_object_or_404(Category, id=uuid)
+    if request.method == 'POST':
+        form = CategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            return redirect('dashboard')  # Replace with the URL you want to redirect to after a successful edit
+    else:
+        form = CategoryForm(instance=category)
+
+    return render(request, 'edit/category.html', {'form': form})
+
