@@ -6,10 +6,10 @@ from django.urls import reverse, reverse_lazy
 from django.template import loader
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import UpdateView
+from django.views.generic import UpdateView, CreateView
 
 from inventory import models
-from inventory.forms import CategoryForm, ItemForm
+from inventory.forms import CategoryForm, ItemForm, SubcategoryForm
 from inventory.models import AuditEvent, Category, Image, Subcategory
 
 def index(request):
@@ -90,7 +90,7 @@ def delete_subcategory_list_view(request):
     Fetches all subcategories from the database and pre-fetches
     their related category data using select_related() for efficiency.
     """
-    subcategories = Subcategory.objects.select_related('category').all().order_by('name')
+    subcategories = Subcategory.objects.select_related('category').all().order_by('category__name', 'name')
 
 
     context = {
@@ -127,4 +127,16 @@ class ItemUpdateView(LoginRequiredMixin, UpdateView):
     model = models.Item
     form_class = ItemForm
     template_name = "edit/item.html"
+    success_url = reverse_lazy('dashboard')
+
+class CategoryCreateView(LoginRequiredMixin, CreateView):
+    model = models.Category
+    form_class = CategoryForm
+    template_name = "register/category.html"
+    success_url = reverse_lazy('dashboard')
+
+class SubcategoryCreateView(LoginRequiredMixin, CreateView):
+    model = models.Subcategory
+    form_class = SubcategoryForm
+    template_name = "register/subcategory.html"
     success_url = reverse_lazy('dashboard')

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Category
+from .models import Category, Subcategory
 from inventory import models
 
 class CategoryForm(forms.ModelForm):
@@ -64,3 +64,9 @@ class ItemForm(forms.ModelForm):
             item.save()
         
         return item
+
+class SubcategoryForm(forms.ModelForm):
+    name = forms.CharField(max_length=100, label="Subcategory Name")
+    class Meta:
+        model = Subcategory
+        fields = ['category', 'name']

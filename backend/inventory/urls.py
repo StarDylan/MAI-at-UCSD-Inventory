@@ -17,5 +17,8 @@ urlpatterns = [
     path('edit/category/<uuid:pk>/', views.CategoryUpdateView.as_view(), name='edit_category'),
     path('edit/item/<uuid:pk>/', views.ItemUpdateView.as_view(), name='edit_item'),
 
+    path('create/category/', views.CategoryCreateView.as_view(), name='create_category'),
+    path('create/subcategory/', views.SubcategoryCreateView.as_view(), name='create_subcategory'),
+
     path('accounts/profile/', views.profile_view, name='profile')
 ]
