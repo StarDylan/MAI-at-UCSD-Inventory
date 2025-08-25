@@ -1,11 +1,15 @@
 import json
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django import forms
+from django.urls import reverse, reverse_lazy
 from django.template import loader
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import UpdateView
 
-from inventory.forms import CategoryForm
+from inventory import models
+from inventory.forms import CategoryForm, ItemForm
 from inventory.models import AuditEvent, Category, Image, Subcategory
 
 def index(request):
@@ -113,16 +117,14 @@ def delete_subcategory(request, uuid):
     return redirect('dashboard')
 
 
-@login_required
-def edit_category(request, uuid):
-    category = get_object_or_404(Category, id=uuid)
-    if request.method == 'POST':
-        form = CategoryForm(request.POST, instance=category)
-        if form.is_valid():
-            form.save()
-            return redirect('dashboard')  # Replace with the URL you want to redirect to after a successful edit
-    else:
-        form = CategoryForm(instance=category)
+class CategoryUpdateView(LoginRequiredMixin, UpdateView):
+    model = Category
+    form_class = CategoryForm
+    template_name = "edit/category.html"
+    success_url = reverse_lazy('dashboard')
 
-    return render(request, 'edit/category.html', {'form': form})
-
+class ItemUpdateView(LoginRequiredMixin, UpdateView):
+    model = models.Item
+    form_class = ItemForm
+    template_name = "edit/item.html"
+    success_url = reverse_lazy('dashboard')

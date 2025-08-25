@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "crispy_forms",
+    "crispy_bootstrap4",
     "inventory",
 ]
 
@@ -129,3 +131,6 @@ REST_FRAMEWORK = {
 }
 
 AUTH_USER_MODEL = "inventory.User"
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
+CRISPY_TEMPLATE_PACK = "bootstrap4"

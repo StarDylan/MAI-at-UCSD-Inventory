@@ -14,7 +14,8 @@ urlpatterns = [
     path('delete/subcategory/', views.delete_subcategory_list_view, name='delete_subcategory_list_view'),
     path('delete/subcategory/<uuid:uuid>/', views.delete_subcategory, name='delete_subcategory'),
 
-    path('edit/category/<uuid:uuid>/', views.edit_category, name='edit_category'),
+    path('edit/category/<uuid:pk>/', views.CategoryUpdateView.as_view(), name='edit_category'),
+    path('edit/item/<uuid:pk>/', views.ItemUpdateView.as_view(), name='edit_item'),
 
     path('accounts/profile/', views.profile_view, name='profile')
 ]
