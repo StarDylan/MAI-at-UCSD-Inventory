@@ -1,4 +1,6 @@
 import json
+import logging
+from typing import TypedDict, cast
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django import forms
@@ -7,10 +9,16 @@ from django.template import loader
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import UpdateView, CreateView
+from django.conf import settings
 
 from inventory import models
 from inventory.forms import CategoryForm, ItemForm, SubcategoryForm
 from inventory.models import AuditEvent, Category, Image, Item, Subcategory
+
+import cloudinary
+import cloudinary.uploader
+from cloudinary.utils import cloudinary_url
+
 
 def index(request):
     # Redirect to dashboard
@@ -282,17 +290,10 @@ def restore_item(request, uuid):
 def upload_photo(request, uuid):
     """
     Handles photo uploads for an item.
-    - Requires a POST request.
-    - Requires the user to be authenticated and have a role >= 5.
-    - Uploads the image to Imgur and stores the URL and delete hash.
     """
     # Ensure the request method is POST.
     if request.method != 'POST':
         return HttpResponseForbidden("Method not allowed.")
-
-    # Check if the user has the required permission level.
-    if not request.user.is_authenticated or request.user.role < 5:
-        return HttpResponseForbidden("You do not have permission to upload photos.")
     
     # Get the item or return a 404 error if it doesn't exist.
     item = get_object_or_404(Item, id=uuid)
@@ -306,33 +307,80 @@ def upload_photo(request, uuid):
         if not image_data:
             return HttpResponse('False')
 
-        # Extract the base64 string part after the data type header.
-        base64_string = image_data.split(',')[1]
-
         # Make a POST request to the Imgur API.
-        result = requests.post(
-            url='https://api.imgur.com/3/image',
-            data={'image': base64_string},
-            headers={'Authorization': 'Client-ID ' + settings.IMGUR_CLIENT_ID}
-        ).json()
+    
+        # Configuration       
+        cloudinary.config( 
+            cloud_name = settings.CLOUDINARY_CLOUD_NAME, 
+            api_key = settings.CLOUDINARY_API_KEY, 
+            api_secret = settings.CLOUDINARY_API_SECRET, 
+            secure=True
+        )
 
-        image_url = result['data']['link']
-        delete_hash = result['data']['deletehash']
-        success = result['success']
+        # Upload an image
+        class UploadResult(TypedDict):
+            secure_url: str
+            public_id: str
+            version: int
 
-        if success:
-            # Create a new Image object and save it to the database.
-            Image.objects.create(
-                image_url=image_url,
-                delete_hash=delete_hash,
-                item=item,
-            )
-        else:
-            logging.error("An error occurred while uploading image: " + str(result))
+        try:
 
-        return HttpResponse(str(success))
+            upload_result = cast(UploadResult, cloudinary.uploader.upload(image_data, resource_type="auto"))
+            # Optimize delivery by resizing and applying auto-format and auto-quality
+            optimize_url, _ = cloudinary_url(upload_result["public_id"], fetch_format="auto", quality="auto")
+        except Exception as e:
+            logging.error(f"An error occurred during image upload: {e}")
+            raise Exception("Cloudinary upload failed")
+
+       
+        # Create a new Image object and save it to the database.
+        Image.objects.create(
+            image_url=optimize_url,
+            public_id=upload_result["public_id"],
+            item=item,
+        )
+     
+        return HttpResponse(status=201)
 
     except Exception as e:
         logging.error(f"An exception occurred during image upload: {e}")
         return HttpResponse('False')
-    z
+    
+@login_required
+def restore_category(request, uuid):
+    """
+    Restores a deleted item.
+    """
+
+    # Get the Category object or return a 404 error if it doesn't exist.
+    category = get_object_or_404(Category, id=uuid)
+
+    # Update the 'deleted' field and save the object.
+    category.deleted = False
+    category.save()
+
+    # Redirect to the view page for the restored item.
+    return redirect('view_category', uuid=uuid)
+
+@login_required
+def delete_image(request, uuid):
+    """
+    Deletes an image by setting its 'deleted' status to True.
+    """
+
+    # Get the image or return a 404 error if it doesn't exist.
+    image = get_object_or_404(Image, id=uuid)
+
+    # Delete from cloudinary
+    try:
+        cloudinary.uploader.destroy(image.public_id)
+    except Exception as e:
+        logging.error(f"An error occurred while deleting image from Cloudinary: {e}")
+        raise e
+    
+    image.delete()
+
+    referer = request.META.get('HTTP_REFERER')  # full URL of previous page
+    if referer:
+        return HttpResponseRedirect(referer)
+    return HttpResponseRedirect(reverse('delete_image_list_view'))

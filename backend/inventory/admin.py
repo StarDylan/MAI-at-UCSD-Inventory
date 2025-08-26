@@ -93,7 +93,7 @@ class ItemAdmin(admin.ModelAdmin):
 
 @admin.register(models.Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ("id", "item", "image_url", "deletion_hash")
+    list_display = ("id", "item", "image_url", "public_id")
     search_fields = ("id", "image_url", "item__name", "item__id")
     list_select_related = ("item",)
     autocomplete_fields = ("item",)

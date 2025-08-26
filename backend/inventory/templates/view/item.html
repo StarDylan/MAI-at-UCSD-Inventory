@@ -155,13 +155,14 @@
     <div class="card-header">
           <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">photo</i> Photos</span>
           {% if not item.deleted and user.is_authenticated %}
+          {% csrf_token %}
           <a style="text-align:right;float:right;" class="vertical-align-middle">
           <input type="file"  accept="image/*" name="image" id="file"  onchange="loadFile(event)" style="display: none;">
           <label for="file">
             <i class="material-icons">add_a_photo</i>        
           </label>
           {% if images|length > 0 %}
-          <a href="{% url 'delete_image' %}?query={{item.name}}"><button class="btn"><i class="material-icons"style="color:red">delete</i></button></a>
+          <a href="{% url 'delete_image_list_view' %}?query={{item.name}}"><button class="btn"><i class="material-icons"style="color:red">delete</i></button></a>
           {% endif %}
           </a>  
           {% endif %}
@@ -286,23 +287,32 @@
             ctx.drawImage(image, 0, 0, newWidth, newHeight);
             newDataUrl = canvas.toDataURL('image/jpeg', 0.5);
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "{% url 'upload_photo' item.id %}", true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.send(JSON.stringify({
-                img: newDataUrl
-            }));
-            xhr.onload = function () {
-                result = xhr.response;
+           fetch("{% url 'upload_photo' item.id %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    img: newDataUrl
+                })
+            })
+            .then(response => {
                 document.getElementById("loader").style.display = "none";
                 document.getElementById("page").style.display = "block";
                 document.getElementById("footer").style.display = "block";
-                if (result === "True") { 
+
+                if (response.status === 201) {
                     location.reload();
                 } else {
                     alert("There was an issue uploading your photo. Please try again, or use a smaller photo.");
+                    console.warn(response);
                 }
-            }
+            })
+            .catch(error => {
+                document.getElementById("loader").style.display = "none";
+                alert("An error occurred: " + error);
+            });
           }
           image.src = reader.result;
         };

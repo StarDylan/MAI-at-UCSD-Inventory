@@ -95,7 +95,7 @@ class User(AbstractUser):
 class Image(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     image_url = models.URLField()
-    deletion_hash = models.CharField(max_length=255, blank=True, null=True)
+    public_id = models.CharField(max_length=255, blank=True, null=True)
     item = models.ForeignKey(
         Item, related_name="images", on_delete=models.CASCADE, db_column="item_id"
     )

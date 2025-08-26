@@ -11,19 +11,29 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import environ
+import os
+
+
+# For type-hinting and default values
+env = environ.Env(
+    DEBUG=(bool, False)
+)
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'), parse_comments=True)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-%df2gd8*_lm5scawk9x+eflhaf-flh1!93vj&9sic&p0u58b^h"
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
@@ -134,3 +144,7 @@ AUTH_USER_MODEL = "inventory.User"
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
+
+CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME', None)
+CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY', None)
+CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET', None)
