@@ -40,5 +40,7 @@ urlpatterns = [
     path('search/check_in/', views.SearchCheckInView.as_view(), name='search_check_in'),
     path('search/check_out/', views.SearchCheckOutView.as_view(), name='search_check_out'),
 
+    path('view/deleted_items', views.view_deleted_items, name='view_deleted_items'),
+
     path('accounts/profile/', views.profile_view, name='profile')
 ]

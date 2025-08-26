@@ -53,6 +53,7 @@ def audit_view(request):
     template = loader.get_template("audit.html")
     return HttpResponse(template.render(context, request))
 
+# TODO: Only show categories that have no items
 def delete_category_list_view(request):
     categories = Category.objects.all().order_by('name')
     template = loader.get_template("delete/category.html")
@@ -86,6 +87,8 @@ def delete_image_list_view(request):
 def profile_view(request):
     return HttpResponseRedirect(reverse("dashboard"))
 
+
+# TODO: Only show subcategories that have no items
 def delete_subcategory_list_view(request):
     """
     Fetches all subcategories from the database and pre-fetches
@@ -252,7 +255,7 @@ def restore_subcategory(request, uuid):
     subcategory = get_object_or_404(Subcategory, id=uuid)
 
     # Update the 'deleted' field and save the object.
-    subcategory.deleted = False
+    subcategory.is_deleted = False
     subcategory.save()
 
     # Redirect to the view page for the restored subcategory.
@@ -268,7 +271,7 @@ def delete_item(request, uuid):
     item = get_object_or_404(Item, id=uuid)
     
     # "Soft-delete" the item by setting the deleted flag.
-    item.deleted = True
+    item.is_deleted = True
     item.save()
     
     # Redirect to the item's view page after successful deletion.
@@ -284,7 +287,7 @@ def restore_item(request, uuid):
     item = get_object_or_404(Item, id=uuid)
 
     # Update the 'deleted' field and save the object.
-    item.deleted = False
+    item.is_deleted = False
     item.save()
 
     # Redirect to the view page for the restored item.
@@ -360,7 +363,7 @@ def restore_category(request, uuid):
     category = get_object_or_404(Category, id=uuid)
 
     # Update the 'deleted' field and save the object.
-    category.deleted = False
+    category.is_deleted = False
     category.save()
 
     # Redirect to the view page for the restored item.
@@ -488,4 +491,12 @@ class SearchCheckOutView(LoginRequiredMixin, FormView):
         item.save()
 
         return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
+
+
+def view_deleted_items(request):
+    """
+    View to display all deleted items.
+    """
+    deleted_items = Item.objects.filter(is_deleted=True)
+    return render(request, 'view/category.html', {'category': {"name": "Deleted Items"}, 'items': deleted_items})
 

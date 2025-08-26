@@ -2,7 +2,7 @@
 {% block body %}
 <div id="page">
 
-{% if item.category.deleted %}
+{% if item.category.is_deleted %}
 <div class="alert alert-warning" role="alert">
   <strong>Warning:</strong> This item belongs to a deleted category and cannot be edited.
 </div>
@@ -10,8 +10,8 @@
   
 <h4 style="text-align:left;float:left;">{{ item.name }}</h4> 
 <a style="text-align:right;float:right;">
-  {% if not item.category.deleted %}
-    {% if item.deleted %}
+  {% if not item.category.is_deleted %}
+    {% if item.is_deleted %}
         {% if user.is_authenticated %}
         <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
         {% endif %}
@@ -84,7 +84,7 @@
     <div class="d-flex list-group-item flex-row ">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">visibility</i> Item Status</span>
       <span class="flex-fill text-right">
-        {% if item.deleted %}
+        {% if item.is_deleted %}
           <div style="color:red;">Deleted</div>
         {% else %}
           Active
@@ -154,7 +154,7 @@
 <div class="card">
     <div class="card-header">
           <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">photo</i> Photos</span>
-          {% if not item.deleted and user.is_authenticated %}
+          {% if not item.is_deleted and user.is_authenticated %}
           {% csrf_token %}
           <a style="text-align:right;float:right;" class="vertical-align-middle">
           <input type="file"  accept="image/*" name="image" id="file"  onchange="loadFile(event)" style="display: none;">

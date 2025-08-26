@@ -17,11 +17,11 @@ admin.site.empty_value_display = "—"
 
 @admin.action(description="Mark selected as deleted")
 def mark_deleted(modeladmin, request, queryset):
-    queryset.update(deleted=True)
+    queryset.update(is_deleted=True)
 
 @admin.action(description="Restore selected (clear deleted)")
 def restore_deleted(modeladmin, request, queryset):
-    queryset.update(deleted=False)
+    queryset.update(is_deleted=False)
 
 
 # ---------- Inlines ----------
@@ -37,8 +37,8 @@ class ItemImageInline(admin.TabularInline):
 
 @admin.register(models.Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "deleted")
-    list_filter = ("deleted",)
+    list_display = ("id", "name", "is_deleted")
+    list_filter = ("is_deleted",)
     search_fields = ("id", "name")
     ordering = ("name",)
     actions = (mark_deleted, restore_deleted)
@@ -47,8 +47,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(models.Subcategory)
 class SubcategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "category", "deleted")
-    list_filter = ("deleted", "category")
+    list_display = ("id", "name", "category", "is_deleted")
+    list_filter = ("is_deleted", "category")
     search_fields = ("id", "name", "category__name")
     ordering = ("category__name", "name")
     autocomplete_fields = ("category",)
@@ -65,10 +65,10 @@ class ItemAdmin(admin.ModelAdmin):
         "subcategory",
         "location",
         "quantity_active",
-        "deleted",
+        "is_deleted",
         "url_link",
     )
-    list_filter = ("deleted", "category", "subcategory")
+    list_filter = ("is_deleted", "category", "subcategory")
     search_fields = (
         "id",
         "name",
