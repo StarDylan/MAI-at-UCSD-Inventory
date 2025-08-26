@@ -44,6 +44,7 @@ class ItemForm(forms.ModelForm):
 
         # Add the last category's group
         if category_group:
+            assert current_category is not None  # For type checker, we always assign a category and subcategory
             grouped_choices.append((current_category.name, category_group))
 
         # Set the choices for the subcategory field
@@ -70,3 +71,30 @@ class SubcategoryForm(forms.ModelForm):
     class Meta:
         model = Subcategory
         fields = ['category', 'name']
+
+class ItemWithLocationChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj: models.Item):
+        return f"{obj.name} [{obj.location}]"
+
+
+class Search_QuantityAdd(forms.Form):
+    item = ItemWithLocationChoiceField(
+        queryset=models.Item.objects.order_by("name"),
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+    quantity = forms.IntegerField(
+        min_value=1,
+        label="Quantity to add",
+        widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
+    )
+
+class Search_QuantityRemove(forms.Form):
+    item = ItemWithLocationChoiceField(
+        queryset=models.Item.objects.order_by("name"),
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+    quantity = forms.IntegerField(
+        min_value=1,
+        label="Quantity to remove",
+        widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
+    )

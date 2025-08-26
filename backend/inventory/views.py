@@ -8,11 +8,13 @@ from django.urls import reverse, reverse_lazy
 from django.template import loader
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import UpdateView, CreateView
+from django.views.generic import UpdateView, CreateView, FormView
 from django.conf import settings
+from django.contrib import messages
+from django.db.models import F
 
 from inventory import models
-from inventory.forms import CategoryForm, ItemForm, SubcategoryForm
+from inventory.forms import CategoryForm, ItemForm, Search_QuantityAdd, Search_QuantityRemove, SubcategoryForm
 from inventory.models import AuditEvent, Category, Image, Item, Subcategory
 
 import cloudinary
@@ -386,3 +388,104 @@ def delete_image(request, uuid):
     if referer:
         return HttpResponseRedirect(referer)
     return HttpResponseRedirect(reverse('delete_image_list_view'))
+
+
+
+def search_item_update_quantity(item_id, quantity):
+    """
+    Placeholder for your database function.
+    Returns True on success, False on failure.
+    """
+    # Example:
+    try:
+        Item.objects.filter(id=item_id).update(quantity=F('quantity') + quantity)
+        return True
+    except Exception as e:
+        print(e)
+        return False
+    
+    # Mock behavior for demonstration
+    if quantity > 0:
+        return True
+    
+    return False
+
+class SearchCheckInView(LoginRequiredMixin, FormView):
+    """
+    A Django generic view to handle the "check in" item form.
+    It combines LoginRequiredMixin and a custom PermissionRequiredMixin
+    to handle authentication and authorization.
+    """
+    template_name = 'search/updateqty.html'  # Use the name of your template file
+    form_class = Search_QuantityAdd
+
+    def get_context_data(self, **kwargs):
+        """
+        Passes extra context variables to the template.
+        """
+        context = super().get_context_data(**kwargs)
+        context['action'] = 'Check in'
+        context['defaultQuantity'] = 1
+        context["items"] = Item.objects.all().order_by('name')
+        return context
+
+    def form_valid(self, form):
+        """
+        This method is called when the form is submitted and all fields are valid.
+        It handles the database update and redirection.
+        """
+        item = form.cleaned_data['item']
+        quantity = form.cleaned_data['quantity']
+
+        item = get_object_or_404(Item, id=item.id)
+        item.quantity_active += quantity
+        item.save()
+
+        return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
+
+    def form_invalid(self, form):
+        """
+        This method is called when the form submission fails validation.
+        The template will automatically display form errors.
+        """
+        messages.error(self.request, "Form submission failed. Please check the fields below.")
+        return super().form_invalid(form)
+
+class SearchCheckOutView(LoginRequiredMixin, FormView):
+    """
+    A Django generic view to handle the "check out" item form.
+    It combines LoginRequiredMixin and a custom PermissionRequiredMixin
+    to handle authentication and authorization.
+    """
+    template_name = 'search/updateqty.html'  # Use the name of your template file
+    form_class = Search_QuantityRemove
+
+    def get_context_data(self, **kwargs):
+        """
+        Passes extra context variables to the template.
+        """
+        context = super().get_context_data(**kwargs)
+        context['action'] = 'Check out'
+        # context['defaultQuantity'] = 1
+        context["items"] = Item.objects.all().order_by('name')
+        return context
+
+    def form_valid(self, form: Search_QuantityRemove):
+        """
+        This method is called when the form is submitted and all fields are valid.
+        It handles the database update and redirection.
+        """
+        item = form.cleaned_data['item']
+        quantity = form.cleaned_data['quantity']
+
+        item = get_object_or_404(Item, id=item.id)
+
+        if item.quantity_active < quantity:
+            form.add_error('quantity', f"Cannot check out {quantity} items. Only {item.quantity_active} available.")
+            return self.form_invalid(form)
+
+        item.quantity_active -= quantity
+        item.save()
+
+        return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
+

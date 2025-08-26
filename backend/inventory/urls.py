@@ -37,5 +37,8 @@ urlpatterns = [
 
     path('upload/photo/<uuid:uuid>/', views.upload_photo, name='upload_photo'),
 
+    path('search/check_in/', views.SearchCheckInView.as_view(), name='search_check_in'),
+    path('search/check_out/', views.SearchCheckOutView.as_view(), name='search_check_out'),
+
     path('accounts/profile/', views.profile_view, name='profile')
 ]
