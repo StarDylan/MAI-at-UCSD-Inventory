@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import TypedDict, cast
+from typing import TypedDict, cast, Any
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django import forms
@@ -34,6 +34,8 @@ def audit_view(request):
     Renders the audit log page.
     """
     events = AuditEvent.objects.all().order_by('-created_at')
+
+    events = cast(list[Any], events)
 
     # Prepare data for the template
     for event in events:
