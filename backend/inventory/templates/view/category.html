@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block body %}
+<h4 style="text-align:left;float:left;">{{ category.name }}</h4>
+{% if user.is_authenticated %}
+<a style="text-align:right;float:right;">
+    {% if category.deleted %}
+    <button class="btn" onclick="confirmRestore('{{ category.id }}','{{ category.name }}')"><i
+            class="material-icons">restore</i></button>
+    {% elif items|length == 0 %}
+    <button class="btn" onclick="confirmDelete('{{ category.id }}','{{ category.name }}')"><i class="material-icons"
+            style="color:red">delete</i></button>
+    {% endif %}
+</a>
+{% endif %}
+
+<div class="table-responsive">
+    <table class="table table-hover" id="items_table">
+        <thead>
+            <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Subcategory</th>
+                <th scope="col">Item</th>
+                <th scope="col">Location</th>
+                <th scope="col">Quantity</th>
+                <th scope="col"></th>
+            </tr>
+        </thead>
+        <tbody id="table">
+            {% for item in items %}
+            <tr>
+                <td>{{ item.category.name }}</td>
+                <td>{{ item.subcategory.name }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.location }}</td>
+                <td>{{ item.quantity_active }}</td>
+                <td class="text-right">
+                    <a href="{% url 'view_item' item.id %}"><button class="btn"><i class="material-icons">description</i></button></a>
+                    {% if not item.deleted and user.is_authenticated and user.role >= 5 %}
+                    <a href="{% url 'edit_item' item.id %}"><button class="btn"><i class="material-icons">edit</i></button></a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function confirmDelete(id, name) {
+      if (confirm("Are you sure you want to delete category [" + name + "]?")) {
+        window.location.href = "{% url 'delete_category' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
+      }
+    }
+    function confirmRestore(id, name) {
+      if (confirm("Are you sure you want to restore category [" + name + "]?")) {
+        window.location.href = "{% url 'restore_category' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
+      }
+    }
+</script>
+  
+<script>
+    window.onload = function() {
+        $.fn.dataTable.moment( 'DD-MMM-YYYY HH:mm:ss' );
+        $("#items_table").DataTable({
+            "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]]
+        });
+    }
+</script>
+
+{% endblock %}

@@ -1,5 +1,5 @@
 import json
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django import forms
 from django.urls import reverse, reverse_lazy
@@ -10,7 +10,7 @@ from django.views.generic import UpdateView, CreateView
 
 from inventory import models
 from inventory.forms import CategoryForm, ItemForm, SubcategoryForm
-from inventory.models import AuditEvent, Category, Image, Subcategory
+from inventory.models import AuditEvent, Category, Image, Item, Subcategory
 
 def index(request):
     # Redirect to dashboard
@@ -19,17 +19,6 @@ def index(request):
 def dashboard(request):
     template = loader.get_template("dashboard.html")
     return HttpResponse(template.render({}, request))
-
-def view_database(request):
-    # Fetch all categories and prefetch related subcategories
-    categories = Category.objects.prefetch_related('subcategories').all()
-
-    context = {
-        'categories': categories,
-    }
-
-    template = loader.get_template("view.html")
-    return HttpResponse(template.render(context, request))
 
 
 def audit_view(request):
@@ -140,3 +129,210 @@ class SubcategoryCreateView(LoginRequiredMixin, CreateView):
     form_class = SubcategoryForm
     template_name = "register/subcategory.html"
     success_url = reverse_lazy('dashboard')
+
+class ItemCreateView(LoginRequiredMixin, CreateView):
+    model = models.Item
+    form_class = ItemForm
+    template_name = "register/item.html"
+    success_url = reverse_lazy('dashboard')
+
+def view_database(request):
+    """
+    Fetches all categories and their related subcategories.
+    `prefetch_related` is used for efficiency to avoid N+1 query problem.
+    """
+    categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+
+    context = {
+        'categories': categories,
+    }
+
+    template = loader.get_template("view.html")
+    return HttpResponse(template.render(context, request))
+
+def view_all_items(request):
+    """
+    Fetches all items from the database.
+    `select_related` is used to efficiently retrieve related category and subcategory data.
+    """
+    # Fetch all items and pre-fetch their related category and subcategory data.
+    items = Item.objects.select_related('category', 'subcategory').all().order_by('name')
+
+    context = {
+        'items': items,
+        'category': "All Items"
+    }
+
+    template = loader.get_template("view/category.html")
+    return HttpResponse(template.render(context, request))
+
+def view_category_items(request, uuid):
+    """
+    Fetches a specific category and all its related items.
+    """
+    # Get the Category object based on the UUID, or return a 404 error if it doesn't exist.
+    category = get_object_or_404(Category, id=uuid)
+    
+    # Fetch all items belonging to the selected category.
+    # Use `select_related` to optimize database queries for related data.
+    items = Item.objects.filter(category=category).select_related('category', 'subcategory').order_by('name')
+
+    context = {
+        'category': category,
+        'items': items,
+    }
+
+    template = loader.get_template("view/category.html")
+    return HttpResponse(template.render(context, request))
+
+def view_subcategory_items(request, uuid):
+    """
+    Fetches a specific subcategory and all its related items.
+    """
+    # Get the Subcategory object based on the UUID, or return a 404 error.
+    subcategory = get_object_or_404(Subcategory, id=uuid)
+    
+    # Fetch all items belonging to the selected subcategory.
+    # Use `select_related` to fetch the related category and subcategory data efficiently.
+    items = Item.objects.filter(subcategory=subcategory).select_related('category', 'subcategory').order_by('name')
+
+    context = {
+        'subcategory': subcategory,
+        'items': items,
+    }
+    
+    template = loader.get_template("view/subcategory.html")
+    return HttpResponse(template.render(context, request))
+
+def view_item(request, uuid):
+    """
+    Fetches a specific item and all its related data.
+    """
+    # Get the Item object based on the UUID, or return a 404 error.
+    # Use select_related to get the related category and subcategory efficiently.
+    item = get_object_or_404(
+        Item.objects.select_related('category', 'subcategory'),
+        id=uuid
+    )
+    
+    # Fetch all images related to the item.
+    images = Image.objects.filter(item=item).order_by('id')
+    
+    # Fetch all audit events for the item.
+    audit = AuditEvent.objects.filter(entity_id=uuid).order_by('created_at')
+
+    context = {
+        'item': item,
+        'images': images,
+        'audit': audit,
+    }
+    
+    template = loader.get_template("view/item.html")
+    return HttpResponse(template.render(context, request))
+
+@login_required
+def restore_subcategory(request, uuid):
+    """
+    Restores a deleted subcategory.
+    """
+
+    # Get the Subcategory object or return a 404 error if it doesn't exist.
+    subcategory = get_object_or_404(Subcategory, id=uuid)
+
+    # Update the 'deleted' field and save the object.
+    subcategory.deleted = False
+    subcategory.save()
+
+    # Redirect to the view page for the restored subcategory.
+    return redirect('view_subcategory_items', uuid=uuid)
+
+@login_required
+def delete_item(request, uuid):
+    """
+    Deletes an item by setting its 'deleted' status to True.
+    """
+
+    # Get the item or return a 404 error if it doesn't exist.
+    item = get_object_or_404(Item, id=uuid)
+    
+    # "Soft-delete" the item by setting the deleted flag.
+    item.deleted = True
+    item.save()
+    
+    # Redirect to the item's view page after successful deletion.
+    return redirect('view_item', uuid=uuid)
+
+@login_required
+def restore_item(request, uuid):
+    """
+    Restores a deleted item.
+    """
+
+    # Get the Item object or return a 404 error if it doesn't exist.
+    item = get_object_or_404(Item, id=uuid)
+
+    # Update the 'deleted' field and save the object.
+    item.deleted = False
+    item.save()
+
+    # Redirect to the view page for the restored item.
+    return redirect('view_item', uuid=uuid)
+
+@login_required
+def upload_photo(request, uuid):
+    """
+    Handles photo uploads for an item.
+    - Requires a POST request.
+    - Requires the user to be authenticated and have a role >= 5.
+    - Uploads the image to Imgur and stores the URL and delete hash.
+    """
+    # Ensure the request method is POST.
+    if request.method != 'POST':
+        return HttpResponseForbidden("Method not allowed.")
+
+    # Check if the user has the required permission level.
+    if not request.user.is_authenticated or request.user.role < 5:
+        return HttpResponseForbidden("You do not have permission to upload photos.")
+    
+    # Get the item or return a 404 error if it doesn't exist.
+    item = get_object_or_404(Item, id=uuid)
+
+    try:
+        # Parse the JSON data from the request body.
+        data = json.loads(request.body)
+        image_data = data.get('img')
+        
+        # Check if the base64 image data is present.
+        if not image_data:
+            return HttpResponse('False')
+
+        # Extract the base64 string part after the data type header.
+        base64_string = image_data.split(',')[1]
+
+        # Make a POST request to the Imgur API.
+        result = requests.post(
+            url='https://api.imgur.com/3/image',
+            data={'image': base64_string},
+            headers={'Authorization': 'Client-ID ' + settings.IMGUR_CLIENT_ID}
+        ).json()
+
+        image_url = result['data']['link']
+        delete_hash = result['data']['deletehash']
+        success = result['success']
+
+        if success:
+            # Create a new Image object and save it to the database.
+            Image.objects.create(
+                image_url=image_url,
+                delete_hash=delete_hash,
+                item=item,
+            )
+        else:
+            logging.error("An error occurred while uploading image: " + str(result))
+
+        return HttpResponse(str(success))
+
+    except Exception as e:
+        logging.error(f"An exception occurred during image upload: {e}")
+        return HttpResponse('False')
+    z

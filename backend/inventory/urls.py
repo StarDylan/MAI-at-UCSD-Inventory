@@ -20,5 +20,18 @@ urlpatterns = [
     path('create/category/', views.CategoryCreateView.as_view(), name='create_category'),
     path('create/subcategory/', views.SubcategoryCreateView.as_view(), name='create_subcategory'),
 
+    path('create/item/', views.ItemCreateView.as_view(), name='create_item'),
+
+    path('view/', views.view_database, name='view_database'),
+    path('view/all/', views.view_all_items, name='view_all_items'),
+    path('view/category/<uuid:uuid>/', views.view_category_items, name='view_category'),
+    path('view/subcategory/<uuid:uuid>/', views.view_subcategory_items, name='view_subcategory'),
+    path('view/item/<uuid:uuid>/', views.view_item, name='view_item'),
+
+    path('delete/item/<uuid:uuid>/', views.delete_item, name='delete_item'),
+    path('restore/item/<uuid:uuid>/', views.restore_item, name='restore_item'),
+
+    path('restore/subcategory/<uuid:uuid>/', views.restore_subcategory, name='restore_subcategory'),
+
     path('accounts/profile/', views.profile_view, name='profile')
 ]

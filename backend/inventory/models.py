@@ -10,6 +10,10 @@ class Category(models.Model):
     class Meta:
         db_table = "category"
 
+        constraints = [
+            models.UniqueConstraint(fields=['name'], condition=models.Q(deleted=False), name='unique_active_category_name')
+        ]
+
     def __str__(self):
         return self.name
 
@@ -40,6 +44,10 @@ class Subcategory(models.Model):
 
     class Meta:
         db_table = "subcategory"
+        
+        constraints = [
+            models.UniqueConstraint(fields=['name', 'category'], condition=models.Q(deleted=False), name='unique_active_subcategory_name')
+        ]
 
     def __str__(self):
         return f"{self.category.name} / {self.name}"
