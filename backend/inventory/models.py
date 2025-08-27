@@ -97,6 +97,12 @@ class Item(models.Model):
 class User(AbstractUser):
     user_picture = models.URLField(default="/static/mai_logo.png")
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['username'], name='unique_user_username'),
+            models.UniqueConstraint(fields=['email'], name='unique_user_email'),
+        ]
+
     def __str__(self):
         return f"{self.username} <{self.email}>"
 

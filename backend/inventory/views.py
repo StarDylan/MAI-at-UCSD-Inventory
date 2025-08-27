@@ -17,8 +17,8 @@ from django.contrib import messages
 from django.db.models import F
 
 from inventory import models
-from inventory.forms import CategoryForm, ItemForm, Search_QuantityAdd, Search_QuantityRemove, SubcategoryForm
-from inventory.models import AuditEvent, Category, Image, Item, Subcategory
+from inventory.forms import CategoryForm, ItemForm, Search_QuantityAdd, Search_QuantityRemove, SubcategoryForm, UserCreationForm
+from inventory.models import AuditEvent, Category, Image, Item, Subcategory, User
 
 import cloudinary
 import cloudinary.uploader
@@ -643,3 +643,34 @@ def restore_user_view(request, pk):
     user_to_restore.save()
     
     return redirect('view_user', pk=pk)
+
+class UserCreateView(FormView):
+    """
+    View to display a user creation form and process its submission.
+    """
+    template_name = 'register/user.html'
+    form_class = UserCreationForm
+    success_url = reverse_lazy('manage_users')  # Replace with your success URL
+
+    def form_valid(self, form):
+        """
+        This method is called when the form is valid.
+        It creates a new user and saves them to the database.
+        """
+        username = form.cleaned_data['username']
+        email = form.cleaned_data['email']
+        first_name = form.cleaned_data['first_name']
+        last_name = form.cleaned_data['last_name']
+
+        if User.objects.filter(username=username).exists():
+            form.add_error('username', 'Username already exists.')
+            return self.form_invalid(form)
+    
+        if User.objects.filter(email=email).exists():
+            form.add_error('email', 'Email already exists.')
+            return self.form_invalid(form)
+
+        # Use Django's built-in create_user to handle password hashing securely.
+        User.objects.create_user(username=username, email=email, first_name=first_name, last_name=last_name)
+
+        return super().form_valid(form)

@@ -29,7 +29,6 @@ def restore_deleted(modeladmin, request, queryset):
 class ItemImageInline(admin.TabularInline):
     model = models.Image
     extra = 0
-    fields = ("image_url", "deletion_hash")
     show_change_link = True
 
 

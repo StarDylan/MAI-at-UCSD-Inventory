@@ -98,3 +98,9 @@ class Search_QuantityRemove(forms.Form):
         label="Quantity to remove",
         widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
     )
+
+class UserCreationForm(forms.Form):
+    username = forms.CharField(max_length=150, required=True)
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=30, required=True)
+    last_name = forms.CharField(max_length=30, required=True)

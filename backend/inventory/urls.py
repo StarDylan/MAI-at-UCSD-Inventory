@@ -50,6 +50,7 @@ urlpatterns = [
     path('view/user/<int:pk>/', views.view_user_profile_view, name='view_user'),
     path('delete/user/<int:pk>/', views.delete_user_view, name='delete_user'),
     path('restore/user/<int:pk>/', views.restore_user_view, name='restore_user'),
+    path('create/user/', views.UserCreateView.as_view(), name='create_user'),
     
     
 ]

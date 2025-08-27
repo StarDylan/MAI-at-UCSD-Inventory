@@ -1,6 +1,12 @@
 {% extends "base.html" %} {% load static %} {% block body %}
 
-<h4>Manage active users</h4>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">Manage active users</h4>
+  <a href="{% url 'create_user' %}" class="btn btn-primary">
+    <i class="material-icons align-middle mr-1">person_add</i>
+    Create User
+  </a>
+</div>
 
 <div>
   <p align="center">
@@ -106,7 +112,6 @@
 
 <script type="text/javascript" language="javascript">
   async function setRole(user_id, new_group_name) {
-    // Encode the user_id for the URL to handle special characters (though not strictly needed for integers)
     // Use Django's named URL to build the API endpoint
     const csrfToken = "{{ csrf_token }}";
     const url = `{% url 'edit_user_role' '0' %}`.replace("/0/", "/" + user_id + "/");
