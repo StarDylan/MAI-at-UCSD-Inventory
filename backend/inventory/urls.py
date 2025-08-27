@@ -42,5 +42,15 @@ urlpatterns = [
 
     path('view/deleted_items', views.view_deleted_items, name='view_deleted_items'),
 
-    path('accounts/profile/', views.profile_view, name='profile')
+    path('accounts/profile/', views.profile_view, name='profile'),
+    path('accounts/logout/', views.logout_view, name='logout'),
+
+    path('manage/users/', views.manage_users_view, name='manage_users'),
+    path('edit/user/<int:pk>/', views.edit_user_role_api, name='edit_user_role'),
+    path('view/user/<int:pk>/', views.view_user_profile_view, name='view_user'),
+    path('delete/user/<int:pk>/', views.delete_user_view, name='delete_user'),
+    path('restore/user/<int:pk>/', views.restore_user_view, name='restore_user'),
+    
+    
 ]
+

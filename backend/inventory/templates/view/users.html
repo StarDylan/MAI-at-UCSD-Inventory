@@ -1,0 +1,147 @@
+{% extends "base.html" %} {% load static %} {% block body %}
+
+<h4>Manage active users</h4>
+
+<div>
+  <p align="center">
+    <input type="text" class="form-control" id="search" placeholder="Type to search" />
+  </p>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th scope="col">User</th>
+        <th scope="col">Role - User</th>
+        <th scope="col">Role - Member</th>
+        <th scope="col">Role - Admin</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody id="table">
+      {% for item in users %} {% if item.id != user.id and item.is_active %}
+      <tr>
+        <td>{{ item.username }}</td>
+        <td>
+          {% if item.is_user %}
+          <button class="btn" id="btnSetRoleUser" onclick='setRole("{{ item.id }}", "User")'>
+            <i class="material-icons">check_box</i>
+          </button>
+          {% else %}
+          <button class="btn" id="btnSetRoleUser" onclick='setRole("{{ item.id }}", "User")'>
+            <i class="material-icons">check_box_outline_blank</i>
+          </button>
+          {% endif %}
+        </td>
+        <td>
+          {% if item.is_member %}
+          <button class="btn" id="btnSetRoleMember" onclick='setRole("{{ item.id }}", "Member")'>
+            <i class="material-icons">check_box</i>
+          </button>
+          {% else %}
+          <button class="btn" id="btnSetRoleMember" onclick='setRole("{{ item.id }}", "Member")'>
+            <i class="material-icons">check_box_outline_blank</i>
+          </button>
+          {% endif %}
+        </td>
+        <td>
+          {% if item.is_admin %}
+          <button class="btn" id="btnSetRoleAdmin" onclick='setRole("{{ item.id }}", "Admin")'>
+            <i class="material-icons">check_box</i>
+          </button>
+          {% else %}
+          <button class="btn" id="btnSetRoleAdmin" onclick='setRole("{{ item.id }}", "Admin")'>
+            <i class="material-icons">check_box_outline_blank</i>
+          </button>
+          {% endif %}
+        </td>
+        <td class="text-right">
+          <a href="{% url 'view_user' item.id %}"
+            ><button class="btn"><i class="material-icons">description</i></button></a
+          >
+        </td>
+      </tr>
+      {% endif %} {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<br />
+<br />
+<br />
+
+<h4>Manage deleted users</h4>
+
+<div>
+  <p align="center">
+    <input type="text" class="form-control" id="search_deleted" placeholder="Type to search deleted users" />
+  </p>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th scope="col">User</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody id="table_deleted">
+      {% for item in users %} {% if item.id != user.id and not item.is_active %}
+      <tr>
+        <td>{{ item.username }}</td>
+        <td class="text-right">
+          <a href="{% url 'view_user' item.id %}"
+            ><button class="btn"><i class="material-icons">description</i></button></a
+          >
+        </td>
+      </tr>
+      {% endif %} {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+<script type="text/javascript" language="javascript">
+  async function setRole(user_id, new_group_name) {
+    // Encode the user_id for the URL to handle special characters (though not strictly needed for integers)
+    // Use Django's named URL to build the API endpoint
+    const csrfToken = "{{ csrf_token }}";
+    const url = `{% url 'edit_user_role' '0' %}`.replace("/0/", "/" + user_id + "/");
+
+    await fetch(url, {
+      method: "POST",
+      body: JSON.stringify({ group_name: new_group_name }),
+      headers: {
+        "X-CSRFToken": csrfToken,
+        "Content-Type": "application/json",
+      },
+    });
+    location.reload();
+  }
+</script>
+
+<script>
+  // Correctly combine the window.onload events to avoid overwriting.
+  window.onload = function () {
+    // Handle search for active users
+    $("#search").on("keyup", function () {
+      var value = $(this).val().toLowerCase();
+      $("#table tr").filter(function () {
+        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+
+    // Handle search for deleted users
+    $("#search_deleted").on("keyup", function () {
+      var value = $(this).val().toLowerCase();
+      $("#table_deleted tr").filter(function () {
+        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  };
+</script>
+
+{% endblock %}

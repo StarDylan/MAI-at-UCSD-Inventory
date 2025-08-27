@@ -169,9 +169,9 @@ admin.site.register(User, CustomUserAdmin)
 
 @admin.register(models.AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "entity_type", "entity_id", "event", "user_label")
+    list_display = ("created_at", "entity_type", "entity_id", "event", "user_id")
     list_filter = ("entity_type",)
-    search_fields = ("entity_type", "entity_id", "event", "user_label", "before", "after")
+    search_fields = ("entity_type", "entity_id", "event", "user_id", "before", "after")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     list_per_page = 50

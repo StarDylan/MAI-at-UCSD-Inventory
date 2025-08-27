@@ -1,0 +1,246 @@
+{% extends "base.html" %} {% load static %} {% block body %}
+<div id="page">
+  <h4 style="text-align: left; float: left">{{ user_data.user_name }}</h4>
+  <a style="text-align: right; float: right">
+    {% if user_data.user_active == False %}
+    <button class="btn" onclick="confirmRestore('{{ user_data.user_id }}','{{ user_data.user_name }}')">
+      <i class="material-icons">restore</i>
+    </button>
+    {% else %}
+    <button class="btn" onclick="confirmDelete('{{ user_data.user_id }}','{{ user_data.user_name }}')">
+      <i class="material-icons" style="color: red">delete</i>
+    </button>
+    {% endif %}
+  </a>
+  <br />
+
+  <!-- Used to align the material icon to the text -->
+  <style type="text/css">
+    .material-icons {
+      display: inline-flex;
+      vertical-align: top;
+    }
+  </style>
+
+  <style>
+    /* Center the loader */
+    #loader {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 1;
+      width: 120px;
+      height: 120px;
+      margin: -76px 0 0 -76px;
+      border: 16px solid #f3f3f3;
+      border-radius: 50%;
+      border-top: 16px solid #3498db;
+      -webkit-animation: spin 2s linear infinite;
+      animation: spin 2s linear infinite;
+    }
+
+    @-webkit-keyframes spin {
+      0% {
+        -webkit-transform: rotate(0deg);
+      }
+
+      100% {
+        -webkit-transform: rotate(360deg);
+      }
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+
+  <div class="list-group mt-3">
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">visibility</i> User Status</span>
+      <span class="flex-fill text-right">
+        {% if user_data.user_active %}
+        <div style="color: green">Active</div>
+        {% else %}
+        <div style="color: red">Inactive</div>
+        {% endif %}
+      </span>
+    </div>
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> User ID</span>
+      <span class="flex-fill text-right"><code>{{ user_data.user_id }}</code></span>
+    </div>
+
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">title</i> User Name</span>
+      <span class="flex-fill text-right">{{ user_data.user_name }}</span>
+    </div>
+
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">email</i> User Email</span>
+      <span class="flex-fill text-right">{{ user_data.user_email }}</span>
+    </div>
+
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">military_tech</i> User Role</span>
+      <span class="flex-fill text-right">{{ user_data.user_role }}</span>
+    </div>
+
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">link</i> User Picture</span>
+      <span class="flex-fill text-right"
+        ><a href="{{ user_data.user_picture }}"><img src="{{ user_data.user_picture }}" alt="Avatar" style="height: 25px" /></a
+      ></span>
+    </div>
+  </div>
+
+  <br />
+
+  <div class="card">
+    <div class="card-header">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit - Actions performed by user</span>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover" id="audit_table_by">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Type</th>
+              <th scope="col">User</th>
+              <th scope="col">Event</th>
+            </tr>
+          </thead>
+          <tbody id="table">
+            {% for event in audit_by_user %}
+            <tr onclick='viewDiff({{ event.pk | json_script:"audit_by_user" }});'>
+              <td>{{ event.date }}</td>
+              <td>{{ event.type }}</td>
+              <td>{{ event.user }}</td>
+              <td>{{ event.event }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <br />
+
+  <div class="card">
+    <div class="card-header">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit - Actions performed on user</span>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover" id="audit_table_on">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Type</th>
+              <th scope="col">User</th>
+              <th scope="col">Event</th>
+            </tr>
+          </thead>
+          <tbody id="table">
+            {% for event in audit_on_user %}
+            <tr onclick='viewDiff({{ event.pk | json_script:"audit_on_user" }});'>
+              <td>{{ event.date }}</td>
+              <td>{{ event.type }}</td>
+              <td>{{ event.user }}</td>
+              <td>{{ event.event }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals are typically placed at the end of the body for correct rendering. -->
+  <div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <h2>Before</h2>
+          <pre id="audit_left"></pre>
+
+          <h2>After</h2>
+          <pre id="audit_right"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts are included after the HTML elements for correct loading -->
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+  <script src="https://cdn.datatables.net/plug-ins/1.10.20/sorting/moment.js"></script>
+  <!-- Assuming the jdd library is available -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsondiffpatch/0.4.1/jsondiffpatch.min.js"></script>
+
+  <script>
+    function confirmDelete(id, name) {
+      if (confirm("Are you sure you want to delete user [" + name + "]?")) {
+        window.location.href = "{% url 'delete_user' '0' %}".replace("0", id);
+      }
+    }
+    function confirmRestore(id, name) {
+      if (confirm("Are you sure you want to restore user [" + name + "]?")) {
+        window.location.href = "{% url 'restore_user' '0' %}".replace("0", id);
+      }
+    }
+  </script>
+
+  <script type="text/javascript">
+    // Placeholder for the viewDiff function
+    function viewDiff(event) {
+      var modal = $("#auditDiffModal").modal();
+      console.log(event);
+
+      $("#audit_left").text(JSON.stringify(event["before"], null, 2));
+      $("#audit_right").text(JSON.stringify(event["after"], null, 2));
+
+      // To use jsondiffpatch, you need to load its library and implement the diff logic.
+      // Example:
+      // const delta = jsondiffpatch.diff(event.before, event.after);
+      // jsondiffpatch.formatters.html.format(delta, data);
+    }
+  </script>
+
+  <script>
+    window.onload = function () {
+      $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
+      $("#audit_table_by").DataTable({
+        lengthMenu: [
+          [10, 25, 50, 100, -1],
+          [10, 25, 50, 100, "All"],
+        ],
+        order: [[0, "desc"]],
+      });
+      $("#audit_table_on").DataTable({
+        lengthMenu: [
+          [10, 25, 50, 100, -1],
+          [10, 25, 50, 100, "All"],
+        ],
+        order: [[0, "desc"]],
+      });
+    };
+  </script>
+
+  {% endblock %}
+</div>

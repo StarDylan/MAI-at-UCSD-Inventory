@@ -8,7 +8,7 @@
 <h5>Browse</h5>
 <div class="list-group">
   <a href="{% url 'view_database' %}" class="list-group-item list-group-item-action">View the database</a>
-  <a href="/view/all" class="list-group-item list-group-item-action">Search the database</a>
+  <a href="{% url 'view_all_items' %}" class="list-group-item list-group-item-action">Search the database</a>
 </div>
 
 <br />
@@ -26,7 +26,7 @@
 <h5>Administrate</h5>
 <div class="list-group">
   {% if user.is_superuser %}
-  <a href="/view/users" class="list-group-item list-group-item-action">Manage users</a>
+  <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">Manage users</a>
   <a href="/view/audit" class="list-group-item list-group-item-action">View audit logs</a>
   {% endif %}
 
@@ -46,7 +46,7 @@
 <h5>Account</h5>
 <div class="list-group">
   {% if user.is_authenticated %}
-  <a href="/logout" class="list-group-item list-group-item-action">Log out</a>
+  <a href="{% url 'logout' %}" class="list-group-item list-group-item-action">Log out</a>
   {% else %}
   <a href="{% url 'login' %}" class="list-group-item list-group-item-action">Log in</a>
   {% endif %}
