@@ -2,16 +2,17 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
 
+from inventory.managers import ActiveManager
+
 class Category(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     name = models.CharField(max_length=100)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "category"
 
         constraints = [
-            models.UniqueConstraint(fields=['name'], condition=models.Q(is_deleted=False), name='unique_active_category_name')
+            models.UniqueConstraint(fields=['name'], name='unique_active_category_name')
         ]
 
     def __str__(self):
@@ -40,13 +41,12 @@ class Subcategory(models.Model):
         on_delete=models.PROTECT,
     )
     name = models.CharField(max_length=100)
-    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "subcategory"
         
         constraints = [
-            models.UniqueConstraint(fields=['name', 'category'], condition=models.Q(is_deleted=False), name='unique_active_subcategory_name')
+            models.UniqueConstraint(fields=['name', 'category'], name='unique_active_subcategory_name')
         ]
 
     def __str__(self):
@@ -79,6 +79,14 @@ class Item(models.Model):
     url = models.URLField(blank=True)
 
     is_deleted = models.BooleanField(default=False)
+    
+    # The default manager. All `Post.objects` queries will now
+    # automatically exclude deleted posts.
+    objects = ActiveManager()
+    
+    # A second manager that can be used to query all objects,
+    # including those that are soft-deleted.
+    all_objects = models.Manager()
 
     class Meta:
         db_table = "item"

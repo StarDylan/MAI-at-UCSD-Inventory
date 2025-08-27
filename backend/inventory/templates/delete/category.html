@@ -1,25 +1,18 @@
 {% extends "base.html" %} {% block body %}
 
 <h4>Which category would you like to delete?</h4>
+<div class="form-text text-muted">You can only delete categories that have no subcategories.</div>
+<br />
 
 <div>
   <p align="center">
-    <input
-      type="text"
-      class="form-control"
-      id="search"
-      placeholder="Type to search"
-    />
+    <input type="text" class="form-control" id="search" placeholder="Type to search" />
   </p>
 </div>
 
 <div class="list-group" id="categoryList">
   {% for category in categories %}
-  <a
-    onclick="confirmDelete('{{ category.id }}', '{{ category.name }}')"
-    class="list-group-item list-group-item-action"
-    >{{ category.name }}</a
-  >
+  <a onclick="confirmDelete('{{ category.id }}', '{{ category.name }}')" class="list-group-item list-group-item-action">{{ category.name }}</a>
   {% endfor %}
 </div>
 
@@ -27,11 +20,7 @@
   // This function can be placed outside the loop as it's a global function
   function confirmDelete(id, name) {
     if (confirm("Are you sure you want to delete '" + name + "'?")) {
-      window.location.href =
-        "{% url 'delete_category' uuid='00000000-0000-0000-0000-000000000000' %}".replace(
-          "/00000000-0000-0000-0000-000000000000",
-          "/" + id
-        );
+      window.location.href = "{% url 'delete_category' uuid='00000000-0000-0000-0000-000000000000' %}".replace("/00000000-0000-0000-0000-000000000000", "/" + id);
     }
   }
 

@@ -1,39 +1,29 @@
-{% extends "base.html" %}
-{% block body %}
+{% extends "base.html" %} {% block body %}
 <div id="page">
-
-{% if item.category.is_deleted %}
-<div class="alert alert-warning" role="alert">
-  <strong>Warning:</strong> This item belongs to a deleted category and cannot be edited.
-</div>
-{% endif %}
-  
-<h4 style="text-align:left;float:left;">{{ item.name }}</h4> 
-<a style="text-align:right;float:right;">
-  {% if not item.category.is_deleted %}
-    {% if item.is_deleted %}
-        {% if user.is_authenticated %}
-        <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
-        {% endif %}
-    {% else %}
-        {% if user.is_authenticated %}
-        <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
-        <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color:red">delete</i></button>
-        {% endif %}
-    {% endif %}
+  {% if item.category.is_deleted %}
+  <div class="alert alert-warning" role="alert"><strong>Warning:</strong> This item belongs to a deleted category and cannot be edited.</div>
   {% endif %}
-</a>
 
-<br>
+  <h4 style="text-align: left; float: left">{{ item.name }}</h4>
+  <a style="text-align: right; float: right">
+    {% if not item.category.is_deleted %} {% if item.is_deleted %} {% if user.is_authenticated %}
+    <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
+    {% endif %} {% else %} {% if user.is_authenticated %}
+    <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
+    <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
+    {% endif %} {% endif %} {% endif %}
+  </a>
 
-<style type="text/css">
-    .material-icons{
-        display: inline-flex;
-        vertical-align: top;
+  <br />
+
+  <style type="text/css">
+    .material-icons {
+      display: inline-flex;
+      vertical-align: top;
     }
-</style>
+  </style>
 
-<style>
+  <style>
     /* Center the loader */
     #loader {
       position: absolute;
@@ -49,202 +39,199 @@
       -webkit-animation: spin 2s linear infinite;
       animation: spin 2s linear infinite;
     }
-    
+
     @-webkit-keyframes spin {
-      0% { -webkit-transform: rotate(0deg); }
-      100% { -webkit-transform: rotate(360deg); }
+      0% {
+        -webkit-transform: rotate(0deg);
+      }
+      100% {
+        -webkit-transform: rotate(360deg);
+      }
     }
-    
+
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
     }
-    
-</style>
-    
-<div class="list-group mt-3">
+  </style>
 
+  <div class="list-group mt-3">
     {% if user.is_authenticated and user.role >= 5 %}
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Item ID</span>
-        <span class="flex-fill text-right"><code>{{ item.id }}</code></span>
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Item ID</span>
+      <span class="flex-fill text-right"><code>{{ item.id }}</code></span>
     </div>
 
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Category ID</span>
-        <span class="flex-fill text-right"><code>{{ item.category.id }}</code></span>
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Category ID</span>
+      <span class="flex-fill text-right"><code>{{ item.category.id }}</code></span>
     </div>
 
-    <div class="d-flex list-group-item flex-row ">
+    <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Subcategory ID</span>
       <span class="flex-fill text-right"><code>{{ item.subcategory.id }}</code></span>
-  </div>
-  {% endif %}
-
-    <div class="d-flex list-group-item flex-row ">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">visibility</i> Item Status</span>
-      <span class="flex-fill text-right">
-        {% if item.is_deleted %}
-          <div style="color:red;">Deleted</div>
-        {% else %}
-          Active
-        {% endif %}
-      </span>
-  </div>
-
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">map</i> Location</span>
-        <span class="flex-fill text-right">{{ item.location }}</span>
-    </div>
-
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
-        <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
-    </div>
-
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">title</i> Item Name</span>
-        <span class="flex-fill text-right">{{ item.name }}</span>
-    </div>
-
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Quantity</span>
-        <span class="flex-fill text-right">{{ item.quantity_active }}</span>
-    </div>
-
-    {% if item.url %}
-    <div class="d-flex list-group-item flex-row ">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">link</i> URL</span>
-        <span class="flex-fill text-right"><a href="{{ item.url }}">Click here</a></span>
     </div>
     {% endif %}
 
-</div>
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">visibility</i> Item Status</span>
+      <span class="flex-fill text-right">
+        {% if item.is_deleted %}
+        <div style="color: red">Deleted</div>
+        {% else %} Active {% endif %}
+      </span>
+    </div>
 
-<br>
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">map</i> Location</span>
+      <span class="flex-fill text-right">{{ item.location }}</span>
+    </div>
 
-<div class="card">
-  <div class="card-header">
-        <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">description</i> Notes</span>
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
+      <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
+    </div>
+
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">title</i> Item Name</span>
+      <span class="flex-fill text-right">{{ item.name }}</span>
+    </div>
+
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Quantity</span>
+      <span class="flex-fill text-right">{{ item.quantity_active }}</span>
+    </div>
+
+    {% if item.url %}
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">link</i> URL</span>
+      <span class="flex-fill text-right"><a href="{{ item.url }}">Click here</a></span>
+    </div>
+    {% endif %}
   </div>
-  <div class="card-body">
-    <blockquote class="blockquote mb-0">
-        {{ item.notes_public|linebreaksbr }}
-    </blockquote>
-  </div>
-</div>
 
-<br>
+  <br />
 
-{% if user.is_authenticated %}
   <div class="card">
     <div class="card-header">
-          <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">description</i> Notes - Internal</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">description</i> Notes</span>
     </div>
     <div class="card-body">
-      <blockquote class="blockquote mb-0">
-          {{ item.notes_private|linebreaksbr }}
-      </blockquote>
+      <blockquote class="blockquote mb-0">{{ item.notes_public|linebreaksbr }}</blockquote>
     </div>
   </div>
 
-  <br>
-{% endif %}
+  <br />
 
-<div class="card">
+  {% if user.is_authenticated %}
+  <div class="card">
     <div class="card-header">
-          <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">photo</i> Photos</span>
-          {% if not item.is_deleted and user.is_authenticated %}
-          {% csrf_token %}
-          <a style="text-align:right;float:right;" class="vertical-align-middle">
-          <input type="file"  accept="image/*" name="image" id="file"  onchange="loadFile(event)" style="display: none;">
-          <label for="file">
-            <i class="material-icons">add_a_photo</i>        
-          </label>
-          {% if images|length > 0 %}
-          <a href="{% url 'delete_image_list_view' %}?query={{item.name}}"><button class="btn"><i class="material-icons"style="color:red">delete</i></button></a>
-          {% endif %}
-          </a>  
-          {% endif %}
-          
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">description</i> Notes - Internal</span>
     </div>
     <div class="card-body">
-        <div id="carouselControls" class="carousel slide" data-ride="carousel">
-            <div class="carousel-inner">
-                {% for image in images %}
-                <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                    <img class="d-block w-100" src="{{ image.image_url }}">
-                </div>
-                {% endfor %}
-            </div>
-            <a class="carousel-control-prev" href="#carouselControls" role="button" data-slide="prev">
-              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-              <span class="sr-only">Previous</span>
-            </a>
-            <a class="carousel-control-next" href="#carouselControls" role="button" data-slide="next">
-              <span class="carousel-control-next-icon" aria-hidden="true"></span>
-              <span class="sr-only">Next</span>
-            </a>
-        </div>          
+      <blockquote class="blockquote mb-0">{{ item.notes_private|linebreaksbr }}</blockquote>
     </div>
   </div>
-<br>
 
-{% if user.is_authenticated %}
-<div class="card">
+  <br />
+  {% endif %}
+
+  <div class="card">
     <div class="card-header">
-          <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">photo</i> Photos</span>
+      {% if not item.is_deleted and user.is_authenticated %} {% csrf_token %}
+      <a style="text-align: right; float: right" class="vertical-align-middle">
+        <input type="file" accept="image/*" name="image" id="file" onchange="loadFile(event)" style="display: none" />
+        <label for="file">
+          <i class="material-icons">add_a_photo</i>
+        </label>
+        {% if images|length > 0 %}
+        <a href="{% url 'delete_image_list_view' %}?query={{item.name}}"
+          ><button class="btn"><i class="material-icons" style="color: red">delete</i></button></a
+        >
+        {% endif %}
+      </a>
+      {% endif %}
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover" id="audit_table">
-              <thead>
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col">User</th>
-                  <th scope="col">Event</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for event in audit %}
-                <tr onclick='viewDiff({{ event|json_script:"event_data" }});'>
-                    <td>{{ event.date }}</td>
-                    <td>{{ event.user }}</td>
-                    <td>{{ event.event }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+      <div id="carouselControls" class="carousel slide" data-ride="carousel">
+        <div class="carousel-inner">
+          {% for image in images %}
+          <div class="carousel-item {% if forloop.first %}active{% endif %}">
+            <img class="d-block w-100" src="{{ image.image_url }}" />
           </div>
-    </div>
-  </div>
-<br>
-{% endif %}
-
-</div>
-
-<div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
+          {% endfor %}
         </div>
-        <div class="modal-body">
-            <h2>Before</h2>
-            <pre id="audit_left"></pre>
-
-            <h2>After</h2>
-            <pre id="audit_right"></pre>        
-        </div>
+        <a class="carousel-control-prev" href="#carouselControls" role="button" data-slide="prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span class="sr-only">Previous</span>
+        </a>
+        <a class="carousel-control-next" href="#carouselControls" role="button" data-slide="next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="sr-only">Next</span>
+        </a>
       </div>
     </div>
   </div>
-  
+  <br />
 
-<div id="loader" style="display:none;"></div>
+  {% if user.is_authenticated %}
+  <div class="card">
+    <div class="card-header">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit</span>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover" id="audit_table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">User</th>
+              <th scope="col">Event</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event in audit %}
+            <tr onclick='viewDiff({{ event|json_script:"event_data" }});'>
+              <td>{{ event.date }}</td>
+              <td>{{ event.user }}</td>
+              <td>{{ event.event }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <br />
+  {% endif %}
+</div>
+
+<div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h2>Before</h2>
+        <pre id="audit_left"></pre>
+
+        <h2>After</h2>
+        <pre id="audit_right"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loader" style="display: none"></div>
 
 <script>
   function confirmDelete(id, name) {
@@ -260,88 +247,89 @@
 </script>
 
 <script>
-    var loadFile = function(event) {
-        document.getElementById("loader").style.display = "block";
-        document.getElementById("page").style.display = "none";
-        document.getElementById("footer").style.display = "none";
-        var reader = new FileReader();
-        reader.readAsDataURL(event.target.files[0]);
-        reader.onload = function () {
+  var loadFile = function (event) {
+    document.getElementById("loader").style.display = "block";
+    document.getElementById("page").style.display = "none";
+    document.getElementById("footer").style.display = "none";
+    var reader = new FileReader();
+    reader.readAsDataURL(event.target.files[0]);
+    reader.onload = function () {
+      var image = new Image();
+      image.onload = function () {
+        oldWidth = image.width;
+        oldHeight = image.height;
 
-          var image = new Image();
-          image.onload = function() {
+        // Keep the old dimensions, just reduce the quality at the end.
+        newWidth = oldWidth;
+        newHeight = oldHeight;
 
-            oldWidth = image.width;
-            oldHeight = image.height;
+        canvas = document.createElement("canvas");
+        canvas.width = newWidth;
+        canvas.height = newHeight;
 
-            // Keep the old dimensions, just reduce the quality at the end.
-            newWidth = oldWidth;
-            newHeight = oldHeight;
+        // Draw the downscaled image on the canvas and return the new data URL.
+        ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, newWidth, newHeight);
+        newDataUrl = canvas.toDataURL("image/jpeg", 0.5);
 
-            canvas = document.createElement("canvas");
-            canvas.width = newWidth;
-            canvas.height = newHeight;
+        fetch("{% url 'upload_photo' item.id %}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            img: newDataUrl,
+          }),
+        })
+          .then((response) => {
+            document.getElementById("loader").style.display = "none";
+            document.getElementById("page").style.display = "block";
+            document.getElementById("footer").style.display = "block";
 
-            // Draw the downscaled image on the canvas and return the new data URL.
-            ctx = canvas.getContext("2d");
-            ctx.drawImage(image, 0, 0, newWidth, newHeight);
-            newDataUrl = canvas.toDataURL('image/jpeg', 0.5);
-
-           fetch("{% url 'upload_photo' item.id %}", {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    img: newDataUrl
-                })
-            })
-            .then(response => {
-                document.getElementById("loader").style.display = "none";
-                document.getElementById("page").style.display = "block";
-                document.getElementById("footer").style.display = "block";
-
-                if (response.status === 201) {
-                    location.reload();
-                } else {
-                    alert("There was an issue uploading your photo. Please try again, or use a smaller photo.");
-                    console.warn(response);
-                }
-            })
-            .catch(error => {
-                document.getElementById("loader").style.display = "none";
-                alert("An error occurred: " + error);
-            });
-          }
-          image.src = reader.result;
-        };
+            if (response.status === 201) {
+              location.reload();
+            } else {
+              alert("There was an issue uploading your photo. Please try again, or use a smaller photo.");
+              console.warn(response);
+            }
+          })
+          .catch((error) => {
+            document.getElementById("loader").style.display = "none";
+            alert("An error occurred: " + error);
+          });
+      };
+      image.src = reader.result;
     };
+  };
 </script>
 
 <script type="text/javascript">
-    function viewDiff(event_script_id) {
-        var modal = $('#auditDiffModal').modal();
-        var event = JSON.parse(document.getElementById(event_script_id).textContent);
-        console.log(event);
+  function viewDiff(event_script_id) {
+    var modal = $("#auditDiffModal").modal();
+    var event = JSON.parse(document.getElementById(event_script_id).textContent);
+    console.log(event);
 
-        $('#audit_left').text(event['before']);
-        $('#audit_right').text(event['after']);
+    $("#audit_left").text(event["before"]);
+    $("#audit_right").text(event["after"]);
 
-        leftBlockId = $('#audit_left').attr('id');
-        rightBlockId = $('#audit_right').attr('id');
-        $(document).jdd(leftBlockId, rightBlockId);
-    };
+    leftBlockId = $("#audit_left").attr("id");
+    rightBlockId = $("#audit_right").attr("id");
+    $(document).jdd(leftBlockId, rightBlockId);
+  }
 </script>
 
 <script>
-  window.onload = function() {
-    $.fn.dataTable.moment( 'DD-MMM-YYYY HH:mm:ss' );
-      $("#audit_table").DataTable({
-          "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-          "order": [[ 0, "desc" ]]
-      });
-  }
+  window.onload = function () {
+    $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
+    $("#audit_table").DataTable({
+      lengthMenu: [
+        [10, 25, 50, 100, -1],
+        [10, 25, 50, 100, "All"],
+      ],
+      order: [[0, "desc"]],
+    });
+  };
 </script>
 
 {% endblock %}

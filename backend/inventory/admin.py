@@ -37,8 +37,7 @@ class ItemImageInline(admin.TabularInline):
 
 @admin.register(models.Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "is_deleted")
-    list_filter = ("is_deleted",)
+    list_display = ("id", "name")
     search_fields = ("id", "name")
     ordering = ("name",)
     actions = (mark_deleted, restore_deleted)
@@ -47,8 +46,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(models.Subcategory)
 class SubcategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "category", "is_deleted")
-    list_filter = ("is_deleted", "category")
+    list_display = ("id", "name", "category")
+    list_filter = ("category",)
     search_fields = ("id", "name", "category__name")
     ordering = ("category__name", "name")
     autocomplete_fields = ("category",)
