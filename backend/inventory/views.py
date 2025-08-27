@@ -1,4 +1,6 @@
-import base64
+from dataclasses import dataclass
+from django.dispatch import receiver
+from django.forms.models import model_to_dict
 import json
 import logging
 from typing import TypedDict, cast, Any
@@ -15,6 +17,9 @@ from django.views.generic import UpdateView, CreateView, FormView
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import F
+from django.core import serializers
+from django.db.models.signals import pre_save
+
 
 from inventory import models
 from inventory.forms import CategoryForm, ItemForm, Search_QuantityAdd, Search_QuantityRemove, SubcategoryForm, UserCreationForm
@@ -23,6 +28,38 @@ from inventory.models import AuditEvent, Category, Image, Item, Subcategory, Use
 import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
+
+# Helper function to log audit events
+@dataclass
+class ObjState:
+    json_data: str
+    id: int
+    class_name: str
+
+
+def audit_log_state(obj):
+    if obj is None:
+        return ObjState(
+            json_data=json.dumps({}),
+            id=None,
+            class_name=None
+        )
+
+    return ObjState(
+        json_data=json.dumps(model_to_dict(obj), default=str),
+        id=obj.id,
+        class_name=obj.__class__.__name__
+    )
+
+def audit_log_event(user, event: str, before_state: ObjState, after_state: ObjState, entity_id: str = None):
+    AuditEvent.objects.create(
+        user=user,
+        event=event,
+        entity_type=before_state.class_name or after_state.class_name,
+        entity_id=entity_id or before_state.id or after_state.id,
+        before=before_state.json_data,
+        after=after_state.json_data,
+    )
 
 
 def index(request):
@@ -38,7 +75,7 @@ def audit_view(request):
     """
     Renders the audit log page.
     """
-    events = AuditEvent.objects.all().order_by('-created_at')
+    events = AuditEvent.objects.all().select_related("user").order_by('-created_at')
 
     events = cast(list[Any], events)
 
@@ -70,21 +107,21 @@ def delete_category(request, uuid):
     # Get the category object or return a 404 error if not found
     category = get_object_or_404(Category, pk=uuid)
 
+    before = audit_log_state(category)
+    category_name = category.name
+
     # Perform the deletion
     category.delete()
+
+    after = audit_log_state(None)
+
+    audit_log_event(request.user, f"Deleted category {category_name}", before, after)
 
     return redirect('dashboard')
 
 def delete_image_list_view(request):
-    # Use select_related('item') to join the Image and Item tables in the database query.
-    # This makes the data available without additional queries in the template.
     images = Image.objects.select_related('item').all().order_by('item__name')
-
-    print(images)
-    
-    # The template loader is not strictly necessary here, render() is a shortcut for this
-    template = loader.get_template("delete/image.html")
-    return HttpResponse(template.render({'images': images}, request))
+    return render(request, "delete/image.html", {'images': images})
 
 def profile_view(request):
     return HttpResponseRedirect(reverse("dashboard"))
@@ -116,8 +153,14 @@ def delete_subcategory(request, uuid):
     # Get the subcategory object or return a 404 error if not found
     subcategory = get_object_or_404(Subcategory, pk=uuid)
 
+    before = audit_log_state(subcategory)
+
     # Perform the deletion
     subcategory.delete()
+
+    after = audit_log_state(None)
+
+    audit_log_event(request.user, f"Deleted subcategory {subcategory.name}", before, after)
 
     return redirect('dashboard')
 
@@ -128,11 +171,35 @@ class CategoryUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "edit/category.html"
     success_url = reverse_lazy('dashboard')
 
+    def form_valid(self, form):
+        
+        before_model = Category.objects.get(pk=form.instance.pk)
+        before = audit_log_state(before_model)
+
+        after = audit_log_state(self.object)
+
+        audit_log_event(self.request.user, f"Updated category \"{before_model.name}\" to \"{self.object.name}\"", before, after)
+
+        return super().form_valid(form)
+
 class ItemUpdateView(LoginRequiredMixin, UpdateView):
     model = models.Item
     form_class = ItemForm
     template_name = "edit/item.html"
-    success_url = reverse_lazy('dashboard')
+
+    def form_valid(self, form):
+        
+        before_model = models.Item.objects.get(pk=form.instance.pk)
+        before = audit_log_state(before_model)
+
+        after = audit_log_state(self.object)
+
+        audit_log_event(self.request.user, f"Updated item \"{before_model.name}\"", before, after)
+
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('view_item', kwargs={'uuid': self.object.pk})
 
 class CategoryCreateView(LoginRequiredMixin, CreateView):
     model = models.Category
@@ -140,17 +207,50 @@ class CategoryCreateView(LoginRequiredMixin, CreateView):
     template_name = "register/category.html"
     success_url = reverse_lazy('dashboard')
 
+    def form_valid(self, form):
+        before = audit_log_state(None)
+
+        new_category = form.save(commit=False)
+
+        after = audit_log_state(new_category)
+
+        audit_log_event(self.request.user, f"Created category \"{new_category.name}\"", before, after)
+
+        return super().form_valid(form)
+
 class SubcategoryCreateView(LoginRequiredMixin, CreateView):
     model = models.Subcategory
     form_class = SubcategoryForm
     template_name = "register/subcategory.html"
     success_url = reverse_lazy('dashboard')
 
+    def form_valid(self, form):
+        before = audit_log_state(None)
+
+        new_subcategory = form.save(commit=False)
+
+        after = audit_log_state(new_subcategory)
+
+        audit_log_event(self.request.user, f"Created subcategory \"{new_subcategory.name}\"", before, after)
+
+        return super().form_valid(form)
+
 class ItemCreateView(LoginRequiredMixin, CreateView):
     model = models.Item
     form_class = ItemForm
     template_name = "register/item.html"
     success_url = reverse_lazy('dashboard')
+
+    def form_valid(self, form):
+        before = audit_log_state(None)
+
+        new_item = form.save(commit=False)
+
+        after = audit_log_state(new_item)
+
+        audit_log_event(self.request.user, f"Created item \"{new_item.name}\"", before, after)
+
+        return super().form_valid(form)
 
 def view_database(request):
     """
@@ -236,12 +336,19 @@ def view_item(request, uuid):
     images = Image.objects.filter(item=item).order_by('id')
     
     # Fetch all audit events for the item.
-    audit = AuditEvent.objects.filter(entity_id=uuid).order_by('created_at')
+    events = AuditEvent.objects.filter(entity_id=uuid).order_by('created_at')
+
+    for event in events:
+        # Manually serialize the relevant data to a JSON string
+        event.json_data = json.dumps({
+            'before': event.before,
+            'after': event.after,
+        })
 
     context = {
         'item': item,
         'images': images,
-        'audit': audit,
+        'audit': events,
     }
     
     template = loader.get_template("view/item.html")
@@ -256,9 +363,15 @@ def restore_subcategory(request, uuid):
     # Get the Subcategory object or return a 404 error if it doesn't exist.
     subcategory = get_object_or_404(Subcategory, id=uuid)
 
+    before = audit_log_state(subcategory)
+
     # Update the 'deleted' field and save the object.
     subcategory.is_deleted = False
     subcategory.save()
+
+    after = audit_log_state(subcategory)
+
+    audit_log_event(request.user, f"Restored subcategory \"{subcategory.name}\"", before, after)
 
     # Redirect to the view page for the restored subcategory.
     return redirect('view_subcategory_items', uuid=uuid)
@@ -269,13 +382,20 @@ def delete_item(request, uuid):
     Deletes an item by setting its 'deleted' status to True.
     """
 
+
     # Get the item or return a 404 error if it doesn't exist.
     item = get_object_or_404(Item, id=uuid)
-    
+
+    before = audit_log_state(item)
+
     # "Soft-delete" the item by setting the deleted flag.
     item.is_deleted = True
     item.save()
-    
+
+    after = audit_log_state(item)
+
+    audit_log_event(request.user, f"Deleted item \"{item.name}\"", before, after)
+
     # Redirect to the item's view page after successful deletion.
     return redirect('view_item', uuid=uuid)
 
@@ -288,9 +408,15 @@ def restore_item(request, uuid):
     # Get the Item object or return a 404 error if it doesn't exist.
     item = get_object_or_404(Item.all_objects, id=uuid)
 
+    before = audit_log_state(item)
+
     # Update the 'deleted' field and save the object.
     item.is_deleted = False
     item.save()
+
+    after = audit_log_state(item)
+
+    audit_log_event(request.user, f"Restored item \"{item.name}\"", before, after)
 
     # Redirect to the view page for the restored item.
     return redirect('view_item', uuid=uuid)
@@ -343,12 +469,18 @@ def upload_photo(request, uuid):
 
        
         # Create a new Image object and save it to the database.
-        Image.objects.create(
+        new_image = Image.objects.create(
             image_url=optimize_url,
             public_id=upload_result["public_id"],
             item=item,
         )
-     
+
+        before = audit_log_state(None)
+        after = audit_log_state(new_image)
+
+        # We associate the uploaded image with the item, since that is where we create them
+        audit_log_event(request.user, f"Uploaded photo for item \"{item.name}\"", before, after, entity_id=item.id)
+
         return HttpResponse(status=201)
 
     except Exception as e:
@@ -364,9 +496,15 @@ def restore_category(request, uuid):
     # Get the Category object or return a 404 error if it doesn't exist.
     category = get_object_or_404(Category, id=uuid)
 
+    before = audit_log_state(category)
+
     # Update the 'deleted' field and save the object.
     category.is_deleted = False
     category.save()
+
+    after = audit_log_state(category)
+
+    audit_log_event(request.user, f"Restored category \"{category.name}\"", before, after)
 
     # Redirect to the view page for the restored item.
     return redirect('view_category', uuid=uuid)
@@ -374,46 +512,33 @@ def restore_category(request, uuid):
 @login_required
 def delete_image(request, uuid):
     """
-    Deletes an image by setting its 'deleted' status to True.
+    Deletes an image
     """
 
     # Get the image or return a 404 error if it doesn't exist.
     image = get_object_or_404(Image, id=uuid)
 
-    # Delete from cloudinary
-    try:
-        cloudinary.uploader.destroy(image.public_id)
-    except Exception as e:
-        logging.error(f"An error occurred while deleting image from Cloudinary: {e}")
-        raise e
+    before = audit_log_state(image)
+
+    # Don't actually delete from cloudinary
+
+    if settings.DELETE_CLOUDINARY_IMAGES:
+        try:
+            cloudinary.uploader.destroy(image.public_id)
+        except Exception as e:
+            logging.error(f"An error occurred while deleting image from Cloudinary: {e}")
+            raise e
     
     image.delete()
+
+    after = audit_log_state(None)
+
+    audit_log_event(request.user, f"Deleted image from item \"{image.item.name}\"", before, after, entity_id=image.item.id)
 
     referer = request.META.get('HTTP_REFERER')  # full URL of previous page
     if referer:
         return HttpResponseRedirect(referer)
     return HttpResponseRedirect(reverse('delete_image_list_view'))
-
-
-
-def search_item_update_quantity(item_id, quantity):
-    """
-    Placeholder for your database function.
-    Returns True on success, False on failure.
-    """
-    # Example:
-    try:
-        Item.objects.filter(id=item_id).update(quantity=F('quantity') + quantity)
-        return True
-    except Exception as e:
-        print(e)
-        return False
-    
-    # Mock behavior for demonstration
-    if quantity > 0:
-        return True
-    
-    return False
 
 class SearchCheckInView(LoginRequiredMixin, FormView):
     """
@@ -443,8 +568,12 @@ class SearchCheckInView(LoginRequiredMixin, FormView):
         quantity = form.cleaned_data['quantity']
 
         item = get_object_or_404(Item, id=item.id)
+        before = audit_log_state(item)
         item.quantity_active += quantity
         item.save()
+        after = audit_log_state(item)
+
+        audit_log_event(self.request.user, f"Checked in {quantity} of item \"{item.name}\"", before, after)
 
         return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
 
@@ -484,6 +613,7 @@ class SearchCheckOutView(LoginRequiredMixin, FormView):
         quantity = form.cleaned_data['quantity']
 
         item = get_object_or_404(Item, id=item.id)
+        before = audit_log_state(item)
 
         if item.quantity_active < quantity:
             form.add_error('quantity', f"Cannot check out {quantity} items. Only {item.quantity_active} available.")
@@ -491,6 +621,9 @@ class SearchCheckOutView(LoginRequiredMixin, FormView):
 
         item.quantity_active -= quantity
         item.save()
+        after = audit_log_state(item)
+
+        audit_log_event(self.request.user, f"Checked out {quantity} of item \"{item.name}\"", before, after)
 
         return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
 
@@ -558,11 +691,16 @@ def edit_user_role_api(request, pk):
         # Find the user and the new group, or return a 404 error.
         user_to_edit = get_object_or_404(models.User, pk=pk)
         new_group = get_object_or_404(Group, name=new_group_name)
+        before = audit_log_state(user_to_edit)
 
         # Clear all current groups for the user before adding the new one.
         user_to_edit.groups.clear()
         user_to_edit.groups.add(new_group)
-        
+
+        after = audit_log_state(user_to_edit)
+
+        audit_log_event(request.user, f"Changed user \"{user_to_edit.username}\" role to \"{new_group.name}\"", before, after)
+
         return HttpResponse(status=200)
     
     # Return an error for unsupported request methods.
@@ -627,9 +765,15 @@ def delete_user_view(request, pk):
     if user_to_delete == request.user:
         return HttpResponse("You cannot delete your own account.", status=403)
 
+    before = audit_log_state(user_to_delete)
+
     user_to_delete.is_active = False
     user_to_delete.save()
-    
+
+    after = audit_log_state(user_to_delete)
+
+    audit_log_event(request.user, f"Deleted user \"{user_to_delete.username}\"", before, after)
+
     return redirect('view_user', pk=pk)
 
 
@@ -639,9 +783,15 @@ def restore_user_view(request, pk):
     Restricted to users in the 'Admin' group.
     """
     user_to_restore = get_object_or_404(models.User, pk=pk)
+    before = audit_log_state(user_to_restore)
+
     user_to_restore.is_active = True
     user_to_restore.save()
-    
+
+    after = audit_log_state(user_to_restore)
+
+    audit_log_event(request.user, f"Restored user \"{user_to_restore.username}\"", before, after)
+
     return redirect('view_user', pk=pk)
 
 class UserCreateView(FormView):
@@ -669,8 +819,14 @@ class UserCreateView(FormView):
         if User.objects.filter(email=email).exists():
             form.add_error('email', 'Email already exists.')
             return self.form_invalid(form)
+            
 
         # Use Django's built-in create_user to handle password hashing securely.
-        User.objects.create_user(username=username, email=email, first_name=first_name, last_name=last_name)
+        new_user = User.objects.create_user(username=username, email=email, first_name=first_name, last_name=last_name)
+
+        before = audit_log_state(None)
+        after = audit_log_state(new_user)
+
+        audit_log_event(self.request.user, f"Created user \"{new_user.username}\"", before, after)
 
         return super().form_valid(form)

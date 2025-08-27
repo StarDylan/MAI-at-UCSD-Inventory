@@ -196,8 +196,8 @@
           </thead>
           <tbody>
             {% for event in audit %}
-            <tr onclick='viewDiff({{ event|json_script:"event_data" }});'>
-              <td>{{ event.date }}</td>
+            <tr onclick="viewDiff({{ event.json_data }});">
+              <td>{{ event.created_at }}</td>
               <td>{{ event.user }}</td>
               <td>{{ event.event }}</td>
             </tr>
@@ -305,9 +305,8 @@
 </script>
 
 <script type="text/javascript">
-  function viewDiff(event_script_id) {
+  function viewDiff(event) {
     var modal = $("#auditDiffModal").modal();
-    var event = JSON.parse(document.getElementById(event_script_id).textContent);
     console.log(event);
 
     $("#audit_left").text(event["before"]);

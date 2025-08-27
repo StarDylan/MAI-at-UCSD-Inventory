@@ -1,8 +1,5 @@
 {% extends "base.html" %} {% block body %}
-<link
-  href="https://fonts.googleapis.com/icon?family=Material+Icons"
-  rel="stylesheet"
-/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
 
 <h1>Audit</h1>
 
@@ -14,39 +11,33 @@
         <th scope="col">Type</th>
         <th scope="col">User</th>
         <th scope="col">Event</th>
+        <th scope="col">Entity ID</th>
+        <th scope="col">Before JSON</th>
+        <th scope="col">After JSON</th>
       </tr>
     </thead>
     <tbody id="table">
       {% for event in events %}
       <tr onclick="viewDiff({{ event.json_data }});">
         <td>{{ event.created_at }}</td>
-        <td>{{ event.type }}</td>
-        <td>{{ event.user }}</td>
+        <td>{{ event.entity_type }}</td>
+        <td>{{ event.user.username }}</td>
         <td>{{ event.event }}</td>
+        <td>{{ event.entity_id }}</td>
+        <td>{{ event.before }}</td>
+        <td>{{ event.after }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-<div
-  class="modal fade"
-  id="auditDiffModal"
-  tabindex="-1"
-  role="dialog"
-  aria-labelledby="auditDiffModalLabel"
-  aria-hidden="true"
->
+<div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
-        <button
-          type="button"
-          class="close"
-          data-dismiss="modal"
-          aria-label="Close"
-        >
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -84,6 +75,14 @@
         [10, 25, 50, 100, "All"],
       ],
       order: [[0, "desc"]],
+      columnDefs: [
+        {
+          // Hide ID, and JSON but allow it to be searchable.
+          targets: [4, 5, 6],
+          visible: false,
+          searchable: true,
+        },
+      ],
     });
   };
 </script>
