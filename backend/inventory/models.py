@@ -14,24 +14,13 @@ class Category(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['name'], name='unique_active_category_name')
         ]
-
-    def __str__(self):
-        return self.name
-
-
-class DeletedCategory(models.Model):
-    """
-    This model exists purely to hold the 'view_deletedcategory' permission.
-    """
-    class Meta:
-        managed = False  # Tells Django not to create a database table for this model
-        default_permissions = () # Tells Django not to create default add/change/delete permissions
         permissions = [
             ("view_deletedcategory", "Can view deleted categories"),
+            ("restore_deletedcategory", "Can restore deleted categories"),
         ]
 
     def __str__(self):
-        return "DeletedCategory permissions holder"
+        return self.name
 
 class Subcategory(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
@@ -43,10 +32,13 @@ class Subcategory(models.Model):
     name = models.CharField(max_length=100)
 
     class Meta:
-        db_table = "subcategory"
-        
         constraints = [
             models.UniqueConstraint(fields=['name', 'category'], name='unique_active_subcategory_name')
+        ]
+
+        permissions = [
+            ("view_deletedsubcategory", "Can view deleted subcategories"),
+            ("restore_deletedsubcategory", "Can restore deleted subcategories"),
         ]
 
     def __str__(self):
@@ -89,7 +81,10 @@ class Item(models.Model):
     all_objects = models.Manager()
 
     class Meta:
-        db_table = "item"
+        permissions = [
+            ("view_deleteditem", "Can view deleted items"),
+            ("restore_deleteditem", "Can restore deleted items"),
+        ]
 
     def __str__(self):
         return self.name
@@ -114,9 +109,6 @@ class Image(models.Model):
         Item, related_name="images", on_delete=models.CASCADE, db_column="item_id"
     )
 
-    class Meta:
-        db_table = "image"
-
     def __str__(self):
         return self.image_url
 
@@ -132,7 +124,6 @@ class AuditEvent(models.Model):
     after = models.TextField(blank=True, default="", editable=False)
 
     class Meta:
-        db_table = "audit"
         indexes = [
             models.Index(fields=["entity_type", "id", "created_at"]),
         ]

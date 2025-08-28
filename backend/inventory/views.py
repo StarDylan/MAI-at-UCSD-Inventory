@@ -492,6 +492,7 @@ def restore_category(request, uuid):
     """
     Restores a deleted item.
     """
+    # TODO: Warn the user if they try to restore a category that conflicts with an existing category
 
     # Get the Category object or return a 404 error if it doesn't exist.
     category = get_object_or_404(Category, id=uuid)
