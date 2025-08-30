@@ -54,11 +54,6 @@ class Command(BaseCommand):
             Permission.objects.get(codename='change_group', content_type=group_ct),
             Permission.objects.get(codename='delete_group', content_type=group_ct),
 
-            Permission.objects.get(codename='view_deletedcategory', content_type=category_ct),
-            Permission.objects.get(codename='restore_deletedcategory', content_type=category_ct),
-            Permission.objects.get(codename='view_deletedsubcategory', content_type=subcategory_ct),
-            Permission.objects.get(codename='restore_deletedsubcategory', content_type=subcategory_ct),
-
             Permission.objects.get(codename='add_user', content_type=user_ct),
             Permission.objects.get(codename='change_user', content_type=user_ct),
             Permission.objects.get(codename='delete_user', content_type=user_ct),
@@ -76,4 +71,4 @@ class Command(BaseCommand):
 
         user_group.permissions.set(user_permissions)
         member_group.permissions.set(member_permissions)
-        admin_group.permissions.set(admin_permiss#ions)
+        admin_group.permissions.set(admin_permissions)

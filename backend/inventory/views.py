@@ -33,8 +33,8 @@ from cloudinary.utils import cloudinary_url
 @dataclass
 class ObjState:
     json_data: str
-    id: int
-    class_name: str
+    id: int | None
+    class_name: str | None
 
 
 def audit_log_state(obj):
@@ -51,7 +51,7 @@ def audit_log_state(obj):
         class_name=obj.__class__.__name__
     )
 
-def audit_log_event(user, event: str, before_state: ObjState, after_state: ObjState, entity_id: str = None):
+def audit_log_event(user, event: str, before_state: ObjState, after_state: ObjState, entity_id: str | None = None):
     AuditEvent.objects.create(
         user=user,
         event=event,
@@ -176,9 +176,9 @@ class CategoryUpdateView(LoginRequiredMixin, UpdateView):
         before_model = Category.objects.get(pk=form.instance.pk)
         before = audit_log_state(before_model)
 
-        after = audit_log_state(self.object)
+        after = audit_log_state(self.object) # type: ignore
 
-        audit_log_event(self.request.user, f"Updated category \"{before_model.name}\" to \"{self.object.name}\"", before, after)
+        audit_log_event(self.request.user, f"Updated category \"{before_model.name}\" to \"{self.object.name}\"", before, after) # type: ignore
 
         return super().form_valid(form)
 
@@ -192,14 +192,14 @@ class ItemUpdateView(LoginRequiredMixin, UpdateView):
         before_model = models.Item.objects.get(pk=form.instance.pk)
         before = audit_log_state(before_model)
 
-        after = audit_log_state(self.object)
+        after = audit_log_state(self.object) # type: ignore
 
         audit_log_event(self.request.user, f"Updated item \"{before_model.name}\"", before, after)
 
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy('view_item', kwargs={'uuid': self.object.pk})
+        return reverse_lazy('view_item', kwargs={'uuid': self.object.pk}) # type: ignore
 
 class CategoryCreateView(LoginRequiredMixin, CreateView):
     model = models.Category
@@ -340,7 +340,7 @@ def view_item(request, uuid):
 
     for event in events:
         # Manually serialize the relevant data to a JSON string
-        event.json_data = json.dumps({
+        event.json_data = json.dumps({ # type: ignore
             'before': event.before,
             'after': event.after,
         })
@@ -353,28 +353,6 @@ def view_item(request, uuid):
     
     template = loader.get_template("view/item.html")
     return HttpResponse(template.render(context, request))
-
-@login_required
-def restore_subcategory(request, uuid):
-    """
-    Restores a deleted subcategory.
-    """
-
-    # Get the Subcategory object or return a 404 error if it doesn't exist.
-    subcategory = get_object_or_404(Subcategory, id=uuid)
-
-    before = audit_log_state(subcategory)
-
-    # Update the 'deleted' field and save the object.
-    subcategory.is_deleted = False
-    subcategory.save()
-
-    after = audit_log_state(subcategory)
-
-    audit_log_event(request.user, f"Restored subcategory \"{subcategory.name}\"", before, after)
-
-    # Redirect to the view page for the restored subcategory.
-    return redirect('view_subcategory_items', uuid=uuid)
 
 @login_required
 def delete_item(request, uuid):
@@ -479,36 +457,13 @@ def upload_photo(request, uuid):
         after = audit_log_state(new_image)
 
         # We associate the uploaded image with the item, since that is where we create them
-        audit_log_event(request.user, f"Uploaded photo for item \"{item.name}\"", before, after, entity_id=item.id)
+        audit_log_event(request.user, f"Uploaded photo for item \"{item.name}\"", before, after, entity_id=str(item.id))
 
         return HttpResponse(status=201)
 
     except Exception as e:
         logging.error(f"An exception occurred during image upload: {e}")
         return HttpResponse('False')
-    
-@login_required
-def restore_category(request, uuid):
-    """
-    Restores a deleted item.
-    """
-    # TODO: Warn the user if they try to restore a category that conflicts with an existing category
-
-    # Get the Category object or return a 404 error if it doesn't exist.
-    category = get_object_or_404(Category, id=uuid)
-
-    before = audit_log_state(category)
-
-    # Update the 'deleted' field and save the object.
-    category.is_deleted = False
-    category.save()
-
-    after = audit_log_state(category)
-
-    audit_log_event(request.user, f"Restored category \"{category.name}\"", before, after)
-
-    # Redirect to the view page for the restored item.
-    return redirect('view_category', uuid=uuid)
 
 @login_required
 def delete_image(request, uuid):
@@ -534,7 +489,7 @@ def delete_image(request, uuid):
 
     after = audit_log_state(None)
 
-    audit_log_event(request.user, f"Deleted image from item \"{image.item.name}\"", before, after, entity_id=image.item.id)
+    audit_log_event(request.user, f"Deleted image from item \"{image.item.name}\"", before, after, entity_id=str(image.item.id))
 
     referer = request.META.get('HTTP_REFERER')  # full URL of previous page
     if referer:
@@ -663,7 +618,7 @@ def manage_users_view(request):
     users_data = []
     for user_obj in all_users:
         users_data.append({
-            'id': user_obj.id,
+            'id': user_obj.pk,
             'username': user_obj.username,
             'is_active': user_obj.is_active,
             # Check for group membership and store as booleans.
@@ -741,7 +696,7 @@ def view_user_profile_view(request, pk):
 
     context = {
         'user_data': {
-            'user_id': viewed_user.id,
+            'user_id': viewed_user.pk,
             'user_name': viewed_user.username,
             'user_email': viewed_user.email,
             'user_role': user_role,

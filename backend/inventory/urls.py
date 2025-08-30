@@ -32,9 +32,6 @@ urlpatterns = [
     path('delete/item/<uuid:uuid>/', views.delete_item, name='delete_item'),
     path('restore/item/<uuid:uuid>/', views.restore_item, name='restore_item'),
 
-    path('restore/subcategory/<uuid:uuid>/', views.restore_subcategory, name='restore_subcategory'),
-    path('restore/category/<uuid:uuid>/', views.restore_category, name='restore_category'),
-
     path('upload/photo/<uuid:uuid>/', views.upload_photo, name='upload_photo'),
 
     path('search/check_in/', views.SearchCheckInView.as_view(), name='search_check_in'),

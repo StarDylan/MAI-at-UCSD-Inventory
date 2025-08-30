@@ -14,10 +14,6 @@ class Category(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['name'], name='unique_active_category_name')
         ]
-        permissions = [
-            ("view_deletedcategory", "Can view deleted categories"),
-            ("restore_deletedcategory", "Can restore deleted categories"),
-        ]
 
     def __str__(self):
         return self.name
@@ -34,11 +30,6 @@ class Subcategory(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['name', 'category'], name='unique_active_subcategory_name')
-        ]
-
-        permissions = [
-            ("view_deletedsubcategory", "Can view deleted subcategories"),
-            ("restore_deletedsubcategory", "Can restore deleted subcategories"),
         ]
 
     def __str__(self):

@@ -3,10 +3,7 @@
 <h4 style="text-align:left;float:left;">{{ subcategory.category.name }} > {{ subcategory.name }}</h4>
 {% if user.is_authenticated %}
 <a style="text-align:right;float:right;">
-    {% if subcategory.is_deleted %}
-    <button class="btn" onclick="confirmRestore('{{ subcategory.id }}','{{ subcategory.name }}')"><i
-            class="material-icons">restore</i></button>
-    {% elif items|length == 0 %}
+    {% if items|length == 0 %}
     <button class="btn" onclick="confirmDelete('{{ subcategory.id }}','{{ subcategory.name }}')"><i class="material-icons"
             style="color:red">delete</i></button>
     {% endif %}
@@ -50,12 +47,6 @@
       if (confirm("Are you sure you want to delete subcategory [" + name + "]?")) {
         // Use the named URL pattern and replace the placeholder with the actual ID.
         window.location.href = "{% url 'delete_subcategory' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
-      }
-    }
-    function confirmRestore(id, name) {
-      if (confirm("Are you sure you want to restore subcategory [" + name + "]?")) {
-        // Use the named URL pattern and replace the placeholder with the actual ID.
-        window.location.href = "{% url 'restore_subcategory' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
       }
     }
 </script>
