@@ -4,7 +4,7 @@
   <a style="text-align: right; float: right">
     {% if item.is_deleted %} 
     
-    {% if perms.inventory.restore_item %}
+    {% if perms.inventory.restore_deleteditem %}
     <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
     {% endif %} 
     

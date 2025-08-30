@@ -399,7 +399,7 @@ def delete_item(request, uuid):
     return redirect('dashboard')
 
 @login_required
-@permission_required('inventory.restore_item', raise_exception=True)
+@permission_required('inventory.restore_deleteditem', raise_exception=True)
 def restore_item(request, uuid):
     """
     Restores a deleted item.

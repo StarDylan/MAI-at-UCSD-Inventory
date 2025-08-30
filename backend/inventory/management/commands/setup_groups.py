@@ -36,9 +36,9 @@ class Command(BaseCommand):
 
             Permission.objects.get(codename='add_item', content_type=item_ct),
             Permission.objects.get(codename='change_item', content_type=item_ct),
-            Permission.objects.get(codename='delete_item', content_type=item_ct),
             Permission.objects.get(codename='view_internalstockingdetails', content_type=item_ct),
 
+            Permission.objects.get(codename='delete_item', content_type=item_ct),
             Permission.objects.get(codename='add_image', content_type=image_ct),
 
         ]

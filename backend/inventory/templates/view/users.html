@@ -105,7 +105,7 @@
     <tbody id="table_deleted">
       {% for item in users %} {% if item.id != user.id and not item.is_active %}
       <tr>
-        <td>{{ item.username }}</td>
+        <td>{{ item.user }}</td>
         <td class="text-right">
           <a href="{% url 'view_user' item.id %}"
             ><button class="btn"><i class="material-icons">description</i></button></a
