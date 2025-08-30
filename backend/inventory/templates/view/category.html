@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h4 style="text-align:left;float:left;">{{ category.name }}</h4>
-{% if user.is_authenticated %}
+{% if perms.inventory.delete_category %}
 <a style="text-align:right;float:right;">
     {% if items|length == 0 %}
     <button class="btn" onclick="confirmDelete('{{ category.id }}','{{ category.name }}')"><i class="material-icons"
@@ -32,7 +32,7 @@
                 <td>{{ item.quantity_active }}</td>
                 <td class="text-right">
                     <a href="{% url 'view_item' item.id %}"><button class="btn"><i class="material-icons">description</i></button></a>
-                    {% if not item.is_deleted and user.is_authenticated and user.role >= 5 %}
+                    {% if not item.is_deleted and perms.inventory.change_item %}
                     <a href="{% url 'edit_item' item.id %}"><button class="btn"><i class="material-icons">edit</i></button></a>
                     {% endif %}
                 </td>

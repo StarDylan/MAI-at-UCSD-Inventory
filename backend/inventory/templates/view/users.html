@@ -1,11 +1,13 @@
 {% extends "base.html" %} {% load static %} {% block body %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0">Manage active users</h4>
-  <a href="{% url 'create_user' %}" class="btn btn-primary">
-    <i class="material-icons align-middle mr-1">person_add</i>
-    Create User
-  </a>
+    <h4 class="mb-0">Manage active users</h4>
+    {% if perms.inventory.add_user %}
+    <a href="{% url 'create_user' %}" class="btn btn-primary">
+        <i class="material-icons align-middle mr-1">person_add</i>
+        Create User
+    </a>
+    {% endif %}
 </div>
 
 <div>
@@ -19,16 +21,20 @@
     <thead>
       <tr>
         <th scope="col">User</th>
+        {% if perms.inventory.change_user %}
         <th scope="col">Role - User</th>
         <th scope="col">Role - Member</th>
         <th scope="col">Role - Admin</th>
         <th scope="col"></th>
+        {% endif %}
       </tr>
     </thead>
     <tbody id="table">
       {% for item in users %} {% if item.id != user.id and item.is_active %}
       <tr>
-        <td>{{ item.username }}</td>
+        <td>{{ item.user }}</td>
+
+        {% if perms.inventory.change_user %}
         <td>
           {% if item.is_user %}
           <button class="btn" id="btnSetRoleUser" onclick='setRole("{{ item.id }}", "User")'>
@@ -62,6 +68,8 @@
           </button>
           {% endif %}
         </td>
+        {% endif %}
+
         <td class="text-right">
           <a href="{% url 'view_user' item.id %}"
             ><button class="btn"><i class="material-icons">description</i></button></a
@@ -77,6 +85,7 @@
 <br />
 <br />
 
+{% if perms.inventory.restore_user %}
 <h4>Manage deleted users</h4>
 
 <div>
@@ -107,6 +116,7 @@
     </tbody>
   </table>
 </div>
+{% endif %}
 
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 

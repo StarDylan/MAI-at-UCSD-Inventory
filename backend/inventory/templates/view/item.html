@@ -1,17 +1,24 @@
 {% extends "base.html" %} {% block body %}
 <div id="page">
-  {% if item.category.is_deleted %}
-  <div class="alert alert-warning" role="alert"><strong>Warning:</strong> This item belongs to a deleted category and cannot be edited.</div>
-  {% endif %}
-
   <h4 style="text-align: left; float: left">{{ item.name }}</h4>
   <a style="text-align: right; float: right">
-    {% if not item.category.is_deleted %} {% if item.is_deleted %} {% if user.is_authenticated %}
+    {% if item.is_deleted %} 
+    
+    {% if perms.inventory.restore_item %}
     <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
-    {% endif %} {% else %} {% if user.is_authenticated %}
+    {% endif %} 
+    
+    {% else %} 
+    
+    {% if perms.inventory.change_item %}
     <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
+    {% endif %}
+
+    {% if perms.inventory.delete_item %}
     <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
-    {% endif %} {% endif %} {% endif %}
+    {% endif %}
+
+    {% endif %}
   </a>
 
   <br />
@@ -60,7 +67,7 @@
   </style>
 
   <div class="list-group mt-3">
-    {% if user.is_authenticated and user.role >= 5 %}
+    {% if perms.inventory.view_advancedpropertiesitem %}
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Item ID</span>
       <span class="flex-fill text-right"><code>{{ item.id }}</code></span>
@@ -86,10 +93,12 @@
       </span>
     </div>
 
+    {% if perms.inventory.view_internalstockingdetails %}
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">map</i> Location</span>
       <span class="flex-fill text-right">{{ item.location }}</span>
     </div>
+    {% endif %}
 
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
@@ -127,7 +136,7 @@
 
   <br />
 
-  {% if user.is_authenticated %}
+  {% if perms.inventory.view_internalstockingdetails %}
   <div class="card">
     <div class="card-header">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">description</i> Notes - Internal</span>
@@ -143,13 +152,16 @@
   <div class="card">
     <div class="card-header">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">photo</i> Photos</span>
-      {% if not item.is_deleted and user.is_authenticated %} {% csrf_token %}
+      {% if not item.is_deleted and (perms.inventory.add_image or perms.inventory.delete_image) %} {% csrf_token %}
       <a style="text-align: right; float: right" class="vertical-align-middle">
+        {% if perms.inventory.add_image %}
         <input type="file" accept="image/*" name="image" id="file" onchange="loadFile(event)" style="display: none" />
         <label for="file">
           <i class="material-icons">add_a_photo</i>
         </label>
-        {% if images|length > 0 %}
+        {% endif %}
+
+        {% if images|length > 0 and perms.inventory.delete_image %}
         <a href="{% url 'delete_image_list_view' %}?query={{item.name}}"
           ><button class="btn"><i class="material-icons" style="color: red">delete</i></button></a
         >
@@ -179,7 +191,7 @@
   </div>
   <br />
 
-  {% if user.is_authenticated %}
+  {% if perms.inventory.view_auditevent %}
   <div class="card">
     <div class="card-header">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit</span>

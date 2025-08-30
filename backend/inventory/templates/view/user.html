@@ -2,11 +2,11 @@
 <div id="page">
   <h4 style="text-align: left; float: left">{{ user_data.user_name }}</h4>
   <a style="text-align: right; float: right">
-    {% if user_data.user_active == False %}
+    {% if user_data.user_active == False and perms.inventory.restore_user %}
     <button class="btn" onclick="confirmRestore('{{ user_data.user_id }}','{{ user_data.user_name }}')">
       <i class="material-icons">restore</i>
     </button>
-    {% else %}
+    {% elif user_data.user_active == True and perms.inventory.delete_user %}
     <button class="btn" onclick="confirmDelete('{{ user_data.user_id }}','{{ user_data.user_name }}')">
       <i class="material-icons" style="color: red">delete</i>
     </button>
@@ -101,6 +101,7 @@
 
   <br />
 
+  {% if perms.inventory.view_auditevent %}
   <div class="card">
     <div class="card-header">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit - Actions performed by user</span>
@@ -162,6 +163,8 @@
       </div>
     </div>
   </div>
+
+  {% endif %}
 
   <!-- Modals are typically placed at the end of the body for correct rendering. -->
   <div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">

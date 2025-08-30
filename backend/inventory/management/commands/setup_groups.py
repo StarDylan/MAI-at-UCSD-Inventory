@@ -39,6 +39,7 @@ class Command(BaseCommand):
             Permission.objects.get(codename='add_item', content_type=item_ct),
             Permission.objects.get(codename='change_item', content_type=item_ct),
             Permission.objects.get(codename='delete_item', content_type=item_ct),
+            Permission.objects.get(codename='view_internalstockingdetails', content_type=item_ct),
 
             Permission.objects.get(codename='add_image', content_type=image_ct),
             Permission.objects.get(codename='delete_image', content_type=image_ct),
@@ -58,13 +59,17 @@ class Command(BaseCommand):
             Permission.objects.get(codename='change_user', content_type=user_ct),
             Permission.objects.get(codename='delete_user', content_type=user_ct),
             Permission.objects.get(codename='view_user', content_type=user_ct),
+            Permission.objects.get(codename='restore_user', content_type=user_ct),
 
             Permission.objects.get(codename='change_category', content_type=category_ct),
             Permission.objects.get(codename='delete_category', content_type=category_ct),
             Permission.objects.get(codename='change_subcategory', content_type=subcategory_ct),
             Permission.objects.get(codename='delete_subcategory', content_type=subcategory_ct),
 
+            Permission.objects.get(codename='view_deleteditem', content_type=item_ct),
+            Permission.objects.get(codename='restore_deleteditem', content_type=item_ct),
 
+            Permission.objects.get(codename='view_advancedpropertiesitem', content_type=item_ct),
         ]
 
         # Add the permissions to the Member group

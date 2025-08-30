@@ -9,8 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django import forms
 from django.urls import reverse, reverse_lazy
 from django.template import loader
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth import logout
 from django.contrib.auth.models import Group
 from django.views.generic import UpdateView, CreateView, FormView
@@ -66,11 +66,13 @@ def index(request):
     # Redirect to dashboard
     return HttpResponseRedirect(reverse("dashboard"))
 
+
 def dashboard(request):
     template = loader.get_template("dashboard.html")
     return HttpResponse(template.render({}, request))
 
-
+@login_required
+@permission_required('inventory.view_auditevent', raise_exception=True)
 def audit_view(request):
     """
     Renders the audit log page.
@@ -93,12 +95,16 @@ def audit_view(request):
     template = loader.get_template("audit.html")
     return HttpResponse(template.render(context, request))
 
+
+@login_required
+@permission_required('inventory.delete_category', raise_exception=True)
 def delete_category_list_view(request):
     categories = Category.objects.filter(subcategories__isnull=True).order_by('name')
     template = loader.get_template("delete/category.html")
     return HttpResponse(template.render({'categories': categories}, request))
 
 @login_required
+@permission_required('inventory.delete_category', raise_exception=True)
 def delete_category(request, uuid):
     # Check for admin privileges
     # if not request.user.has_perm('inventory.delete_category'):
@@ -119,6 +125,9 @@ def delete_category(request, uuid):
 
     return redirect('dashboard')
 
+
+@login_required
+@permission_required('inventory.delete_image', raise_exception=True)
 def delete_image_list_view(request):
     images = Image.objects.select_related('item').all().order_by('item__name')
     return render(request, "delete/image.html", {'images': images})
@@ -127,6 +136,8 @@ def profile_view(request):
     return HttpResponseRedirect(reverse("dashboard"))
 
 
+@login_required
+@permission_required('inventory.delete_subcategory', raise_exception=True)
 def delete_subcategory_list_view(request):
     """
     Fetches all subcategories from the database and pre-fetches
@@ -145,6 +156,7 @@ def delete_subcategory_list_view(request):
 
 
 @login_required
+@permission_required('inventory.delete_subcategory', raise_exception=True)
 def delete_subcategory(request, uuid):
     # Check for admin privileges
     # if not request.user.has_perm('inventory.delete_subcategory'):
@@ -165,11 +177,12 @@ def delete_subcategory(request, uuid):
     return redirect('dashboard')
 
 
-class CategoryUpdateView(LoginRequiredMixin, UpdateView):
+class CategoryUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Category
     form_class = CategoryForm
     template_name = "edit/category.html"
     success_url = reverse_lazy('dashboard')
+    permission_required = 'inventory.change_category'
 
     def form_valid(self, form):
         
@@ -182,10 +195,11 @@ class CategoryUpdateView(LoginRequiredMixin, UpdateView):
 
         return super().form_valid(form)
 
-class ItemUpdateView(LoginRequiredMixin, UpdateView):
+class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = models.Item
     form_class = ItemForm
     template_name = "edit/item.html"
+    permission_required = 'inventory.change_item'
 
     def form_valid(self, form):
         
@@ -201,11 +215,12 @@ class ItemUpdateView(LoginRequiredMixin, UpdateView):
     def get_success_url(self):
         return reverse_lazy('view_item', kwargs={'uuid': self.object.pk}) # type: ignore
 
-class CategoryCreateView(LoginRequiredMixin, CreateView):
+class CategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = models.Category
     form_class = CategoryForm
     template_name = "register/category.html"
     success_url = reverse_lazy('dashboard')
+    permission_required = 'inventory.add_category'
 
     def form_valid(self, form):
         before = audit_log_state(None)
@@ -218,11 +233,12 @@ class CategoryCreateView(LoginRequiredMixin, CreateView):
 
         return super().form_valid(form)
 
-class SubcategoryCreateView(LoginRequiredMixin, CreateView):
+class SubcategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = models.Subcategory
     form_class = SubcategoryForm
     template_name = "register/subcategory.html"
     success_url = reverse_lazy('dashboard')
+    permission_required = 'inventory.add_subcategory'
 
     def form_valid(self, form):
         before = audit_log_state(None)
@@ -235,11 +251,12 @@ class SubcategoryCreateView(LoginRequiredMixin, CreateView):
 
         return super().form_valid(form)
 
-class ItemCreateView(LoginRequiredMixin, CreateView):
+class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = models.Item
     form_class = ItemForm
     template_name = "register/item.html"
     success_url = reverse_lazy('dashboard')
+    permission_required = 'inventory.add_item'
 
     def form_valid(self, form):
         before = audit_log_state(None)
@@ -320,7 +337,6 @@ def view_subcategory_items(request, uuid):
     template = loader.get_template("view/subcategory.html")
     return HttpResponse(template.render(context, request))
 
-# TODO: Viewing a deleted item requires extra permissions
 def view_item(request, uuid):
     """
     Fetches a specific item and all its related data.
@@ -331,7 +347,10 @@ def view_item(request, uuid):
         Item.all_objects.select_related('category', 'subcategory'),
         id=uuid
     )
-    
+
+    if item.is_deleted and (not request.user.is_authenticated or not request.user.has_perm('inventory.view_deleteditem')):
+        return HttpResponseForbidden()
+
     # Fetch all images related to the item.
     images = Image.objects.filter(item=item).order_by('id')
     
@@ -355,6 +374,7 @@ def view_item(request, uuid):
     return HttpResponse(template.render(context, request))
 
 @login_required
+@permission_required('inventory.delete_item', raise_exception=True)
 def delete_item(request, uuid):
     """
     Deletes an item by setting its 'deleted' status to True.
@@ -378,6 +398,7 @@ def delete_item(request, uuid):
     return redirect('view_item', uuid=uuid)
 
 @login_required
+@permission_required('inventory.restore_item', raise_exception=True)
 def restore_item(request, uuid):
     """
     Restores a deleted item.
@@ -400,6 +421,7 @@ def restore_item(request, uuid):
     return redirect('view_item', uuid=uuid)
 
 @login_required
+@permission_required('inventory.add_image', raise_exception=True)
 def upload_photo(request, uuid):
     """
     Handles photo uploads for an item.
@@ -466,6 +488,7 @@ def upload_photo(request, uuid):
         return HttpResponse('False')
 
 @login_required
+@permission_required('inventory.delete_image', raise_exception=True)
 def delete_image(request, uuid):
     """
     Deletes an image
@@ -496,7 +519,7 @@ def delete_image(request, uuid):
         return HttpResponseRedirect(referer)
     return HttpResponseRedirect(reverse('delete_image_list_view'))
 
-class SearchCheckInView(LoginRequiredMixin, FormView):
+class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
     """
     A Django generic view to handle the "check in" item form.
     It combines LoginRequiredMixin and a custom PermissionRequiredMixin
@@ -504,6 +527,7 @@ class SearchCheckInView(LoginRequiredMixin, FormView):
     """
     template_name = 'search/updateqty.html'  # Use the name of your template file
     form_class = Search_QuantityAdd
+    permission_required = 'inventory.change_item'
 
     def get_context_data(self, **kwargs):
         """
@@ -541,7 +565,7 @@ class SearchCheckInView(LoginRequiredMixin, FormView):
         messages.error(self.request, "Form submission failed. Please check the fields below.")
         return super().form_invalid(form)
 
-class SearchCheckOutView(LoginRequiredMixin, FormView):
+class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
     """
     A Django generic view to handle the "check out" item form.
     It combines LoginRequiredMixin and a custom PermissionRequiredMixin
@@ -549,6 +573,8 @@ class SearchCheckOutView(LoginRequiredMixin, FormView):
     """
     template_name = 'search/updateqty.html'  # Use the name of your template file
     form_class = Search_QuantityRemove
+    permission_required = 'inventory.change_item'
+    
 
     def get_context_data(self, **kwargs):
         """
@@ -584,13 +610,14 @@ class SearchCheckOutView(LoginRequiredMixin, FormView):
         return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
 
 
+@login_required
+@permission_required('inventory.view_deleteditem', raise_exception=True)
 def view_deleted_items(request):
     """
     View to display all deleted items.
     """
     deleted_items = Item.all_objects.filter(is_deleted=True)
     return render(request, 'view/category.html', {'category': {"name": "Deleted Items"}, 'items': deleted_items})
-
 
 def logout_view(request):
     logout(request)
@@ -606,6 +633,8 @@ def is_admin(user):
     return user.groups.filter(name='Admin').exists()
 
 @login_required
+@permission_required('inventory.change_user', raise_exception=True)
+@permission_required('inventory.view_user', raise_exception=True)
 def manage_users_view(request):
     """
     Renders the template for managing users based on group membership.
@@ -619,7 +648,7 @@ def manage_users_view(request):
     for user_obj in all_users:
         users_data.append({
             'id': user_obj.pk,
-            'username': user_obj.username,
+            'user': user_obj,
             'is_active': user_obj.is_active,
             # Check for group membership and store as booleans.
             'is_user': user_obj.groups.filter(name='User').exists(),
@@ -636,6 +665,7 @@ def manage_users_view(request):
 
 
 @login_required
+@permission_required('inventory.change_user', raise_exception=True)
 def edit_user_role_api(request, pk):
     """
     API endpoint to change a user's role by assigning them to a new group.
@@ -664,6 +694,7 @@ def edit_user_role_api(request, pk):
 
 
 @login_required
+@permission_required('inventory.view_user', raise_exception=True)
 def view_user_profile_view(request, pk):
     """
     Renders a user's profile page, including their details and audit logs.
@@ -710,6 +741,8 @@ def view_user_profile_view(request, pk):
     return render(request, "view/user.html", context)
 
 
+@login_required
+@permission_required('inventory.delete_user', raise_exception=True)
 def delete_user_view(request, pk):
     """
     Handles the deletion of a user by setting their is_active status to False.
@@ -733,6 +766,8 @@ def delete_user_view(request, pk):
     return redirect('view_user', pk=pk)
 
 
+@login_required
+@permission_required('inventory.restore_user', raise_exception=True)
 def restore_user_view(request, pk):
     """
     Handles the restoration of a user by setting their is_active status to True.
@@ -750,13 +785,14 @@ def restore_user_view(request, pk):
 
     return redirect('view_user', pk=pk)
 
-class UserCreateView(FormView):
+class UserCreateView(FormView, PermissionRequiredMixin, LoginRequiredMixin):
     """
     View to display a user creation form and process its submission.
     """
     template_name = 'register/user.html'
     form_class = UserCreationForm
-    success_url = reverse_lazy('manage_users')  # Replace with your success URL
+    success_url = reverse_lazy('manage_users')
+    permission_required = 'inventory.add_user'
 
     def form_valid(self, form):
         """

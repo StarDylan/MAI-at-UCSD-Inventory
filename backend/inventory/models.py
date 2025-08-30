@@ -75,6 +75,8 @@ class Item(models.Model):
         permissions = [
             ("view_deleteditem", "Can view deleted items"),
             ("restore_deleteditem", "Can restore deleted items"),
+            ("view_internalstockingdetails", "Can view internal stocking"),
+            ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
 
     def __str__(self):
@@ -89,8 +91,15 @@ class User(AbstractUser):
             models.UniqueConstraint(fields=['email'], name='unique_user_email'),
         ]
 
+        permissions = [
+            ("restore_user", "Can restore user")
+        ]
+
     def __str__(self):
-        return f"{self.username} <{self.email}>"
+        # If first and last name are not defined, than show username and email
+        if not self.first_name and not self.last_name:
+            return f"{self.username} <{self.email}>"
+        return f"{self.first_name} {self.last_name}"
 
 class Image(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)

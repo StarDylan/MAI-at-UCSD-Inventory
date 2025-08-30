@@ -13,35 +13,57 @@
 
 <br />
 
-{% if user.is_authenticated and user.is_staff %}
+{% if perms.inventory.change_item or perms.inventory.add_item %}
 <h5>Update</h5>
 <div class="list-group">
-  <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
-  <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
-  <a href="/search/check_out" class="list-group-item list-group-item-action">Search and check out an item</a>
+    {% if perms.inventory.add_item %}
+    <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
+    {% endif %}
+    {% if perms.inventory.change_item %}
+    <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
+    <a href="/search/check_out" class="list-group-item list-group-item-action">Search and check out an item</a>
+    {% endif %}
 </div>
+{% endif %}
 
 <br />
 
+
+{% if perms.inventory.add_user or perms.inventory.view_user or perms.inventory.view_auditevent or perms.inventory.view_deleteditem  or perms.inventory.add_category or perms.inventory.add_subcategory or perms.inventory.delete_category or perms.inventory.delete_subcategory or perms.inventory.delete_image %}
 <h5>Administrate</h5>
 <div class="list-group">
-  {% if user.is_superuser %}
-  <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">Manage users</a>
-  <a href="/view/audit" class="list-group-item list-group-item-action">View audit logs</a>
-  {% endif %}
+    {# Either the user can add a new user or view users  #}
+    {% if perms.inventory.add_user or perms.inventory.view_user %}
+    <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">Manage users</a>
+    {% endif %}
 
-  <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
+    {% if perms.inventory.view_auditevent %}
+    <a href="{% url 'audit' %}" class="list-group-item list-group-item-action">View audit logs</a>
+    {% endif %}
 
-  <a href="{% url 'create_category' %}" class="list-group-item list-group-item-action">Create a new category</a>
-  <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
-  <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>
-  <a href="{% url 'delete_subcategory_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a subcategory</div></a>
+    {% if perms.inventory.view_deleteditem %}
+    <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
+    {% endif %}
 
-  <a href="/delete/image" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
+    {% if perms.inventory.add_category %}
+    <a href="{% url 'create_category' %}" class="list-group-item list-group-item-action">Create a new category</a>
+    {% endif %}
+    {% if perms.inventory.add_subcategory %}
+    <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
+    {% endif %}
+    {% if perms.inventory.delete_category %}
+    <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>
+    {% endif %}
+    {% if perms.inventory.delete_subcategory %}
+    <a href="{% url 'delete_subcategory_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a subcategory</div></a>
+    {% endif %}
+    {% if perms.inventory.delete_image %}
+    <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
+    {% endif %}
 </div>
-
 <br />
 {% endif %}
+
 
 <h5>Account</h5>
 <div class="list-group">
