@@ -5,13 +5,10 @@ This module defines all URL routes for the inventory system, organized by functi
 Routes are grouped logically and use the reorganized view modules for better maintainability.
 """
 
-from django.shortcuts import redirect
-from django.urls import include, path, reverse_lazy
-from allauth.socialaccount.providers.google.views import oauth2_login
-from allauth.socialaccount.models import SocialApp
-from allauth.account.views import LogoutView
+from django.conf import settings
+from django.urls import path
+from django.conf.urls.static import static
 
-from inventory import admin
 from inventory.views import (
     audit,
     auth,
@@ -23,6 +20,7 @@ from inventory.views import (
     subcategories,
     users
 )
+
 urlpatterns = [
     # Home and Dashboard
     path("", dashboard.index_view, name="home"),
@@ -78,4 +76,4 @@ urlpatterns = [
     path('accounts/profile/', dashboard.profile_view, name='profile'),
     path('accounts/logout/', auth.logout_view, name='logout'),
     path('accounts/not-recognized/', auth.AccountNotRecognizedView.as_view(), name='account_not_recognized'),
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

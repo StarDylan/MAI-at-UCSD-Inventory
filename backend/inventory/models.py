@@ -83,7 +83,7 @@ class Item(models.Model):
         return self.name
 
 class User(AbstractUser):
-    user_picture = models.URLField(default="/static/mai_logo.png")
+    user_picture = models.CharField(max_length=255, default="/static/inventory/original_logo_square.png")
 
     class Meta:
         constraints = [
