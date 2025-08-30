@@ -1,6 +1,10 @@
 from django import forms
 from .models import Category, Subcategory
 from inventory import models
+from allauth.account.forms import LoginForm
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Submit
+
 
 class CategoryForm(forms.ModelForm):
     class Meta:
@@ -104,3 +108,10 @@ class UserCreationForm(forms.Form):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
+
+class CrispyLoginForm(LoginForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.add_input(Submit('submit', 'Log In'))

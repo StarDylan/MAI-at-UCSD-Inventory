@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth import logout
 from django.contrib.auth.models import Group
-from django.views.generic import UpdateView, CreateView, FormView
+from django.views.generic import UpdateView, CreateView, FormView, TemplateView, RedirectView
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import F
@@ -68,8 +68,17 @@ def index(request):
 
 
 def dashboard(request):
+    # 
+    if settings.DEBUG and settings.SOCIALACCOUNT_PROVIDERS.get('google')["APP"]["client_id"] == "":
+        context = {
+            "always_admin": True
+        }
+    else:
+        context = {
+            "always_admin": False
+        }
     template = loader.get_template("dashboard.html")
-    return HttpResponse(template.render({}, request))
+    return HttpResponse(template.render(context, request))
 
 @login_required
 @permission_required('inventory.view_auditevent', raise_exception=True)
@@ -655,7 +664,10 @@ def manage_users_view(request):
             'is_user': user_obj.groups.filter(name='User').exists(),
             'is_member': user_obj.groups.filter(name='Member').exists(),
             'is_admin': user_obj.groups.filter(name='Admin').exists(),
+            'is_superuser': user_obj.is_superuser
         })
+
+    print(users_data)
 
     context = {
         'users': users_data,
@@ -823,3 +835,13 @@ class UserCreateView(FormView, PermissionRequiredMixin, LoginRequiredMixin):
         audit_log_event(self.request.user, f"Created user \"{new_user.username}\"", before, after)
 
         return super().form_valid(form)
+
+class AccountNotRecognizedView(TemplateView):
+    template_name = 'registration/not_found.html'
+class GoogleLoginView(TemplateView):
+    template_name = 'registration/google_login.html'
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context['google_client_id'] = settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id']
+        return context

@@ -1,5 +1,10 @@
-from django.urls import path
+from django.shortcuts import redirect
+from django.urls import include, path, reverse_lazy
+from allauth.socialaccount.providers.google.views import oauth2_login
+from allauth.socialaccount.models import SocialApp
+from allauth.account.views import LogoutView
 
+from inventory import admin
 from . import views
 
 urlpatterns = [
@@ -48,7 +53,6 @@ urlpatterns = [
     path('delete/user/<int:pk>/', views.delete_user_view, name='delete_user'),
     path('restore/user/<int:pk>/', views.restore_user_view, name='restore_user'),
     path('create/user/', views.UserCreateView.as_view(), name='create_user'),
-    
-    
-]
 
+    path('accounts/not-recognized/', views.AccountNotRecognizedView.as_view(), name='account_not_recognized'),
+]

@@ -8,6 +8,7 @@ dependencies = [
     "cloudinary>=1.44.1",
     "crispy-bootstrap4>=2025.6",
     "django>=5.2.5",
+    "django-allauth[socialaccount]>=65.11.1",
     "django-crispy-forms>=2.4",
     "django-environ>=0.12.0",
     "django-ulid>=0.0.4",

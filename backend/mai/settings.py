@@ -17,7 +17,8 @@ import os
 
 # For type-hinting and default values
 env = environ.Env(
-    DEBUG=(bool, False)
+    DEBUG=(bool, False),
+    DELETE_CLOUDINARY_IMAGES=(bool, False)
 )
 
 
@@ -35,7 +36,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES', default=False)
+DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES')
 
 ALLOWED_HOSTS = []
 
@@ -53,6 +54,10 @@ INSTALLED_APPS = [
     "rest_framework",
     "crispy_forms",
     "crispy_bootstrap4",
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
 ]
 
 MIDDLEWARE = [
@@ -63,6 +68,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "mai.urls"
@@ -150,3 +156,38 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME', None)
 CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY', None)
 CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET', None)
+
+
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+ACCOUNT_FORMS = {
+    'login': 'inventory.forms.CrispyLoginForm',
+}
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        "VERIFIED_EMAIL": True,
+        'APP': {
+            'client_id': env('GOOGLE_CLIENT_ID'),
+            'secret': env('GOOGLE_CLIENT_SECRET'),
+            'key': "",
+        }
+    }
+}
+
+ACCOUNT_EMAIL_VERIFICATION = 'none' 
+ACCOUNT_SIGNUP_NO_AUTO_LOGIN = True
+ACCOUNT_ALLOW_REGISTRATION = False 
+
+# Use email as the primary login method
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*', 'first_name*', 'last_name*']
+
+LOGIN_REDIRECT_URL = '/'  # Or your desired post-login URL
+
+SOCIALACCOUNT_ADAPTER = 'inventory.adapters.SocialAccountRequiresLocalAccountAdapter'

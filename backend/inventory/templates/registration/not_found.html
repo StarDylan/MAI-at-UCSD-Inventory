@@ -1,0 +1,31 @@
+{% extends "../base.html" %}
+
+{% block body %}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="text-center mt-5">
+            <h4>Account not Found</h4>
+            <p class="lead mt-4">
+                This page is for <strong style="font-weight: bold;">MAI warehouse members</strong> to manage inventory.
+                You don't need an account to view the warehouse inventory.
+            </p>
+            <p class="mt-3">
+                If you're an MAI member and believe you've reached this page in error, please contact an administrator.
+            </p>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="list-group">
+            <a href="{% url 'dashboard' %}" class="list-group-item list-group-item-action">
+                Go back to the homepage
+            </a>
+            <a href="{% url 'view_database' %}" class="list-group-item list-group-item-action">
+                View the inventory
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock body %}
