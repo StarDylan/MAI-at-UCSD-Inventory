@@ -255,7 +255,6 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = models.Item
     form_class = ItemForm
     template_name = "register/item.html"
-    success_url = reverse_lazy('dashboard')
     permission_required = 'inventory.add_item'
 
     def form_valid(self, form):
@@ -268,7 +267,9 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         audit_log_event(self.request.user, f"Created item \"{new_item.name}\"", before, after)
 
         return super().form_valid(form)
-
+    def get_success_url(self):
+        return reverse_lazy('view_item', kwargs={'uuid': self.object.pk}) # type: ignore
+    
 def view_database(request):
     """
     Fetches all categories and their related subcategories.
@@ -395,7 +396,7 @@ def delete_item(request, uuid):
     audit_log_event(request.user, f"Deleted item \"{item.name}\"", before, after)
 
     # Redirect to the item's view page after successful deletion.
-    return redirect('view_item', uuid=uuid)
+    return redirect('dashboard')
 
 @login_required
 @permission_required('inventory.restore_item', raise_exception=True)

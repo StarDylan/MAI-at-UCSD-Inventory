@@ -33,8 +33,6 @@ class Command(BaseCommand):
 
         # Define a list of permissions for the member group
         member_permissions = user_permissions + [
-            Permission.objects.get(codename='add_category', content_type=category_ct),
-            Permission.objects.get(codename='add_subcategory', content_type=subcategory_ct),
 
             Permission.objects.get(codename='add_item', content_type=item_ct),
             Permission.objects.get(codename='change_item', content_type=item_ct),
@@ -42,18 +40,13 @@ class Command(BaseCommand):
             Permission.objects.get(codename='view_internalstockingdetails', content_type=item_ct),
 
             Permission.objects.get(codename='add_image', content_type=image_ct),
-            Permission.objects.get(codename='delete_image', content_type=image_ct),
 
         ]
 
         admin_permissions = member_permissions + [
             Permission.objects.get(codename='view_auditevent', content_type=audit_event_ct),
-            
-            # Manage Groups
-            Permission.objects.get(codename='view_group', content_type=group_ct),
-            Permission.objects.get(codename='add_group', content_type=group_ct),
-            Permission.objects.get(codename='change_group', content_type=group_ct),
-            Permission.objects.get(codename='delete_group', content_type=group_ct),
+
+            Permission.objects.get(codename='delete_image', content_type=image_ct),
 
             Permission.objects.get(codename='add_user', content_type=user_ct),
             Permission.objects.get(codename='change_user', content_type=user_ct),
@@ -61,6 +54,9 @@ class Command(BaseCommand):
             Permission.objects.get(codename='view_user', content_type=user_ct),
             Permission.objects.get(codename='restore_user', content_type=user_ct),
 
+
+            Permission.objects.get(codename='add_category', content_type=category_ct),
+            Permission.objects.get(codename='add_subcategory', content_type=subcategory_ct),
             Permission.objects.get(codename='change_category', content_type=category_ct),
             Permission.objects.get(codename='delete_category', content_type=category_ct),
             Permission.objects.get(codename='change_subcategory', content_type=subcategory_ct),

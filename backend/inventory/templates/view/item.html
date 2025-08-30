@@ -152,7 +152,9 @@
   <div class="card">
     <div class="card-header">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">photo</i> Photos</span>
-      {% if not item.is_deleted and (perms.inventory.add_image or perms.inventory.delete_image) %} {% csrf_token %}
+      {% if not item.is_deleted %}
+      {% if perms.inventory.add_image or perms.inventory.delete_image %} 
+      {% csrf_token %}
       <a style="text-align: right; float: right" class="vertical-align-middle">
         {% if perms.inventory.add_image %}
         <input type="file" accept="image/*" name="image" id="file" onchange="loadFile(event)" style="display: none" />
@@ -168,6 +170,8 @@
         {% endif %}
       </a>
       {% endif %}
+      {% endif %}
+       
     </div>
     <div class="card-body">
       <div id="carouselControls" class="carousel slide" data-ride="carousel">
