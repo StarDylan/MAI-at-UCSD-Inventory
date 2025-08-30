@@ -30,7 +30,7 @@
       </tr>
     </thead>
     <tbody id="table">
-      {% for item in users %} {% if item.id != user.id and item.is_active %}
+      {% for item in users %} {% if item.id != user.id and item.is_active and item.is_staff == False %}
       <tr>
         <td>{{ item.user }}</td>
 
