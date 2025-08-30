@@ -1,12 +1,11 @@
-{% extends "base.html" %}
+{% extends "shared/base.html" %}
 {% block body %}
-<h4 style="text-align:left;float:left;">{{ category.name }}</h4>
-{% if perms.inventory.delete_category %}
+<h4 style="text-align:left;float:left;">{{ subcategory.category.name }} > {{ subcategory.name }}</h4>
+
+{% if perms.inventory.delete_subcategory and items|length == 0 %}
 <a style="text-align:right;float:right;">
-    {% if items|length == 0 %}
-    <button class="btn" onclick="confirmDelete('{{ category.id }}','{{ category.name }}')"><i class="material-icons"
+    <button class="btn" onclick="confirmDelete('{{ subcategory.id }}','{{ subcategory.name }}')"><i class="material-icons"
             style="color:red">delete</i></button>
-    {% endif %}
 </a>
 {% endif %}
 
@@ -44,8 +43,9 @@
 
 <script>
     function confirmDelete(id, name) {
-      if (confirm("Are you sure you want to delete category [" + name + "]?")) {
-        window.location.href = "{% url 'delete_category' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
+      if (confirm("Are you sure you want to delete subcategory [" + name + "]?")) {
+        // Use the named URL pattern and replace the placeholder with the actual ID.
+        window.location.href = "{% url 'delete_subcategory' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
       }
     }
 </script>

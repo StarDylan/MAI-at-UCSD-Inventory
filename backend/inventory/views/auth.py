@@ -33,7 +33,7 @@ class AccountNotRecognizedView(TemplateView):
     This is typically shown when a user tries to log in with a social account
     that hasn't been registered in the system.
     """
-    template_name = 'registration/not_found.html'
+    template_name = 'auth/not_found.html'
 
 
 class GoogleLoginView(TemplateView):

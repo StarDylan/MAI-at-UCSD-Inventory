@@ -54,7 +54,7 @@
       sessionStorage.setItem("_swa", "1");
     </script>
   </head>
-  {% include "navbar.html" %}
+  {% include "shared/navbar.html" %}
   <body>
     <div class="container">
       {% block body %} {% endblock %}
@@ -82,5 +82,5 @@
     </div>
     <!-- /container -->
   </body>
-  {% include "footer.html" %}
+  {% include "shared/footer.html" %}
 </html>

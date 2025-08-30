@@ -46,5 +46,5 @@ def audit_log_list_view(request):
         'events': events,
     }
     
-    template = loader.get_template("audit.html")
+    template = loader.get_template("audit/list.html")
     return HttpResponse(template.render(context, request))

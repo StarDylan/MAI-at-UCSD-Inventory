@@ -45,7 +45,7 @@ def image_delete_list_view(request):
              .all()
              .order_by('item__name'))
     
-    return render(request, "delete/image.html", {'images': images})
+    return render(request, "images/delete.html", {'images': images})
 
 
 @login_required

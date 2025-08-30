@@ -48,7 +48,7 @@ def subcategory_delete_list_view(request):
         'subcategories': subcategories
     }
     
-    template = loader.get_template("delete/subcategory.html")
+    template = loader.get_template("subcategories/delete.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -101,7 +101,7 @@ class SubcategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
     """
     model = models.Subcategory
     form_class = SubcategoryForm
-    template_name = "register/subcategory.html"
+    template_name = "subcategories/create.html"
     success_url = reverse_lazy('dashboard')
     permission_required = 'inventory.add_subcategory'
 

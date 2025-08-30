@@ -12,7 +12,7 @@ from allauth.socialaccount.models import SocialApp
 from allauth.account.views import LogoutView
 
 from inventory import admin
-from views import (
+from inventory.views import (
     audit,
     auth,
     categories,

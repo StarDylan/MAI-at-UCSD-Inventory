@@ -40,7 +40,7 @@ def category_delete_list_view(request):
     """
     # Only show categories without subcategories to prevent cascade issues
     categories = Category.objects.filter(subcategories__isnull=True).order_by('name')
-    template = loader.get_template("delete/category.html")
+    template = loader.get_template("categories/delete.html")
     return HttpResponse(template.render({'categories': categories}, request))
 
 
@@ -88,7 +88,7 @@ class CategoryUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
     """
     model = Category
     form_class = CategoryForm
-    template_name = "edit/category.html"
+    template_name = "categories/edit.html"
     success_url = reverse_lazy('dashboard')
     permission_required = 'inventory.change_category'
 
@@ -130,7 +130,7 @@ class CategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
     """
     model = models.Category
     form_class = CategoryForm
-    template_name = "register/category.html"
+    template_name = "categories/create.html"
     success_url = reverse_lazy('dashboard')
     permission_required = 'inventory.add_category'
 

@@ -24,7 +24,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
     Provides a form-based interface for adding quantity to existing items
     with validation and audit logging.
     """
-    template_name = 'search/updateqty.html'
+    template_name = 'search/update_quantity.html'
     form_class = Search_QuantityAdd
     permission_required = 'inventory.change_item'
 
@@ -108,7 +108,7 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
     Provides a form-based interface for removing quantity from existing items
     with validation to prevent negative quantities and audit logging.
     """
-    template_name = 'search/updateqty.html'
+    template_name = 'search/update_quantity.html'
     form_class = Search_QuantityRemove
     permission_required = 'inventory.change_item'
 

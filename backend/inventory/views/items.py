@@ -40,7 +40,7 @@ def view_database(request):
         'categories': categories,
     }
 
-    template = loader.get_template("view.html")
+    template = loader.get_template("items/list.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -68,7 +68,7 @@ def view_all_items(request):
         'category': "All Items"
     }
 
-    template = loader.get_template("view/category.html")
+    template = loader.get_template("categories/detail.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -99,7 +99,7 @@ def view_category_items(request, uuid):
         'items': items,
     }
 
-    template = loader.get_template("view/category.html")
+    template = loader.get_template("categories/detail.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -130,7 +130,7 @@ def view_subcategory_items(request, uuid):
         'items': items,
     }
     
-    template = loader.get_template("view/subcategory.html")
+    template = loader.get_template("subcategories/detail.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -181,7 +181,7 @@ def view_item_detail(request, uuid):
         'audit': events,
     }
     
-    template = loader.get_template("view/item.html")
+    template = loader.get_template("items/detail.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -289,7 +289,7 @@ def view_deleted_items(request):
         'items': deleted_items
     }
     
-    return render(request, 'view/category.html', context)
+    return render(request, 'categories/detail.html', context)
 
 
 class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
@@ -301,7 +301,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """
     model = models.Item
     form_class = ItemForm
-    template_name = "edit/item.html"
+    template_name = "items/edit.html"
     permission_required = 'inventory.change_item'
 
     def form_valid(self, form):
@@ -351,7 +351,7 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
     model = models.Item
     form_class = ItemForm
-    template_name = "register/item.html"
+    template_name = "items/create.html"
     permission_required = 'inventory.add_item'
 
     def form_valid(self, form):

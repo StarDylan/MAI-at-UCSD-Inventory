@@ -47,7 +47,7 @@ def dashboard_view(request):
             "always_admin": False
         }
     
-    template = loader.get_template("dashboard.html")
+    template = loader.get_template("dashboard/index.html")
     return HttpResponse(template.render(context, request))
 
 

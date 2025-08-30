@@ -77,7 +77,7 @@ def manage_users_view(request):
         'user': request.user,
     }
 
-    return render(request, "view/users.html", context)
+    return render(request, "users/list.html", context)
 
 
 @login_required
@@ -183,7 +183,7 @@ def view_user_profile_view(request, pk):
         'audit_on_user': audit_on_user,
     }
 
-    return render(request, "view/user.html", context)
+    return render(request, "users/detail.html", context)
 
 
 @login_required
@@ -279,7 +279,7 @@ class UserCreateView(FormView, PermissionRequiredMixin, LoginRequiredMixin):
     Provides a form-based interface for creating new users with validation
     to prevent duplicate usernames and email addresses.
     """
-    template_name = 'register/user.html'
+    template_name = 'users/create.html'
     form_class = UserCreationForm
     success_url = reverse_lazy('manage_users')
     permission_required = 'inventory.add_user'
