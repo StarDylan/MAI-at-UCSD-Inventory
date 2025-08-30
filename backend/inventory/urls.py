@@ -12,16 +12,21 @@ from allauth.socialaccount.models import SocialApp
 from allauth.account.views import LogoutView
 
 from inventory import admin
-from . import views
-from .views import (
-    # Dashboard and navigation
-    dashboard, items, categories, subcategories, users, images, search, audit, auth
+from views import (
+    audit,
+    auth,
+    categories,
+    dashboard,
+    images,
+    items,
+    search,
+    subcategories,
+    users
 )
-
 urlpatterns = [
     # Home and Dashboard
-    path("", views.index_view, name="home"),
-    path("dashboard/", views.dashboard_view, name="dashboard"),
+    path("", dashboard.index_view, name="home"),
+    path("dashboard/", dashboard.dashboard_view, name="dashboard"),
     
     # Database and Items Views
     path("view_database/", items.view_database, name="view_database"),
@@ -70,7 +75,7 @@ urlpatterns = [
     path('create/user/', users.UserCreateView.as_view(), name='create_user'),
     
     # Authentication
-    path('accounts/profile/', views.profile_view, name='profile'),
+    path('accounts/profile/', dashboard.profile_view, name='profile'),
     path('accounts/logout/', auth.logout_view, name='logout'),
     path('accounts/not-recognized/', auth.AccountNotRecognizedView.as_view(), name='account_not_recognized'),
 ]
