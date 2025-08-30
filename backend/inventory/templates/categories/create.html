@@ -1,0 +1,16 @@
+{% extends "shared/base.html" %} {% block body %}
+
+{% load crispy_forms_tags %}
+
+<h4>Create category</h4>
+<form method="post" action="{% url 'create_category' %}">
+  {% csrf_token %}
+
+  {{ form|crispy }}
+
+  <p>
+    <input type="submit" class="btn btn-primary" value="Create Category" />
+  </p>
+</form>
+
+{% endblock %}

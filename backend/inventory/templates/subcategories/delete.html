@@ -1,0 +1,40 @@
+{% extends "shared/base.html" %} {% block body %}
+
+<h4>Which subcategory would you like to delete?</h4>
+<div class="form-text text-muted">You can only delete subcategories that have no items. Deleted items count.</div>
+<br />
+<div>
+  <p align="center">
+    <input type="text" class="form-control" id="search" placeholder="Type to search" />
+  </p>
+</div>
+
+<div class="list-group" id="subCategoryList">
+  {% for subcategory in subcategories %}
+  <!-- The onclick handler calls a single, global function -->
+  <a onclick="confirmDelete('{{subcategory.id}}', '{{subcategory.name}}')" class="list-group-item list-group-item-action">{{subcategory.category.name}} > {{subcategory.name}}</a>
+  {% endfor %}
+</div>
+
+<!-- All JavaScript is placed outside of the loop for efficiency -->
+<script>
+  // This function is defined once and handles the delete confirmation.
+  function confirmDelete(id, name) {
+    if (confirm("Are you sure you want to delete '" + name + "'?")) {
+      // Use the named URL pattern and replace the placeholder UUID with the actual ID.
+      window.location.href = "{% url 'delete_subcategory' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
+    }
+  }
+
+  // The search functionality is handled here.
+  window.onload = function () {
+    $("#search").on("keyup", function () {
+      var value = $(this).val().toLowerCase();
+      $("#subCategoryList a").filter(function () {
+        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+  };
+</script>
+
+{% endblock %}

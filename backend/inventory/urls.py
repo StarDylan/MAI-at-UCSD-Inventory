@@ -1,3 +1,10 @@
+"""
+URL patterns for the inventory application.
+
+This module defines all URL routes for the inventory system, organized by functionality.
+Routes are grouped logically and use the reorganized view modules for better maintainability.
+"""
+
 from django.shortcuts import redirect
 from django.urls import include, path, reverse_lazy
 from allauth.socialaccount.providers.google.views import oauth2_login
@@ -5,54 +12,70 @@ from allauth.socialaccount.models import SocialApp
 from allauth.account.views import LogoutView
 
 from inventory import admin
-from . import views
-
+from inventory.views import (
+    audit,
+    auth,
+    categories,
+    dashboard,
+    images,
+    items,
+    search,
+    subcategories,
+    users
+)
 urlpatterns = [
-    path("", views.index, name="home"),
-    path("dashboard/", views.dashboard, name="dashboard"),
-    path("view_database/", views.view_database, name="view_database"),
-    path("view/audit/", views.audit_view, name="audit"),
-    path('delete/category/', views.delete_category_list_view, name='delete_category_list_view'),
-    path('delete/category/<uuid:uuid>/', views.delete_category, name='delete_category'),
-    path('delete/image/', views.delete_image_list_view, name='delete_image_list_view'),
-    path('delete/image/<uuid:uuid>/', views.delete_image, name='delete_image'),
-    # path('delete/image/<int:id>/', views.delete_image, name='delete_image'),
-    path('delete/subcategory/', views.delete_subcategory_list_view, name='delete_subcategory_list_view'),
-    path('delete/subcategory/<uuid:uuid>/', views.delete_subcategory, name='delete_subcategory'),
-
-    path('edit/category/<uuid:pk>/', views.CategoryUpdateView.as_view(), name='edit_category'),
-    path('edit/item/<uuid:pk>/', views.ItemUpdateView.as_view(), name='edit_item'),
-
-    path('create/category/', views.CategoryCreateView.as_view(), name='create_category'),
-    path('create/subcategory/', views.SubcategoryCreateView.as_view(), name='create_subcategory'),
-
-    path('create/item/', views.ItemCreateView.as_view(), name='create_item'),
-
-    path('view/', views.view_database, name='view_database'),
-    path('view/all/', views.view_all_items, name='view_all_items'),
-    path('view/category/<uuid:uuid>/', views.view_category_items, name='view_category'),
-    path('view/subcategory/<uuid:uuid>/', views.view_subcategory_items, name='view_subcategory'),
-    path('view/item/<uuid:uuid>/', views.view_item, name='view_item'),
-
-    path('delete/item/<uuid:uuid>/', views.delete_item, name='delete_item'),
-    path('restore/item/<uuid:uuid>/', views.restore_item, name='restore_item'),
-
-    path('upload/photo/<uuid:uuid>/', views.upload_photo, name='upload_photo'),
-
-    path('search/check_in/', views.SearchCheckInView.as_view(), name='search_check_in'),
-    path('search/check_out/', views.SearchCheckOutView.as_view(), name='search_check_out'),
-
-    path('view/deleted_items', views.view_deleted_items, name='view_deleted_items'),
-
-    path('accounts/profile/', views.profile_view, name='profile'),
-    path('accounts/logout/', views.logout_view, name='logout'),
-
-    path('manage/users/', views.manage_users_view, name='manage_users'),
-    path('edit/user/<int:pk>/', views.edit_user_role_api, name='edit_user_role'),
-    path('view/user/<int:pk>/', views.view_user_profile_view, name='view_user'),
-    path('delete/user/<int:pk>/', views.delete_user_view, name='delete_user'),
-    path('restore/user/<int:pk>/', views.restore_user_view, name='restore_user'),
-    path('create/user/', views.UserCreateView.as_view(), name='create_user'),
-
-    path('accounts/not-recognized/', views.AccountNotRecognizedView.as_view(), name='account_not_recognized'),
+    # Home and Dashboard
+    path("", dashboard.index_view, name="home"),
+    path("dashboard/", dashboard.dashboard_view, name="dashboard"),
+    
+    # Database and Items Views
+    path("view_database/", items.view_database, name="view_database"),
+    path('view/', items.view_database, name='view_database'),
+    path('view/all/', items.view_all_items, name='view_all_items'),
+    path('view/category/<uuid:uuid>/', items.view_category_items, name='view_category'),
+    path('view/subcategory/<uuid:uuid>/', items.view_subcategory_items, name='view_subcategory'),
+    path('view/item/<uuid:uuid>/', items.view_item_detail, name='view_item'),
+    path('view/deleted_items', items.view_deleted_items, name='view_deleted_items'),
+    
+    # Audit Logging
+    path("view/audit/", audit.audit_log_list_view, name="audit"),
+    
+    # Category Management
+    path('delete/category/', categories.category_delete_list_view, name='delete_category_list_view'),
+    path('delete/category/<uuid:uuid>/', categories.category_delete_view, name='delete_category'),
+    path('edit/category/<uuid:pk>/', categories.CategoryUpdateView.as_view(), name='edit_category'),
+    path('create/category/', categories.CategoryCreateView.as_view(), name='create_category'),
+    
+    # Subcategory Management  
+    path('delete/subcategory/', subcategories.subcategory_delete_list_view, name='delete_subcategory_list_view'),
+    path('delete/subcategory/<uuid:uuid>/', subcategories.subcategory_delete_view, name='delete_subcategory'),
+    path('create/subcategory/', subcategories.SubcategoryCreateView.as_view(), name='create_subcategory'),
+    
+    # Item Management
+    path('edit/item/<uuid:pk>/', items.ItemUpdateView.as_view(), name='edit_item'),
+    path('create/item/', items.ItemCreateView.as_view(), name='create_item'),
+    path('delete/item/<uuid:uuid>/', items.item_soft_delete_view, name='delete_item'),
+    path('restore/item/<uuid:uuid>/', items.item_restore_view, name='restore_item'),
+    
+    # Image Management
+    path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
+    path('delete/image/<uuid:uuid>/', images.image_delete_view, name='delete_image'),
+    path('upload/photo/<uuid:uuid>/', images.image_upload_view, name='upload_photo'),
+    
+    # Search and Quantity Management
+    path('search/check_in/', search.SearchCheckInView.as_view(), name='search_check_in'),
+    path('search/check_out/', search.SearchCheckOutView.as_view(), name='search_check_out'),
+    
+    # User Management
+    path('manage/users/', users.manage_users_view, name='manage_users'),
+    path('edit/user/<int:pk>/', users.edit_user_role_api, name='edit_user_role'),
+    path('view/user/<int:pk>/', users.view_user_profile_view, name='view_user'),
+    path('delete/user/<int:pk>/', users.delete_user_view, name='delete_user'),
+    path('restore/user/<int:pk>/', users.restore_user_view, name='restore_user'),
+    path('create/user/', users.UserCreateView.as_view(), name='create_user'),
+    
+    # Authentication
+    path('accounts/profile/', dashboard.profile_view, name='profile'),
+    path('accounts/logout/', auth.logout_view, name='logout'),
+    path('accounts/not-recognized/', auth.AccountNotRecognizedView.as_view(), name='account_not_recognized'),
 ]

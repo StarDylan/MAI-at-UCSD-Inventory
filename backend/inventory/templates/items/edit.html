@@ -1,0 +1,16 @@
+{% extends "shared/base.html" %} {% block body %}
+
+{% load crispy_forms_tags %}
+
+<h4>Edit Item</h4>
+<form method="post" action="{% url 'edit_item' form.instance.pk %}">
+  {% csrf_token %}
+
+  {{ form|crispy }}
+
+  <p>
+    <input type="submit" class="btn btn-primary" value="Change Item" />
+  </p>
+</form>
+
+{% endblock %}
