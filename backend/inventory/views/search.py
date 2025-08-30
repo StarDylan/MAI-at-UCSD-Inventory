@@ -8,7 +8,6 @@ and audit logging.
 
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
-from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.views.generic import FormView
 
@@ -81,24 +80,6 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         )
 
         return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
-
-    def form_invalid(self, form):
-        """
-        Handle invalid form submission.
-        
-        Displays error messages to the user when form validation fails.
-        
-        Args:
-            form: Invalid form instance with errors
-            
-        Returns:
-            HttpResponse: Rendered form with error messages
-        """
-        messages.error(
-            self.request, 
-            "Form submission failed. Please check the fields below."
-        )
-        return super().form_invalid(form)
 
 
 class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
