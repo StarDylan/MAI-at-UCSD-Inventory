@@ -13,13 +13,14 @@ Before starting the deployment process, ensure you have:
 
 ## Overview
 
-The deployment process involves:
-1. Setting up a PostgreSQL database on Supabase
-2. Configuring Google OAuth credentials
-3. Setting up Cloudinary for image storage
-4. Deploying the backend to Render
-5. Configuring environment variables
+As we go through this setup, we’ll collect a few important codes and passwords. You’ll need to save these in a safe place so you can copy and paste them when needed.
 
+The setup process includes:
+1. Creating a database using Supabase
+2. Connecting Google sign-in
+3. Setting up Cloudinary to store images
+4. Putting the backend online with Render
+5. Adding the saved codes and passwords so everything works together
 ---
 
 ## 1. Supabase Database Setup
@@ -53,7 +54,7 @@ Once your project is created (might need to refresh a few times), you should see
 
 1. Find the **Connect** button at the top and click on it.
 
-2. Copy the **Session pooler** connection string, it should look something like `postgresql://....:[YOUR-PASSWORD]@.....`. Make sure to replace the [YOUR-PASSWORD] part with your password from the previous step. Be careful with this string. Anyone who has access to it can wipe your entire database! (That is why backups are important, as we will later discuss).
+2. Copy the **Session pooler** connection string, it should look something like `postgresql://....:[YOUR-PASSWORD]@.....`. Make sure to replace the [YOUR-PASSWORD] part with your **Database Password** from the previous step. Be careful with this string. Anyone who has access to it can wipe your entire database! (That is why backups are important, as we will later discuss).
 
 ![Supabase Session Pooling](images/supabase-session-pooling.png)
 ---
@@ -90,15 +91,12 @@ Here is where we will get the keys necessary to allow our users to login via Goo
 3. Choose **"Web application"** as the application type
 4. Configure the client:
    - **Name**: `MAI UCSD Inventory Web Client`
-   - **Authorized JavaScript origins**: 
-     - `https://your-app-name.onrender.com` (replace with your actual Render URL)
-     - `http://localhost:8000` (for local development)
-   - **Authorized redirect URIs**:
-     - `https://your-app-name.onrender.com/accounts/google/login/callback/`
-     - `http://localhost:8000/accounts/google/login/callback/` (for local development)
    - **IMPORTANT!** Make sure these URLs match exactly with the website you setup in Render. If you get errors such as "invalid redirect uri", please double check these URLs.
 5. Click **"Create"**
-6. **Important**: Save the **Client ID** and **Client Secret** - you'll need these later and they will not be shown again.
+6. **Important**: Save the **Client ID** and **Client Secret** - you'll need these later and the secret will not be shown again.
+7. Don't close this page! We'll need to come back to it later.
+
+![Google Create an OAuth client ID](images/google-create-oauth-id.png)
 
 ---
 
@@ -107,23 +105,19 @@ Here is where we will get the keys necessary to allow our users to login via Goo
 ### 3.1 Create a Cloudinary Account
 
 1. Go to [Cloudinary](https://cloudinary.com/) and sign up for a free account
-2. Verify your email address
+2. Click "Skip" on any prompts. 
 3. Complete the account setup
 
 ### 3.2 Get API Credentials
 
-1. In your Cloudinary dashboard, go to **Settings** → **API Keys**
-2. Note the following credentials:
-   - **Cloud Name**: Found in the dashboard URL or account details
-   - **API Key**: The public API key
-   - **API Secret**: The private API secret (keep this secure)
-
-### 3.3 Configure Upload Settings (Optional)
-
-1. Go to **Settings** → **Upload** to configure:
-   - File size limits
-   - Allowed file formats
-   - Auto-optimization settings
+1. When logged in, in to the navigation bar to the right, go to **Settings** → **API Keys**
+2. Click "**Generate New API Key**"
+3. Enter the confirmation code from your email.
+4. Rename the "Untitled" key to `MAI-at-UCSD Inventory Backend` (or your preferred name)
+5. **Copy the Cloud Name**: Found at the end of the CLOUDINARY_URL at the top of the page after the `@` `CLOUDINARY_URL=.....@<cloud-name>`. Store it securely.
+6. Note the following credentials of the key you renamed:
+    - **API Key**: Fill in the public API key in your environment variable. Store it securely.
+    - **API Secret**: Reveal by clicking on the eye next to the dots. Store it securely.
 
 ---
 
@@ -132,231 +126,73 @@ Here is where we will get the keys necessary to allow our users to login via Goo
 ### 4.1 Create a Render Account
 
 1. Go to [Render](https://render.com/) and sign up
-2. Connect your GitHub account to Render
 
 ### 4.2 Create a Web Service
 
-1. In your Render dashboard, click **"New +"** → **"Web Service"**
+1. In your Render project dashboard, click **"+ Add New"** → **"Web Service"**
 2. Connect your GitHub repository: `StarDylan/MAI-at-UCSD-Inventory`
 3. Configure the service:
-   - **Name**: `mai-ucsd-inventory-backend` (or your preferred name)
-   - **Region**: Choose the same region as your Supabase database
-   - **Branch**: `main` (or your deployment branch)
+   - **Name**: Choose a name, this will become the URL of your website.
+   - **Region**: Choose the same general region as your Supabase database
+   - **Branch**: `main`
    - **Root Directory**: `backend`
    - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt` (we'll create this)
-   - **Start Command**: `gunicorn mai.wsgi:application`
+   - **Build Command**: `uv sync`
+   - **Start Command**: `uv run gunicorn mai.wsgi`
+   - **Instance Type**: Free ($0/month)
 
-### 4.3 Environment Variables Configuration
+4. Leave the environment variables alone for now. We'll come back to it later.
+5. Click "Deploy Web Service". **Note it will fail to deploy** because we have not set any environment variables. **This is expected.**
 
-In the Render service settings, add the following environment variables:
+6. Copy the URL towards the top. It should look like `https://<name>.onrender.com`. Store this securely.
 
-#### Django Settings
-```
-DJANGO_SETTINGS_MODULE=mai.settings
-SECRET_KEY=<generate-a-long-random-string>
-DEBUG=False
-ALLOWED_HOSTS=<your-render-app-name>.onrender.com
-```
+### 4.3 Secret Key Generation
 
-#### Database Configuration (Supabase)
-```
-DATABASE_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
-```
+Some parts of our website need a special code, called a secret key, to work safely. This key must be impossible for anyone to guess.
 
-#### Google OAuth
-```
-GOOGLE_CLIENT_ID=<your-google-client-id>
-GOOGLE_CLIENT_SECRET=<your-google-client-secret>
-```
+To make one, we’ll let the computer create a random code for us. We need to create one at least 50 characters long with at least 5 different characters.
 
-#### Cloudinary
-```
-CLOUDINARY_CLOUD_NAME=<your-cloudinary-cloud-name>
-CLOUDINARY_API_KEY=<your-cloudinary-api-key>
-CLOUDINARY_API_SECRET=<your-cloudinary-api-secret>
-DELETE_CLOUDINARY_IMAGES=True
-```
+1. Go to https://www.random.org/strings/
+2. Generate **2** random strings that are **32 characters long**. Be sure to also check to **allow Numeric digits (0-9), Uppercase letters (A-Z), and Lowercase letters (a-z) to be generated**.
 
-### 4.4 Create Requirements File
+3. Click Get Strings!
+4. Store your two strings one after another with no space in-between. This is your **SECRET_KEY**! Store it securely.
 
-You'll need to create a `requirements.txt` file in the backend directory. Based on the `pyproject.toml`, create:
 
-```txt
-Django>=5.2.5
-django-environ>=0.12.0
-django-allauth[socialaccount]>=65.11.1
-djangorestframework>=3.16.1
-django-crispy-forms>=2.4
-crispy-bootstrap4>=2025.6
-cloudinary>=1.44.1
-django-ulid>=0.0.4
-gunicorn>=21.0.0
-psycopg2-binary>=2.9.0
-whitenoise>=6.0.0
-```
+### 4.4 Environment Variables Configuration
 
----
+Now we will set all the environment variables needed for our app to work. Be sure to refer to your notes for all the secrets we've been collecting up to this point! 
 
-## 5. Production Settings Configuration
 
-### 5.1 Update Django Settings
+In the Environment Variables section, add the following environment variables:
 
-You'll need to modify the `settings.py` file to handle production deployment. Add the following configurations:
 
-#### Database Configuration
-```python
-import dj_database_url
+| Variable                   | Description                                                                                     | Value (Blank means Copy+Paste |
+|----------------------------|-------------------------------------------------------------------------------------------------|-------------------------------|
+| `SECRET_KEY`               | SECRET KEY we generated                                                                         |                               |
+| `DEBUG`                    | Debug mode (False for production)                                                               | `False`                       |
+| `ALLOWED_HOSTS`            | Render URL that we copied                                                                       |                               |
+| `DATABASE_URL`             | PostgreSQL connection string we copied from Supabase                                            |                               |
+| `GOOGLE_CLIENT_ID`         | Google OAuth client ID from Google                                                              |                               |
+| `GOOGLE_CLIENT_SECRET`     | Google OAuth client secret from Google                                                          |                               |
+| `CLOUDINARY_CLOUD_NAME`    | Cloudinary cloud name                                                                           |                               |
+| `CLOUDINARY_API_KEY`       | Cloudinary API key                                                                              |                               |
+| `CLOUDINARY_API_SECRET`    | Cloudinary API secret                                                                           |                               |
+| `DELETE_CLOUDINARY_IMAGES` | Whether to delete images from Cloudinary (so you can view any image that was uploaded/deleted) | `False`                        |
 
-# Database configuration
-if 'DATABASE_URL' in os.environ:
-    DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-```
 
-#### Static Files Configuration
-```python
-# Static files configuration for production
-STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+## 5. Update Google Config
 
-# Whitenoise for static file serving
-MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-```
+1. If you are not where you left off in the previous Google Cloud Console step, follow this:
+    - Go to [Google Cloud Console](https://console.cloud.google.com/). 
+    - Go to **APIs & Services** by clicking on the hamburger menu on the left.
+    - Then Then go to **Credentials**.
+    - Then click on the `MAI UCSD Inventory Web Client` credential you created.
 
-#### Security Settings
-```python
-# Security settings for production
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-```
+2. Under Authorized JavaScript origins, add the Render URL you copied earlier.
+3. Under Authorized redirect URIs, add the Render URL and add the path `/accounts/google/login/callback/` on the end. (Note in the photo the beginning starting with `https://` isn't visible)
 
-#### Allowed Hosts Configuration
-```python
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
-```
+![Google OAuth Config](image.png)
 
----
-
-## 6. Deployment Steps
-
-### 6.1 Prepare Your Repository
-
-1. **Create requirements.txt**: Add the requirements file to your `backend/` directory
-2. **Update settings.py**: Add the production configurations mentioned above
-3. **Commit and push** your changes to GitHub
-
-### 6.2 Deploy to Render
-
-1. In your Render service, click **"Manual Deploy"** or wait for auto-deploy
-2. Monitor the build logs for any errors
-3. Once deployed, your app will be available at: `https://your-app-name.onrender.com`
-
-### 6.3 Run Database Migrations
-
-1. In your Render service dashboard, go to **"Shell"**
-2. Run the following commands:
-```bash
-python manage.py migrate
-python manage.py collectstatic --noinput
-python manage.py createsuperuser
-```
-
-### 6.4 Update Google OAuth Settings
-
-1. Go back to your Google Cloud Console
-2. Update the OAuth credentials with your actual Render URL:
-   - **Authorized JavaScript origins**: `https://your-actual-app-name.onrender.com`
-   - **Authorized redirect URIs**: `https://your-actual-app-name.onrender.com/accounts/google/login/callback/`
-
----
-
-## 7. Post-Deployment Checklist
-
-- [ ] Verify the application loads at your Render URL
-- [ ] Test Google OAuth login functionality
-- [ ] Test image upload functionality (Cloudinary)
-- [ ] Check admin panel access
-- [ ] Verify database connectivity and data persistence
-- [ ] Test all major application features
-
----
-
-## 8. Environment Variables Reference
-
-Here's a complete reference of all required environment variables:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SECRET_KEY` | Django secret key | `your-super-secret-key-here` |
-| `DEBUG` | Debug mode (False for production) | `False` |
-| `ALLOWED_HOSTS` | Comma-separated list of allowed hosts | `your-app.onrender.com` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:port/db` |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | `123456-abc.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | `GOCSPX-your-secret-here` |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | `your-cloud-name` |
-| `CLOUDINARY_API_KEY` | Cloudinary API key | `123456789012345` |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret | `your-api-secret` |
-| `DELETE_CLOUDINARY_IMAGES` | Whether to delete images from Cloudinary | `True` |
-
----
-
-## 9. Troubleshooting
-
-### Common Issues and Solutions
-
-#### Database Connection Issues
-- Verify your Supabase database credentials
-- Check if your IP is whitelisted in Supabase (should be automatic for Render)
-- Ensure the DATABASE_URL format is correct
-
-#### Google OAuth Issues
-- Verify the redirect URIs match exactly (including trailing slashes)
-- Check that the Google+ API is enabled
-- Ensure the OAuth consent screen is properly configured
-
-#### Static Files Issues
-- Run `python manage.py collectstatic` in the Render shell
-- Verify WhiteNoise is properly configured
-- Check that STATIC_ROOT is set correctly
-
-#### Cloudinary Issues
-- Verify all three Cloudinary credentials are correct
-- Check that file upload limits aren't exceeded
-- Ensure the Cloudinary account is active
-
-### Getting Help
-
-If you encounter issues:
-1. Check the Render build and deployment logs
-2. Use the Render shell to debug Django issues
-3. Check the Supabase logs for database issues
-4. Verify all environment variables are set correctly
-
----
-
-## 10. Security Considerations
-
-- **Never commit sensitive credentials** to your repository
-- **Use strong passwords** for all services
-- **Regularly rotate secrets** like API keys and passwords
-- **Monitor access logs** in all services
-- **Keep dependencies updated** to patch security vulnerabilities
-- **Use HTTPS only** in production (enforced by Render)
-
----
-
-This deployment guide should get your MAI@UCSD Inventory backend up and running on Render with Supabase and all required third-party services configured properly.
+## 6. You're Done!
+Try going to your website at the Render URL!
