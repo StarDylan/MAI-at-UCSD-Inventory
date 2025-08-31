@@ -15,6 +15,7 @@ dependencies = [
     "django-ulid>=0.0.4",
     "djangorestframework>=3.16.1",
     "gunicorn>=23.0.0",
+    "psycopg2-binary>=2.9.10",
     "ruff>=0.12.9",
     "whitenoise>=6.9.0",
 ]
