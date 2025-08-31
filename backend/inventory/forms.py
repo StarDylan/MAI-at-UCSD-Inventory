@@ -83,7 +83,7 @@ class ItemWithLocationChoiceField(forms.ModelChoiceField):
 
 class Search_QuantityAdd(forms.Form):
     item = ItemWithLocationChoiceField(
-        queryset=models.Item.objects.order_by("name"),
+        queryset=models.Item.active_objects.order_by("name"),
         widget=forms.Select(attrs={"class": "form-select"})
     )
     quantity = forms.IntegerField(
@@ -94,7 +94,7 @@ class Search_QuantityAdd(forms.Form):
 
 class Search_QuantityRemove(forms.Form):
     item = ItemWithLocationChoiceField(
-        queryset=models.Item.objects.order_by("name"),
+        queryset=models.Item.active_objects.order_by("name"),
         widget=forms.Select(attrs={"class": "form-select"})
     )
     quantity = forms.IntegerField(

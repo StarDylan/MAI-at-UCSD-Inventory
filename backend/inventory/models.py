@@ -65,12 +65,8 @@ class Item(models.Model):
     
     # The default manager. All `Post.objects` queries will now
     # automatically exclude deleted posts.
-    objects = ActiveManager()
+    active_objects = ActiveManager()
     
-    # A second manager that can be used to query all objects,
-    # including those that are soft-deleted.
-    all_objects = models.Manager()
-
     class Meta:
         permissions = [
             ("view_deleteditem", "Can view deleted items"),

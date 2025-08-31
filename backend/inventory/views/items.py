@@ -58,7 +58,7 @@ def view_all_items(request):
         HttpResponse: Rendered template with all items
     """
     # Fetch all items with related category and subcategory data
-    items = (Item.objects
+    items = (Item.active_objects
             .select_related('category', 'subcategory')
             .all()
             .order_by('name'))
@@ -89,7 +89,7 @@ def view_category_items(request, uuid):
     category = get_object_or_404(Category, id=uuid)
     
     # Fetch items in the category with related data
-    items = (Item.objects
+    items = (Item.active_objects
             .filter(category=category)
             .select_related('category', 'subcategory')
             .order_by('name'))
@@ -120,7 +120,7 @@ def view_subcategory_items(request, uuid):
     subcategory = get_object_or_404(Subcategory, id=uuid)
     
     # Fetch items in the subcategory with related data
-    items = (Item.objects
+    items = (Item.active_objects
             .filter(subcategory=subcategory)
             .select_related('category', 'subcategory')
             .order_by('name'))
@@ -154,7 +154,7 @@ def view_item_detail(request, uuid):
     """
     # Use all_objects manager to include deleted items
     item = get_object_or_404(
-        Item.all_objects.select_related('category', 'subcategory'),
+        Item.active_objects.select_related('category', 'subcategory'),
         id=uuid
     )
 
@@ -283,7 +283,7 @@ def view_deleted_items(request):
     Raises:
         PermissionDenied: If user doesn't have view_deleteditem permission
     """
-    deleted_items = Item.all_objects.filter(is_deleted=True)
+    deleted_items = Item.objects.filter(is_deleted=True)
     context = {
         'category': {"name": "Deleted Items"}, 
         'items': deleted_items
@@ -315,7 +315,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
             HttpResponseRedirect: Redirect to item detail view
         """
         # Get the current state before changes for audit logging
-        before_model = models.Item.objects.get(pk=form.instance.pk)
+        before_model = models.Item.active_objects.get(pk=form.instance.pk)
         before_state = audit_log_state(before_model)
         
         # Save the changes
