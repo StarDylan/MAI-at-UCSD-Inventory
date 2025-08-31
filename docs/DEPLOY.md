@@ -1,15 +1,15 @@
 # Deployment Guide: MAI@UCSD Inventory Backend
 
-This guide provides step-by-step instructions for deploying the MAI@UCSD Inventory backend application using **Supabase** for the database and **Render** for the backend hosting.
+This guide provides step-by-step instructions for deploying the MAI@UCSD Inventory backend application using **Supabase** for the database and **Render** for the backend hosting. There may be other, better options, but this is based on free-tier allowances at this time. 
 
 ## Prerequisites
 
 Before starting the deployment process, ensure you have:
 - A GitHub account with access to this repository
-- A Supabase account (free tier available)
-- A Render account (free tier available)
-- A Google Cloud Console account for OAuth setup
-- A Cloudinary account for image storage
+- A [Supabase](https://supabase.com) account (free tier available)
+- A [Render](https://render.com/) account (free tier available)
+- A [Cloudinary](https://cloudinary.com/) account for image storage (free tier available)
+- A [Google Cloud Console](console.cloud.google.com/) account for OAuth setup (free)
 
 ## Overview
 
@@ -27,70 +27,66 @@ The deployment process involves:
 ### 1.1 Create a Supabase Project
 
 1. Go to [Supabase](https://supabase.com/) and sign in or create an account
-2. Click **"New Project"**
-3. Choose your organization or create a new one
-4. Fill in the project details:
+2. Click **"New Organization"**
+3. Fill in the organization details:
    - **Name**: `mai-ucsd-inventory` (or your preferred name)
-   - **Database Password**: Create a strong password and save it securely
-   - **Region**: Choose the region closest to your users (e.g., `us-west-1` for West Coast)
+   - **Type**: `Educational`
+   - **Plan**: Free Tier ($0/month)
+
+    ![Image of Supabase Org creation](images/supabase-new-org.png)
+4. Click on "Create Organization"
+5. Now you should be on the "Create a new project" screen. Fill in these details:
+   - **Organization**: The one you just created.
+   - **Project Name**: `mai-inventory` (or your preferred name)
+   - **Database Password**: Either create a strong password or click the *Generate Password* button and save it securely
+   - **Region**: Choose the region closest to your users (e.g., `West US (North California)`)
+   - Under "Security Options"
+      - Choose "Only Connection String"
+
+    ![Supabase New Project](images/supabase-new-project.png)
 5. Click **"Create new project"**
 
 ### 1.2 Get Database Connection Details
 
-Once your project is created:
+Once your project is created (might need to refresh a few times), you should see this:
+![Supabase Status](images/supabase-status.png)
 
-1. Go to **Settings** → **Database** in your Supabase dashboard
-2. Scroll down to **Connection Info** and note the following:
-   - **Host**: `db.[project-ref].supabase.co`
-   - **Database name**: `postgres`
-   - **Port**: `5432`
-   - **User**: `postgres`
-   - **Password**: The password you set during project creation
+1. Find the **Connect** button at the top and click on it.
 
-### 1.3 Configure Database Access
+2. Copy the **Session pooler** connection string, it should look something like `postgresql://....:[YOUR-PASSWORD]@.....`. Make sure to replace the [YOUR-PASSWORD] part with your password from the previous step. Be careful with this string. Anyone who has access to it can wipe your entire database! (That is why backups are important, as we will later discuss).
 
-1. In your Supabase project, go to **Settings** → **Database**
-2. Scroll down to **Connection pooling** and enable it for better performance
-3. Note the **Connection pooling** URL as well (format: `postgresql://postgres:[password]@db.[project-ref].supabase.co:6543/postgres`)
-
+![Supabase Session Pooling](images/supabase-session-pooling.png)
 ---
 
 ## 2. Google OAuth Setup
 
+Here is where we will get the keys necessary to allow our users to login via Google!
+
 ### 2.1 Create a Google Cloud Project
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Click **"Select a project"** → **"New Project"**
+2. Click **"Select a project"** (in the top left), then **"New Project"** (top right)
 3. Enter project details:
-   - **Project name**: `MAI UCSD Inventory` (or your preferred name)
+   - **Project name**: `MAI-at-UCSD Inventory` (or your preferred name)
    - **Organization**: Select your organization if applicable
 4. Click **"Create"**
+5. Click on the **Select a project** button again, and select your newly created project. It should say your project in the top left corner.
 
-### 2.2 Enable Google+ API
+### 2.2 Configure OAuth Consent Screen
 
-1. In your Google Cloud project, go to **APIs & Services** → **Library**
-2. Search for **"Google+ API"** or **"Google Identity"**
-3. Click on **"Google+ API"** and then **"Enable"**
-
-### 2.3 Configure OAuth Consent Screen
-
-1. Go to **APIs & Services** → **OAuth consent screen**
-2. Choose **"External"** user type (unless you have a Google Workspace domain)
-3. Click **"Create"**
-4. Fill in the required information:
+1. In your Google Cloud project, go to **APIs & Services** → **OAuth consent screen**
+2. Click **"Get Started"**
+3. Fill in the required information:
    - **App name**: `MAI@UCSD Inventory`
    - **User support email**: Your email address
-   - **App logo**: (Optional) Upload your app logo
-   - **App domain**: Your Render app domain (you'll get this later)
+   - **Audience**: External
    - **Developer contact information**: Your email address
-5. Click **"Save and Continue"**
-6. On the **"Scopes"** page, click **"Save and Continue"** (no additional scopes needed)
-7. On the **"Test users"** page, add any test users if needed, then **"Save and Continue"**
+4. Click **"Create"**
 
-### 2.4 Create OAuth Credentials
+### 2.3 Create OAuth Credentials
 
-1. Go to **APIs & Services** → **Credentials**
-2. Click **"Create Credentials"** → **"OAuth 2.0 Client IDs"**
+1. Go back to  **APIs & Services** by clicking on the hamburger menu on the left. Then go to **Credentials**.
+2. Click **"Create Credentials"** → **"OAuth Client ID"**
 3. Choose **"Web application"** as the application type
 4. Configure the client:
    - **Name**: `MAI UCSD Inventory Web Client`
@@ -100,8 +96,9 @@ Once your project is created:
    - **Authorized redirect URIs**:
      - `https://your-app-name.onrender.com/accounts/google/login/callback/`
      - `http://localhost:8000/accounts/google/login/callback/` (for local development)
+   - **IMPORTANT!** Make sure these URLs match exactly with the website you setup in Render. If you get errors such as "invalid redirect uri", please double check these URLs.
 5. Click **"Create"**
-6. **Important**: Save the **Client ID** and **Client Secret** - you'll need these for environment variables
+6. **Important**: Save the **Client ID** and **Client Secret** - you'll need these later and they will not be shown again.
 
 ---
 
