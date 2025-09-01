@@ -13,7 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import environ
 import os
-
+import dj_database_url
+from django.core.management.utils import get_random_secret_key
 
 # For type-hinting and default values
 env = environ.Env(
@@ -31,14 +32,14 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'), parse_comments=True)
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY')
+SECRET_KEY = env('SECRET_KEY', default=get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = env('DEBUG', default=False)
 
-DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES')
+DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES', default=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 
 # Application definition
@@ -62,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -94,12 +96,18 @@ WSGI_APPLICATION = "mai.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Database configuration - supports both local SQLite and production PostgreSQL
+if 'DATABASE_URL' in os.environ:
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -137,6 +145,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Whitenoise configuration for static file serving in production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -153,9 +165,9 @@ AUTH_USER_MODEL = "inventory.User"
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
-CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME', None)
-CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY', None)
-CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET', None)
+CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME', default=None)
+CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY', default=None)
+CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET', default=None)
 
 
 AUTHENTICATION_BACKENDS = [
@@ -173,8 +185,8 @@ SOCIALACCOUNT_PROVIDERS = {
     'google': {
         "VERIFIED_EMAIL": True,
         'APP': {
-            'client_id': env('GOOGLE_CLIENT_ID'),
-            'secret': env('GOOGLE_CLIENT_SECRET'),
+            'client_id': env('GOOGLE_CLIENT_ID', default=None),
+            'secret': env('GOOGLE_CLIENT_SECRET', default=None),
             'key': "",
         }
     }
@@ -191,3 +203,11 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*', 'first_name*', 'l
 LOGIN_REDIRECT_URL = '/'  # Or your desired post-login URL
 
 SOCIALACCOUNT_ADAPTER = 'inventory.adapters.SocialAccountRequiresLocalAccountAdapter'
+
+# Security settings for production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True

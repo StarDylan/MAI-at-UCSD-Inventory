@@ -1,0 +1,3 @@
+#!/command/execlineb -P
+with-contenv
+exec nginx -g "daemon off;"

@@ -1,0 +1,3 @@
+#!/command/execlineb -P
+cd /app
+exec uv run manage.py migrate --noinput

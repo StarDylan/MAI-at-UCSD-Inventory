@@ -7,11 +7,17 @@ requires-python = ">=3.13"
 dependencies = [
     "cloudinary>=1.44.1",
     "crispy-bootstrap4>=2025.6",
+    "dj-database-url>=3.0.1",
     "django>=5.2.5",
     "django-allauth[socialaccount]>=65.11.1",
     "django-crispy-forms>=2.4",
     "django-environ>=0.12.0",
     "django-ulid>=0.0.4",
     "djangorestframework>=3.16.1",
+    "gunicorn>=23.0.0",
+    "psycopg2-binary>=2.9.10",
     "ruff>=0.12.9",
+    "uvicorn>=0.35.0",
+    "uvicorn-worker>=0.3.0",
+    "whitenoise>=6.9.0",
 ]

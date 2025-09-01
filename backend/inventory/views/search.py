@@ -43,7 +43,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         context = super().get_context_data(**kwargs)
         context['action'] = 'Check in'
         context['defaultQuantity'] = 1
-        context["items"] = Item.objects.all().order_by('name')
+        context["items"] = Item.active_objects.all().order_by('name')
         return context
 
     def form_valid(self, form):
@@ -107,7 +107,7 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         """
         context = super().get_context_data(**kwargs)
         context['action'] = 'Check out'
-        context["items"] = Item.objects.all().order_by('name')
+        context["items"] = Item.active_objects.all().order_by('name')
         return context
 
     def form_valid(self, form: Search_QuantityRemove):
