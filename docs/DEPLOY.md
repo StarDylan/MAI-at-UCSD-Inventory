@@ -121,6 +121,7 @@ Here is where we will get the keys necessary to allow our users to login via Goo
 
 ---
 
+
 ## 4. Render Deployment
 
 ### 4.1 Create a Render Account
@@ -159,27 +160,74 @@ To make one, we’ll let the computer create a random code for us. We need to cr
 4. Store your two strings one after another with no space in-between. This is your **SECRET_KEY**! Store it securely.
 
 
-### 4.4 Environment Variables Configuration
+## 5. Database Setup
 
+Our database right now is empty (in Supabase if you go to the left sidebar, then tables, you can see there are no tables). Lets fix that by running the setup scripts.
+
+### 5.1 Setup Local Environment
+
+Lets download the tools necessary to run our tools.
+
+1. Download `uv`:
+    - On MacOS/Linux, run `curl -LsSf https://astral.sh/uv/install.sh | sh`
+    - Or follow the guide on https://docs.astral.sh/uv/getting-started/installation 
+
+2. Install Git from https://git-scm.com/downloads
+3. In the terminal, run:
+    ```
+    cd Documents
+    git clone https://github.com/StarDylan/MAI-at-UCSD-Inventory.git
+    cd MAI-at-UCSD-Inventory/backend
+    uv sync
+    ```
+
+### 5.2 Environment Variables Configuration
 Now we will set all the environment variables needed for our app to work. Be sure to refer to your notes for all the secrets we've been collecting up to this point! 
 
+Open your file explorer and go to `Documents/MAI-at-UCSD-Inventory/backend`. Make a copy of `.env.example` named `.env`. Open `.env` with any text editor (e.g., VSCode)
 
-In the Environment Variables section, add the following environment variables:
-
-
+Fill in all the variables detailed in the table below. (Note the `#` in front of a variable means it is a comment, be sure to remove in front of: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, and `DATABASE_URL`)
 | Variable                   | Description                                                                                     | Value (Blank means Copy+Paste |
 |----------------------------|-------------------------------------------------------------------------------------------------|-------------------------------|
 | `SECRET_KEY`               | SECRET KEY we generated                                                                         |                               |
 | `DEBUG`                    | Debug mode (False for production)                                                               | `False`                       |
-| `ALLOWED_HOSTS`            | Render URL that we copied                                                                       |                               |
+| `ALLOWED_HOSTS`            | Render URL that we copied (**IMPORTANT**:  Remove the `https://` at the beginning)              |                               |
 | `DATABASE_URL`             | PostgreSQL connection string we copied from Supabase                                            |                               |
 | `GOOGLE_CLIENT_ID`         | Google OAuth client ID from Google                                                              |                               |
 | `GOOGLE_CLIENT_SECRET`     | Google OAuth client secret from Google                                                          |                               |
 | `CLOUDINARY_CLOUD_NAME`    | Cloudinary cloud name                                                                           |                               |
 | `CLOUDINARY_API_KEY`       | Cloudinary API key                                                                              |                               |
 | `CLOUDINARY_API_SECRET`    | Cloudinary API secret                                                                           |                               |
-| `DELETE_CLOUDINARY_IMAGES` | Whether to delete images from Cloudinary (so you can view any image that was uploaded/deleted) | `False`                        |
+| `DELETE_CLOUDINARY_IMAGES` | Whether to delete images from Cloudinary  (so you can view any image that was uploaded/deleted) | `False`                       |
 
+### 5.3 Environment Variables Configuration
+
+1. Back in the terminal, (if you closed it, please run the following)
+    ```
+    cd ~/Documents/MAI-at-UCSD-Inventory/backend
+    ```
+
+2. Fill out the Database:
+    ```
+    uv run manage.py migrate
+    uv run manage.py setup_groups
+    ```
+
+3. (NOTE) For future reference, when you need to backup the database (which you should do regularly), you just need to run:
+    ```
+    cd ~/Documents/MAI-at-UCSD-Inventory/backend
+    uv run manage.py dumpdata -o "mai_inventory_$(date +%Y%m%d_%H%M%S).json.gz"
+    ```
+
+3. Copy the `.env` file contents for the next step!
+
+## 5. Update Render Config
+
+Go back to your Web Service in Render, go to "Environment" in the left side.
+
+Click "**Edit**", then "**+ Add**", and click "**From .env**" and paste the `.env` contents from the previous step. 
+
+Then click "Save, Rebuild and Deploy"
 
 ## 5. Update Google Config
 
@@ -192,7 +240,7 @@ In the Environment Variables section, add the following environment variables:
 2. Under Authorized JavaScript origins, add the Render URL you copied earlier.
 3. Under Authorized redirect URIs, add the Render URL and add the path `/accounts/google/login/callback/` on the end. (Note in the photo the beginning starting with `https://` isn't visible)
 
-![Google OAuth Config](image.png)
+![Google OAuth Config](images/google-oauth-config.png)
 
 ## 6. You're Done!
 Try going to your website at the Render URL!
