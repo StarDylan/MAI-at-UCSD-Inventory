@@ -41,8 +41,8 @@ DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['https://localhost', 'https://127.0.0.1'])
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
 
 # Application definition
 
