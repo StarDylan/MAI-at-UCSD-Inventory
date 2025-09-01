@@ -154,7 +154,7 @@ def view_item_detail(request, uuid):
     """
     # Use all_objects manager to include deleted items
     item = get_object_or_404(
-        Item.active_objects.select_related('category', 'subcategory'),
+        Item.objects.select_related('category', 'subcategory'),
         id=uuid
     )
 
