@@ -35,9 +35,9 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'), parse_comments=True)
 SECRET_KEY = env('SECRET_KEY', default=get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = env('DEBUG', default=False)
 
-DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES')
+DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
