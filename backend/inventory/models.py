@@ -63,7 +63,7 @@ class Item(models.Model):
 
     is_deleted = models.BooleanField(default=False)
     
-    # The default manager. All `Post.objects` queries will now
+    # All `Post.objects` queries will now
     # automatically exclude deleted posts.
     active_objects = ActiveManager()
     
