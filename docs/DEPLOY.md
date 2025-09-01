@@ -133,13 +133,12 @@ Here is where we will get the keys necessary to allow our users to login via Goo
 1. In your Render project dashboard, click **"+ Add New"** → **"Web Service"**
 2. Connect your GitHub repository: `StarDylan/MAI-at-UCSD-Inventory`
 3. Configure the service:
-   - **Name**: Choose a name, this will become the URL of your website.
-   - **Region**: Choose the same general region as your Supabase database
+   - **Name**: Choose a name, this will become the URL of your website. For example, `mai-at-ucsd-inventory`
+   - **Language**: `Docker`
    - **Branch**: `main`
+   - **Region**: Choose the same general region as your Supabase database
    - **Root Directory**: `backend`
-   - **Runtime**: `Python 3`
-   - **Build Command**: `uv sync`
-   - **Start Command**: `uv run gunicorn mai.wsgi`
+   - **Dockerfile Path**: (Leave empty)
    - **Instance Type**: Free ($0/month)
 
 4. Leave the environment variables alone for now. We'll come back to it later.
@@ -166,7 +165,7 @@ Our database right now is empty (in Supabase if you go to the left sidebar, then
 
 ### 5.1 Setup Local Environment
 
-Lets download the tools necessary to run our tools.
+Lets download the software necessary to run our tools. This will allow us to setup the database, add superuser accounts, and backing everything up.
 
 1. Download `uv`:
     - On MacOS/Linux, run `curl -LsSf https://astral.sh/uv/install.sh | sh`
