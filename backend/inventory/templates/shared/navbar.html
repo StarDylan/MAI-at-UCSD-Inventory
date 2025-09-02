@@ -20,6 +20,11 @@
       <li class="nav-item">
         <a class="nav-item nav-link" href="{% url 'view_all_items' %}">Search database</a>
       </li>
+      {% if perms.inventory.view_organization %}
+      <li class="nav-item">
+        <a class="nav-item nav-link" href="{% url 'organization_list' %}">Organizations</a>
+      </li>
+      {% endif %}
     </ul>
     {% if user.is_authenticated %}
     <div class="nav-item dropdown">

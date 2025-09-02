@@ -22,7 +22,7 @@ class ItemForm(forms.ModelForm):
 
     class Meta:
         model = models.Item
-        # Removed quantity_active as we'll use StockItem for quantity tracking
+        # Use StockItem for quantity tracking instead of quantity_active
         fields = ['name', 'subcategory', "location", "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
@@ -174,8 +174,7 @@ class ItemWithStockForm(forms.Form):
             location=self.cleaned_data['location'],
             url=self.cleaned_data['url'],
             notes_public=self.cleaned_data['notes_public'],
-            notes_private=self.cleaned_data['notes_private'],
-            quantity_active=0  # We'll remove this field later, but for now set to 0
+            notes_private=self.cleaned_data['notes_private']
         )
         
         if commit:

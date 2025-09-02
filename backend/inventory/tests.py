@@ -31,8 +31,7 @@ class StockItemModelTest(TestCase):
         self.category = Category.objects.create(name="Test Category")
         self.item = Item.objects.create(
             name="Test Item",
-            category=self.category,
-            quantity_active=0
+            category=self.category
         )
         self.organization = Organization.objects.create(
             name="Test Org",

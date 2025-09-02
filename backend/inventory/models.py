@@ -72,7 +72,6 @@ class Item(models.Model):
 
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=100, blank=True, default="")
-    quantity_active = models.PositiveIntegerField(default=0)
     
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
