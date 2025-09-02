@@ -250,7 +250,7 @@ def item_restore_view(request, uuid):
         Http404: If item with given UUID doesn't exist
         PermissionDenied: If user doesn't have restore_deleteditem permission
     """
-    item = get_object_or_404(Item.all_objects, id=uuid)
+    item = get_object_or_404(Item.objects, id=uuid)
     
     # Log the state before restoration
     before_state = audit_log_state(item)
@@ -294,7 +294,7 @@ def view_deleted_items(request):
         'items': deleted_items
     }
     
-    return render(request, 'categories/detail.html', context)
+    return render(request, 'items/list.html', context)
 
 
 class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):

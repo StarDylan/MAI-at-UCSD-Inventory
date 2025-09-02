@@ -72,7 +72,6 @@ urlpatterns = [
     
     # Search and Quantity Management
     path('search/check_in/', search.SearchCheckInView.as_view(), name='search_check_in'),
-    path('search/check_out/', search.SearchCheckOutView.as_view(), name='search_check_out'),
     path('checkout/<uuid:item_uuid>/', checkout.checkout_item_select, name='checkout_item_select'),
     path('checkout/<uuid:item_uuid>/process/', checkout.checkout_item_process, name='checkout_item_process'),
     

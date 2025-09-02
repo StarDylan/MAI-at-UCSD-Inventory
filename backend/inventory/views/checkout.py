@@ -57,10 +57,13 @@ def checkout_item_process(request, item_uuid):
     stock_items = StockItem.objects.filter(id__in=selected_stock_ids, quantity__gt=0)
     total_to_remove = sum(quantities.values())
     
+    before_states = []
+    after_states = []
+    items_removed = []
+    locations = []
+
     # Log current state before update
-    before_state = audit_log_state(item)
     
-    removed_items = []
     
     for stock_item in stock_items:
         stock_id = str(stock_item.id)
@@ -69,6 +72,7 @@ def checkout_item_process(request, item_uuid):
         if quantity_to_remove <= 0:
             continue
             
+
         if stock_item.quantity < quantity_to_remove:
             # Handle error - not enough quantity
             return render(request, 'search/checkout_select.html', {
@@ -77,31 +81,35 @@ def checkout_item_process(request, item_uuid):
                 'error': f'Stock item from {stock_item.organization.name} only has {stock_item.quantity} units, but {quantity_to_remove} was requested.'
             })
         
+        
+        before_states.append(audit_log_state(stock_item))
         if stock_item.quantity == quantity_to_remove:
             # Set quantity to 0 to mark as inactive
             stock_item.quantity = 0
             stock_item.save()
-            removed_items.append(f"{quantity_to_remove} from {stock_item.organization.name}")
+            items_removed.append(stock_item.quantity)
+            locations.append(stock_item.location)
         else:
             # Reduce quantity of this stock item
             stock_item.quantity -= quantity_to_remove
             stock_item.save()
-            removed_items.append(f"{quantity_to_remove} from {stock_item.organization.name}")
+            items_removed.append(quantity_to_remove)
+            locations.append(stock_item.location)
+
+        after_states.append(audit_log_state(stock_item))
     
     # Log the check-out event
-    after_state = audit_log_state(item)
-    removed_details = ", ".join(removed_items)
-
     if notes:
         notes_end_tag = f" - User Notes: {notes}"
     else:
         notes_end_tag = ""
 
-    audit_log_event(
-        request.user, 
-        f"Checked out {total_to_remove} of item \"{item.name}\" ({removed_details}){notes_end_tag}", 
-        before_state, 
-        after_state
-    )
+    for before_state, after_state, quantity, location in zip(before_states, after_states, items_removed, locations):
+        audit_log_event(
+            request.user, 
+            f"Checked out {quantity} of item \"{item.name}\"{notes_end_tag} from {location}", 
+            before_state, 
+            after_state
+        )
 
     return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))

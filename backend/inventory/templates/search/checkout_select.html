@@ -51,6 +51,13 @@
                 <input type="number" name="quantity_{{ stock.id }}" min="1" max="{{ stock.quantity }}" value="{{ stock.quantity }}" class="form-control form-control-sm quantity-input" disabled style="width: 80px;">
               </td>
             </tr>
+            {% if stock.notes %}
+            <tr>
+              <td colspan="6" class="text-muted small">
+                <strong>Notes:</strong> {{ stock.notes }}
+              </td>
+            </tr>
+            {% endif %}
             {% endfor %}
           </tbody>
         </table>
