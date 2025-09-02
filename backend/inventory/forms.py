@@ -1,3 +1,4 @@
+import datetime
 from django import forms
 from .models import Category, Subcategory, Organization, StockItem
 from inventory import models
@@ -125,7 +126,6 @@ class ItemWithStockForm(forms.Form):
     stock_location = forms.CharField(max_length=100, required=False, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
-        initial=date.today,
         label="Date Received"
     )
     expiration_date = forms.DateField(
@@ -146,36 +146,38 @@ class ItemWithStockForm(forms.Form):
         # Set up subcategory choices grouped by category
         subcategories = models.Subcategory.objects.select_related('category').all().order_by('category__name', 'name')
         grouped_choices = []
-        current_category = None
+        current_category_name = None
         category_group = []
 
         for subcategory in subcategories:
-            if current_category and subcategory.category != current_category:
-                grouped_choices.append((current_category.name, category_group))
+            if current_category_name and subcategory.category.name != current_category_name:
+                grouped_choices.append((current_category_name, category_group))
                 category_group = []
             
             category_group.append((subcategory.pk, subcategory.name))
-            current_category = subcategory.category
+            current_category_name = subcategory.category.name
 
         if category_group:
-            assert current_category is not None
-            grouped_choices.append((current_category.name, category_group))
+            grouped_choices.append((current_category_name, category_group))
 
         self.fields['subcategory'].choices = grouped_choices
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
 
     def save(self, commit=True):
-        """Create both Item and StockItem"""
+        """Create both Item and initial StockItem"""
+        # The cleaned_data from the form is used to create both objects
+        data = self.cleaned_data
+
         # Create Item
-        selected_subcategory = self.cleaned_data['subcategory']
+        selected_subcategory = data['subcategory']
         item = models.Item(
-            name=self.cleaned_data['name'],
+            name=data['name'],
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
-            location=self.cleaned_data['location'],
-            url=self.cleaned_data['url'],
-            notes_public=self.cleaned_data['notes_public'],
-            notes_private=self.cleaned_data['notes_private']
+            location=data['location'],
+            url=data['url'],
+            notes_public=data['notes_public'],
+            notes_private=data['notes_private']
         )
         
         if commit:
@@ -184,17 +186,18 @@ class ItemWithStockForm(forms.Form):
             # Create initial StockItem
             stock_item = StockItem(
                 item=item,
-                organization=self.cleaned_data['organization'],
-                quantity=self.cleaned_data['quantity'],
-                location=self.cleaned_data['stock_location'],
-                date_received=self.cleaned_data['date_received'],
-                expiration_date=self.cleaned_data['expiration_date'],
-                lot_number=self.cleaned_data['lot_number'],
-                notes=self.cleaned_data['stock_notes']
+                organization=data['organization'],
+                quantity=data['quantity'],
+                location=data['stock_location'],
+                date_received=data['date_received'],
+                expiration_date=data['expiration_date'],
+                lot_number=data['lot_number'],
+                notes=data['stock_notes']
             )
             stock_item.save()
+            return item, stock_item
         
-        return item
+        return item, None
 
 class ItemWithLocationChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: models.Item):

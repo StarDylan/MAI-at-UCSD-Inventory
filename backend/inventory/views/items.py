@@ -6,7 +6,7 @@ item creation, viewing, editing, deletion (soft delete), and restoration.
 Items are the core entities in the inventory system.
 """
 
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
 from django.urls import reverse_lazy
@@ -356,16 +356,6 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     template_name = "items/create.html"
     permission_required = 'inventory.add_item'
 
-    def get_form_kwargs(self):
-        """
-        Overrides the default method to remove the 'instance' argument,
-        which is not compatible with our custom forms.Form.
-        """
-        kwargs = super().get_form_kwargs()
-        if 'instance' in kwargs:
-            del kwargs['instance']
-        return kwargs
-    
     def form_valid(self, form):
         """
         Process valid form submission and log the creation.
@@ -378,19 +368,14 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         Returns:
             HttpResponseRedirect: Redirect to new item's detail view
         """
-        # Create the item first
-        selected_subcategory = form.cleaned_data['subcategory']
-        new_item = models.Item(
-            name=form.cleaned_data['name'],
-            category=selected_subcategory.category,
-            subcategory=selected_subcategory,
-            location=form.cleaned_data['location'],
-            url=form.cleaned_data['url'],
-            notes_public=form.cleaned_data['notes_public'],
-            notes_private=form.cleaned_data['notes_private']
-        )
-        new_item.save()
-        
+        # Call the custom save method on the form.
+        # It returns a tuple of (item, stock_item).
+        new_item, stock_item = form.save()
+
+        # Set the view's object to the new Item instance.
+        # This is crucial for get_success_url to work correctly.
+        self.object = new_item
+
         # Log item creation event
         audit_log_event(
             self.request.user, 
@@ -398,32 +383,32 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             audit_log_state(None), 
             audit_log_state(new_item)
         )
-        
-        # Create initial StockItem
-        stock_item = StockItem(
-            item=new_item,
-            organization=form.cleaned_data['organization'],
-            quantity=form.cleaned_data['quantity'],
-            location=form.cleaned_data['stock_location'],
-            date_received=form.cleaned_data['date_received'],
-            expiration_date=form.cleaned_data['expiration_date'],
-            lot_number=form.cleaned_data['lot_number'],
-            notes=form.cleaned_data['stock_notes']
-        )
-        stock_item.save()
-        
+            
         # Log stock item creation event
-        audit_log_event(
-            self.request.user, 
-            f"Added initial stock for item \"{new_item.name}\" - {stock_item.quantity} units from {stock_item.organization.name}", 
-            audit_log_state(None), 
-            audit_log_state(stock_item)
-        )
+        if stock_item:
+            audit_log_event(
+                self.request.user, 
+                f"Added initial stock for item \"{new_item.name}\" - {stock_item.quantity} units from {stock_item.organization.name}", 
+                audit_log_state(None), 
+                audit_log_state(stock_item)
+            )
         
-        # Finally, set the object and let the parent class handle the redirect.
-        self.object = new_item
-        return super().form_valid(form)
+        # The parent class handles the redirection to success_url.
+        return HttpResponseRedirect(self.get_success_url())
     
+    def get_form_kwargs(self):
+        """
+        Overrides the default method to remove the 'instance' argument,
+        which is not compatible with our custom forms.Form.
+        """
+
+        kwargs = super().get_form_kwargs()
+
+        if 'instance' in kwargs:
+            del kwargs['instance']
+
+        return kwargs 
+
     def get_success_url(self):
         """
         Get the URL to redirect to after successful form submission.
@@ -431,9 +416,8 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         Returns:
             str: URL to the new item's detail view
         """
+        # self.object is now properly set to the new Item instance
         return reverse_lazy('view_item', kwargs={'uuid': self.object.pk})
-
-
 class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """
     Class-based view for updating individual stock item information.
