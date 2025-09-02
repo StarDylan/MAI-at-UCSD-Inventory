@@ -88,7 +88,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         after_state = audit_log_state(stock_item)
         audit_log_event(
             self.request.user, 
-            f"Checked in {quantity} of item \"{item.name}\" from {organization.name}", 
+            f"Checked in {quantity} of item \"{item.name}\" from {location}", 
             before_state,
             after_state
         )
@@ -172,18 +172,16 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                 original_quantity = stock_item.quantity
                 remaining_to_remove -= stock_item.quantity
                 stock_item.quantity = 0
-                stock_item.notes += f"\n[Checkout] {notes}" if notes else ""
                 stock_item.save()
-                removed_items.append(f"{original_quantity} from {stock_item.organization.name}")
+                removed_items.append(f"{original_quantity} from {stock_item.location}")
             else:
                 # Reduce quantity of this stock item
                 quantity_taken = remaining_to_remove
                 stock_item.quantity -= quantity_taken
-                stock_item.notes += f"\n[Checkout] Removed {quantity_taken}: {notes}" if notes else f"\n[Checkout] Removed {quantity_taken}"
                 stock_item.save()
                 remaining_to_remove = 0
-                removed_items.append(f"{quantity_taken} from {stock_item.organization.name}")
-        
+                removed_items.append(f"{quantity_taken} from {stock_item.location}")
+
         # Log the check-out event
         after_state = audit_log_state(item)
         removed_details = ", ".join(removed_items)

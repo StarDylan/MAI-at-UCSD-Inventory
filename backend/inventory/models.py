@@ -132,7 +132,7 @@ class StockItem(models.Model):
 
     
     def __str__(self):
-        return f"{self.item.name} - {self.quantity} units from {self.organization.name}"
+        return f"{self.item.name} - {self.quantity} units from {self.location}"
     
     @property
     def is_expired(self):

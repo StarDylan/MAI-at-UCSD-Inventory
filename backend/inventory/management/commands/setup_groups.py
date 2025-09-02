@@ -22,7 +22,6 @@ class Command(BaseCommand):
 
         # Get ContentType for your models
         audit_event_ct = ContentType.objects.get_for_model(model=models.AuditEvent)
-        group_ct = ContentType.objects.get_for_model(model=Group)
         category_ct = ContentType.objects.get_for_model(model=models.Category)
         subcategory_ct = ContentType.objects.get_for_model(model=models.Subcategory)
         user_ct = ContentType.objects.get_for_model(model=models.User)
@@ -36,6 +35,8 @@ class Command(BaseCommand):
         # Define a list of permissions for the member group
         member_permissions = user_permissions + [
 
+            Permission.objects.get(codename='view_auditevent', content_type=audit_event_ct),
+            
             Permission.objects.get(codename='add_item', content_type=item_ct),
             Permission.objects.get(codename='change_item', content_type=item_ct),
             Permission.objects.get(codename='view_internalstockingdetails', content_type=item_ct),
@@ -51,7 +52,6 @@ class Command(BaseCommand):
         ]
 
         admin_permissions = member_permissions + [
-            Permission.objects.get(codename='view_auditevent', content_type=audit_event_ct),
 
             Permission.objects.get(codename='delete_image', content_type=image_ct),
 

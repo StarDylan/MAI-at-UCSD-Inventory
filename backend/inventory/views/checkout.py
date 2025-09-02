@@ -80,13 +80,11 @@ def checkout_item_process(request, item_uuid):
         if stock_item.quantity == quantity_to_remove:
             # Set quantity to 0 to mark as inactive
             stock_item.quantity = 0
-            stock_item.notes += f"\n[Checkout] {notes}" if notes else ""
             stock_item.save()
             removed_items.append(f"{quantity_to_remove} from {stock_item.organization.name}")
         else:
             # Reduce quantity of this stock item
             stock_item.quantity -= quantity_to_remove
-            stock_item.notes += f"\n[Checkout] Removed {quantity_to_remove}: {notes}" if notes else f"\n[Checkout] Removed {quantity_to_remove}"
             stock_item.save()
             removed_items.append(f"{quantity_to_remove} from {stock_item.organization.name}")
     

@@ -112,7 +112,6 @@ class ItemWithStockForm(forms.Form):
         queryset=models.Subcategory.objects.all(),
         label="Category"
     )
-    location = forms.CharField(max_length=100, required=False, label="Location")
     url = forms.URLField(required=False, label="URL")
     notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Notes")
     notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Notes")
@@ -190,7 +189,6 @@ class ItemWithStockForm(forms.Form):
             name=data['name'],
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
-            location=data['location'],
             url=data['url'],
             notes_public=data['notes_public'],
             notes_private=data['notes_private']

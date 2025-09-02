@@ -12,11 +12,14 @@
     
     {% if perms.inventory.change_item %}
     <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
-    <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i></a>
     {% endif %}
 
     {% if perms.inventory.delete_item %}
     <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
+    {% endif %}
+
+    {% if perms.inventory.change_item %}
+    <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i></a>
     {% endif %}
 
     {% endif %}
@@ -136,7 +139,7 @@
         <table class="table table-sm table-hover">
           <thead>
             <tr>
-              <th>Origin</th>
+              <th>Origin Org</th>
               <th>Quantity</th>
               <th>Location</th>
               <th>Date Received</th>

@@ -40,7 +40,7 @@ def view_database(request):
         'categories': categories,
     }
 
-    template = loader.get_template("items/list.html")
+    template = loader.get_template("categories/list.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -68,7 +68,7 @@ def view_all_items(request):
         'category': "All Items"
     }
 
-    template = loader.get_template("categories/detail.html")
+    template = loader.get_template("items/list.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -99,7 +99,7 @@ def view_category_items(request, uuid):
         'items': items,
     }
 
-    template = loader.get_template("categories/detail.html")
+    template = loader.get_template("items/list.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -130,7 +130,7 @@ def view_subcategory_items(request, uuid):
         'items': items,
     }
     
-    template = loader.get_template("subcategories/detail.html")
+    template = loader.get_template("items/list.html")
     return HttpResponse(template.render(context, request))
 
 
@@ -454,7 +454,7 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
         after_state = audit_log_state(self.object)
         audit_log_event(
             self.request.user, 
-            f"Updated stock item for \"{self.object.item.name}\" from {self.object.organization.name}", 
+            f"Updated stock item for \"{self.object.item.name}\" from {self.object.location}", 
             before_state, 
             after_state
         )
