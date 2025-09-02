@@ -79,8 +79,6 @@ class Command(BaseCommand):
             Permission.objects.get(codename='change_organization', content_type=organization_ct),
             Permission.objects.get(codename='delete_organization', content_type=organization_ct),
             Permission.objects.get(codename='view_organization', content_type=organization_ct),
-
-            Permission.objects.get(codename='delete_stockitem', content_type=stockitem_ct),
         ]
 
         # Add the permissions to the Member group
