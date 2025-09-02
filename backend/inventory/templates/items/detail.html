@@ -174,7 +174,7 @@
               </td>
               <td>{{ stock.lot_number|default:"-" }}</td>
               <td>
-                {% if stock.is_active %}
+                {% if stock.quantity > 0 %}
                   <span class="badge badge-success">Active</span>
                 {% else %}
                   <span class="badge badge-secondary">Inactive</span>

@@ -102,12 +102,12 @@ class Item(models.Model):
     @property
     def total_stock_quantity(self):
         """Calculate total quantity from all active stock items"""
-        return sum(stock.quantity for stock in self.stock_items.filter(is_active=True))
+        return sum(stock.quantity for stock in self.stock_items.filter(quantity__gt=0))
 
     @property
     def aggregated_locations(self):
         """Get comma-separated list of unique locations from active stock items"""
-        locations = self.stock_items.filter(is_active=True).exclude(location='').values_list('location', flat=True).distinct()
+        locations = self.stock_items.filter(quantity__gt=0).exclude(location='').values_list('location', flat=True).distinct()
         return ', '.join(sorted(locations)) if locations else ""
 
 
@@ -131,7 +131,7 @@ class StockItem(models.Model):
     expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
     lot_number = models.CharField(max_length=100, blank=True, default="")
     notes = models.TextField(blank=True, default="")
-    is_active = models.BooleanField(default=True, help_text="False if this stock has been consumed/disposed")
+
     
     def __str__(self):
         return f"{self.item.name} - {self.quantity} units from {self.organization.name}"

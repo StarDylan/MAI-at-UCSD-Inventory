@@ -224,7 +224,7 @@ class StockItemEditForm(forms.ModelForm):
     """Form for editing individual stock items"""
     class Meta:
         model = StockItem
-        fields = ['organization', 'quantity', 'location', 'date_received', 'expiration_date', 'lot_number', 'notes', 'is_active']
+        fields = ['organization', 'quantity', 'location', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date'}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
@@ -313,7 +313,7 @@ class StockItemCheckoutForm(forms.Form):
     def __init__(self, item=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if item:
-            self.fields['stock_items'].queryset = item.stock_items.filter(is_active=True).order_by('expiration_date', 'date_received')
+            self.fields['stock_items'].queryset = item.stock_items.filter(quantity__gt=0).order_by('expiration_date', 'date_received')
 
 class UserCreationForm(forms.Form):
     username = forms.CharField(max_length=150, required=True)

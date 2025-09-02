@@ -22,7 +22,7 @@ def checkout_item_select(request, item_uuid):
     View for selecting which stock items to check out from a specific item.
     """
     item = get_object_or_404(Item, id=item_uuid)
-    stock_items = item.stock_items.filter(is_active=True).order_by('expiration_date', 'date_received')
+    stock_items = item.stock_items.filter(quantity__gt=0).order_by('expiration_date', 'date_received')
     
     context = {
         'item': item,
@@ -54,7 +54,7 @@ def checkout_item_process(request, item_uuid):
     notes = request.POST.get('notes', '')
     
     # Validate that all selected stock items exist and have sufficient quantity
-    stock_items = StockItem.objects.filter(id__in=selected_stock_ids, is_active=True)
+    stock_items = StockItem.objects.filter(id__in=selected_stock_ids, quantity__gt=0)
     total_to_remove = sum(quantities.values())
     
     # Log current state before update
@@ -73,13 +73,13 @@ def checkout_item_process(request, item_uuid):
             # Handle error - not enough quantity
             return render(request, 'search/checkout_select.html', {
                 'item': item,
-                'stock_items': item.stock_items.filter(is_active=True).order_by('expiration_date', 'date_received'),
+                'stock_items': item.stock_items.filter(quantity__gt=0).order_by('expiration_date', 'date_received'),
                 'error': f'Stock item from {stock_item.organization.name} only has {stock_item.quantity} units, but {quantity_to_remove} was requested.'
             })
         
         if stock_item.quantity == quantity_to_remove:
-            # Mark entire stock item as inactive
-            stock_item.is_active = False
+            # Set quantity to 0 to mark as inactive
+            stock_item.quantity = 0
             stock_item.notes += f"\n[Checkout] {notes}" if notes else ""
             stock_item.save()
             removed_items.append(f"{quantity_to_remove} from {stock_item.organization.name}")

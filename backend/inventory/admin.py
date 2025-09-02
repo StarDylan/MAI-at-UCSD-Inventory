@@ -36,7 +36,7 @@ class StockItemInline(admin.TabularInline):
     model = models.StockItem
     extra = 0
     show_change_link = True
-    fields = ("organization", "quantity", "location", "date_received", "expiration_date", "lot_number", "is_active")
+    fields = ("organization", "quantity", "location", "date_received", "expiration_date", "lot_number")
 
 
 # ---------- Core data models ----------
@@ -128,10 +128,9 @@ class StockItemAdmin(admin.ModelAdmin):
         "location",
         "date_received",
         "expiration_date",
-        "is_active",
         "is_expired_display",
     )
-    list_filter = ("is_active", "organization", "date_received", "expiration_date")
+    list_filter = ("organization", "date_received", "expiration_date")
     search_fields = (
         "id",
         "item__name",

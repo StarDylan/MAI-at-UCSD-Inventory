@@ -158,7 +158,7 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         before_state = audit_log_state(item)
         
         # Get active stock items ordered by expiration date (FIFO)
-        stock_items = item.stock_items.filter(is_active=True).order_by('expiration_date', 'date_received')
+        stock_items = item.stock_items.filter(quantity__gt=0).order_by('expiration_date', 'date_received')
         
         remaining_to_remove = quantity_to_remove
         removed_items = []
@@ -168,12 +168,13 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                 break
                 
             if stock_item.quantity <= remaining_to_remove:
-                # Mark entire stock item as inactive
+                # Set quantity to 0 to mark as inactive
+                original_quantity = stock_item.quantity
                 remaining_to_remove -= stock_item.quantity
-                stock_item.is_active = False
+                stock_item.quantity = 0
                 stock_item.notes += f"\n[Checkout] {notes}" if notes else ""
                 stock_item.save()
-                removed_items.append(f"{stock_item.quantity} from {stock_item.organization.name}")
+                removed_items.append(f"{original_quantity} from {stock_item.organization.name}")
             else:
                 # Reduce quantity of this stock item
                 quantity_taken = remaining_to_remove

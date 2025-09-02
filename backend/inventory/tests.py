@@ -83,26 +83,23 @@ class StockItemModelTest(TestCase):
             item=self.item,
             organization=self.organization,
             quantity=10,
-            date_received=date.today(),
-            is_active=True
+            date_received=date.today()
         )
         StockItem.objects.create(
             item=self.item,
             organization=self.organization,
             quantity=5,
-            date_received=date.today(),
-            is_active=True
+            date_received=date.today()
         )
         StockItem.objects.create(
             item=self.item,
             organization=self.organization,
-            quantity=3,
-            date_received=date.today(),
-            is_active=False  # This should not be counted
+            quantity=0,  # This should not be counted (inactive)
+            date_received=date.today()
         )
         
         # Check total quantity
-        self.assertEqual(self.item.total_stock_quantity, 15)  # 10 + 5 (3 is inactive)
+        self.assertEqual(self.item.total_stock_quantity, 15)  # 10 + 5 (0 quantity is inactive)
 
     def test_stock_item_str_representation(self):
         """Test the string representation of StockItem"""
