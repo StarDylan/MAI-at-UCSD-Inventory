@@ -78,8 +78,10 @@ class Item(models.Model):
     url = models.URLField(blank=True)
 
     is_deleted = models.BooleanField(default=False)
-    
-    # All `Post.objects` queries will now
+
+    objects = models.Manager()  # The default manager.
+
+    # All `Post.active_objects` queries will now
     # automatically exclude deleted posts.
     active_objects = ActiveManager()
     
@@ -130,15 +132,6 @@ class StockItem(models.Model):
     lot_number = models.CharField(max_length=100, blank=True, default="")
     notes = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True, help_text="False if this stock has been consumed/disposed")
-    
-    class Meta:
-        indexes = [
-            models.Index(fields=["item", "expiration_date"]),
-            models.Index(fields=["organization", "date_received"]),
-        ]
-        permissions = [
-            ("view_stockitem_details", "Can view stock item details"),
-        ]
     
     def __str__(self):
         return f"{self.item.name} - {self.quantity} units from {self.organization.name}"

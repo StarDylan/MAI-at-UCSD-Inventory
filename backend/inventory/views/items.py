@@ -356,6 +356,16 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     template_name = "items/create.html"
     permission_required = 'inventory.add_item'
 
+    def get_form_kwargs(self):
+        """
+        Overrides the default method to remove the 'instance' argument,
+        which is not compatible with our custom forms.Form.
+        """
+        kwargs = super().get_form_kwargs()
+        if 'instance' in kwargs:
+            del kwargs['instance']
+        return kwargs
+    
     def form_valid(self, form):
         """
         Process valid form submission and log the creation.
@@ -410,8 +420,9 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             audit_log_state(stock_item)
         )
         
+        # Finally, set the object and let the parent class handle the redirect.
         self.object = new_item
-        return redirect(self.get_success_url())
+        return super().form_valid(form)
     
     def get_success_url(self):
         """
