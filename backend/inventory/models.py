@@ -36,6 +36,23 @@ class Subcategory(models.Model):
         return f"{self.category.name} / {self.name}"
 
 
+class Organization(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['name'], name='unique_organization_name')
+        ]
+    
+    def __str__(self):
+        return self.name
+
+
 class Item(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     category = models.ForeignKey(
@@ -77,6 +94,54 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
+    
+    @property
+    def total_stock_quantity(self):
+        """Calculate total quantity from all active stock items"""
+        return sum(stock.quantity for stock in self.stock_items.filter(is_active=True))
+
+
+class StockItem(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    item = models.ForeignKey(
+        Item,
+        related_name="stock_items",
+        on_delete=models.CASCADE,
+        db_column="item_id",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        related_name="stock_items",
+        on_delete=models.PROTECT,
+        db_column="organization_id",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    date_received = models.DateField()
+    expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
+    lot_number = models.CharField(max_length=100, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True, help_text="False if this stock has been consumed/disposed")
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=["item", "expiration_date"]),
+            models.Index(fields=["organization", "date_received"]),
+        ]
+        permissions = [
+            ("view_stockitem", "Can view stock items"),
+        ]
+    
+    def __str__(self):
+        return f"{self.item.name} - {self.quantity} units from {self.organization.name}"
+    
+    @property
+    def is_expired(self):
+        """Check if this stock item has expired"""
+        if not self.expiration_date:
+            return False
+        from django.utils import timezone
+        return self.expiration_date < timezone.now().date()
+
 
 class User(AbstractUser):
     user_picture = models.CharField(max_length=255, default="/static/inventory/original_logo_square.png")

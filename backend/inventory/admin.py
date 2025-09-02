@@ -32,6 +32,13 @@ class ItemImageInline(admin.TabularInline):
     show_change_link = True
 
 
+class StockItemInline(admin.TabularInline):
+    model = models.StockItem
+    extra = 0
+    show_change_link = True
+    fields = ("organization", "quantity", "date_received", "expiration_date", "lot_number", "is_active")
+
+
 # ---------- Core data models ----------
 
 @admin.register(models.Category)
@@ -63,6 +70,7 @@ class ItemAdmin(admin.ModelAdmin):
         "subcategory",
         "location",
         "quantity_active",
+        "total_stock_display",
         "is_deleted",
         "url_link",
     )
@@ -79,7 +87,7 @@ class ItemAdmin(admin.ModelAdmin):
     )
     ordering = ("name",)
     autocomplete_fields = ("category", "subcategory")
-    inlines = [ItemImageInline]
+    inlines = [ItemImageInline, StockItemInline]
     list_per_page = 25
 
     @admin.display(description="URL")
@@ -87,6 +95,10 @@ class ItemAdmin(admin.ModelAdmin):
         if obj.url:
             return format_html('<a href="{}" target="_blank">Open</a>', obj.url)
         return ""
+    
+    @admin.display(description="Stock Items Total")
+    def total_stock_display(self, obj):
+        return obj.total_stock_quantity
 
 
 @admin.register(models.Image)
@@ -97,6 +109,43 @@ class ImageAdmin(admin.ModelAdmin):
     autocomplete_fields = ("item",)
     ordering = ("item__name",)
     list_per_page = 25
+
+
+@admin.register(models.Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "contact_email", "contact_phone")
+    search_fields = ("id", "name", "description", "contact_email")
+    ordering = ("name",)
+    list_per_page = 25
+
+
+@admin.register(models.StockItem)
+class StockItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "item",
+        "organization", 
+        "quantity",
+        "date_received",
+        "expiration_date",
+        "is_active",
+        "is_expired_display",
+    )
+    list_filter = ("is_active", "organization", "date_received", "expiration_date")
+    search_fields = (
+        "id",
+        "item__name",
+        "organization__name",
+        "lot_number",
+        "notes",
+    )
+    ordering = ("-date_received",)
+    autocomplete_fields = ("item", "organization")
+    list_per_page = 25
+    
+    @admin.display(description="Expired", boolean=True)
+    def is_expired_display(self, obj):
+        return obj.is_expired
 
 
 @admin.register(models.User)
