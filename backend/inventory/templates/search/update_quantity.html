@@ -20,37 +20,12 @@
         {{ form.item|as_crispy_field }}
         {% if form.organization %}
         {{ form.organization|as_crispy_field }}
-        
-        <div class="form-group mt-2">
-            <label>
-                <input type="checkbox" id="new_organization_toggle"> Add new organization
-            </label>
-        </div>
-        
-        <!-- New organization form (hidden by default) -->
-        <div id="new_organization_form" style="display: none;" class="card mt-3">
-            <div class="card-header">
-                <h6>Add New Organization</h6>
-            </div>
-            <div class="card-body">
-                <div class="form-group">
-                    <label for="new_org_name">Organization Name *</label>
-                    <input type="text" class="form-control" id="new_org_name" placeholder="e.g. Medical Supply Co.">
-                </div>
-                <div class="form-group">
-                    <label for="new_org_email">Contact Email</label>
-                    <input type="email" class="form-control" id="new_org_email" placeholder="orders@medicalsupply.com">
-                </div>
-                <div class="form-group">
-                    <label for="new_org_phone">Contact Phone</label>
-                    <input type="text" class="form-control" id="new_org_phone" placeholder="(555) 123-4567">
-                </div>
-                <button type="button" class="btn btn-success btn-sm" id="add_organization_btn">Add Organization</button>
-            </div>
-        </div>
         {% endif %}
         
         {{ form.quantity|as_crispy_field }}
+        {% if form.location %}
+        {{ form.location|as_crispy_field }}
+        {% endif %}
         {% if form.date_received %}
         {{ form.date_received|as_crispy_field }}
         {% endif %}
@@ -86,71 +61,6 @@
             "width": "100%" 
 
         });
-        
-        // Handle organization addition
-        const toggle = document.getElementById('new_organization_toggle');
-        const form = document.getElementById('new_organization_form');
-        const addBtn = document.getElementById('add_organization_btn');
-        const orgSelect = document.querySelector('select[name="organization"]');
-
-        if (toggle) {
-            toggle.addEventListener('change', function() {
-                form.style.display = this.checked ? 'block' : 'none';
-            });
-        }
-
-        if (addBtn) {
-            addBtn.addEventListener('click', function() {
-                const name = document.getElementById('new_org_name').value.trim();
-                const email = document.getElementById('new_org_email').value.trim();
-                const phone = document.getElementById('new_org_phone').value.trim();
-
-                if (!name) {
-                    alert('Organization name is required');
-                    return;
-                }
-
-                // Send AJAX request to create organization
-                fetch('{% url "organization_create_ajax" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify({
-                        name: name,
-                        contact_email: email,
-                        contact_phone: phone
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Add new option to select
-                        const option = new Option(data.organization.name, data.organization.id, true, true);
-                        orgSelect.add(option);
-                        $(orgSelect).trigger('change'); // Trigger change for Select2
-                        
-                        // Clear form
-                        document.getElementById('new_org_name').value = '';
-                        document.getElementById('new_org_email').value = '';
-                        document.getElementById('new_org_phone').value = '';
-                        
-                        // Hide form
-                        toggle.checked = false;
-                        form.style.display = 'none';
-                        
-                        alert('Organization added successfully!');
-                    } else {
-                        alert('Error: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while creating the organization');
-                });
-            });
-        }
         {% endif %}
     });
 </script>
