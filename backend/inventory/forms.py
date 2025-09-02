@@ -162,6 +162,22 @@ class ItemWithStockForm(forms.Form):
 
         self.fields['subcategory'].choices = grouped_choices
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+    def clean_name(self):
+        """
+        Validates that the item name is unique.
+        """
+        # Get the cleaned data for this specific field
+        name = self.cleaned_data['name']
+
+        # Check if an Item with this name already exists (case-insensitive)
+        if models.Item.objects.filter(name__iexact=name).exists():
+            raise forms.ValidationError(
+                "An item with this name already exists. Please choose a different name.",
+                code='duplicate_name'
+            )
+
+        # Always return the cleaned data for this field
+        return name
 
     def save(self, commit=True):
         """Create both Item and initial StockItem"""
