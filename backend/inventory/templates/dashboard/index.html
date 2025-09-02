@@ -46,7 +46,7 @@
 <br />
 
 
-{% if perms.inventory.add_user or perms.inventory.view_user or perms.inventory.view_auditevent or perms.inventory.view_deleteditem  or perms.inventory.add_category or perms.inventory.add_subcategory or perms.inventory.delete_category or perms.inventory.delete_subcategory or perms.inventory.delete_image %}
+{% if perms.inventory.add_user or perms.inventory.view_user or perms.inventory.view_auditevent or perms.inventory.view_deleteditem  or perms.inventory.add_category or perms.inventory.add_subcategory or perms.inventory.add_organization or perms.inventory.delete_category or perms.inventory.delete_subcategory or perms.inventory.delete_image %}
 <h5>Administrate</h5>
 <div class="list-group">
     {# Either the user can add a new user or view users  #}
@@ -67,6 +67,9 @@
     {% endif %}
     {% if perms.inventory.add_subcategory %}
     <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
+    {% endif %}
+    {% if perms.inventory.add_organization %}
+    <a href="{% url 'create_organization' %}" class="list-group-item list-group-item-action">Create a new organization</a>
     {% endif %}
     {% if perms.inventory.delete_category %}
     <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>

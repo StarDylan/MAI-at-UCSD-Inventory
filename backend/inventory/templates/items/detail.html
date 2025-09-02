@@ -12,6 +12,7 @@
     
     {% if perms.inventory.change_item %}
     <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
+    <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i></a>
     {% endif %}
 
     {% if perms.inventory.delete_item %}
@@ -115,6 +116,13 @@
       <span class="flex-fill text-right">{{ item.total_stock_quantity }}</span>
     </div>
 
+    {% if item.aggregated_locations %}
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">place</i> Stock Locations</span>
+      <span class="flex-fill text-right">{{ item.aggregated_locations }}</span>
+    </div>
+    {% endif %}
+
     {% if item.url %}
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">link</i> URL</span>
@@ -137,10 +145,14 @@
             <tr>
               <th>Organization</th>
               <th>Quantity</th>
+              <th>Location</th>
               <th>Date Received</th>
               <th>Expiration Date</th>
               <th>Lot Number</th>
               <th>Status</th>
+              {% if perms.inventory.view_internalstockingdetails %}
+              <th>Actions</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>
@@ -148,6 +160,7 @@
             <tr {% if stock.is_expired %}class="table-danger"{% endif %}>
               <td>{{ stock.organization.name }}</td>
               <td>{{ stock.quantity }}</td>
+              <td>{{ stock.location|default:"-" }}</td>
               <td>{{ stock.date_received|date:"M d, Y" }}</td>
               <td>
                 {% if stock.expiration_date %}
@@ -167,10 +180,15 @@
                   <span class="badge badge-secondary">Inactive</span>
                 {% endif %}
               </td>
+              {% if perms.inventory.view_internalstockingdetails %}
+              <td>
+                <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+              </td>
+              {% endif %}
             </tr>
-            {% if stock.notes %}
+            {% if stock.notes and perms.inventory.view_internalstockingdetails %}
             <tr>
-              <td colspan="6" class="text-muted small">
+              <td colspan="{% if perms.inventory.view_internalstockingdetails %}8{% else %}7{% endif %}" class="text-muted small">
                 <strong>Notes:</strong> {{ stock.notes|linebreaksbr }}
               </td>
             </tr>

@@ -62,6 +62,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         item = form.cleaned_data['item']
         quantity = form.cleaned_data['quantity']
         organization = form.cleaned_data['organization']
+        location = form.cleaned_data['location']
         date_received = form.cleaned_data['date_received']
         expiration_date = form.cleaned_data['expiration_date']
         lot_number = form.cleaned_data['lot_number']
@@ -76,6 +77,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             item=item,
             organization=organization,
             quantity=quantity,
+            location=location,
             date_received=date_received,
             expiration_date=expiration_date,
             lot_number=lot_number,

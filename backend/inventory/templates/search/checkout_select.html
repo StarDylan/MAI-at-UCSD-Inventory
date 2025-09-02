@@ -1,0 +1,122 @@
+{% extends "shared/base.html" %} {% block body %}
+
+<h4>Check Out: {{ item.name }}</h4>
+<p><strong>Total Available:</strong> {{ item.total_stock_quantity }} units</p>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="{% url 'checkout_item_process' item.id %}" id="checkout-form">
+  {% csrf_token %}
+  
+  <div class="card">
+    <div class="card-header">
+      <h6>Select Stock Items to Check Out</h6>
+    </div>
+    <div class="card-body">
+      {% if stock_items %}
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Organization</th>
+              <th>Available</th>
+              <th>Location</th>
+              <th>Expiration</th>
+              <th>Lot Number</th>
+              <th>Quantity to Take</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stock in stock_items %}
+            <tr {% if stock.is_expired %}class="table-danger"{% endif %}>
+              <td>
+                <input type="checkbox" name="stock_items" value="{{ stock.id }}" class="stock-checkbox" data-max="{{ stock.quantity }}">
+              </td>
+              <td>{{ stock.organization.name }}</td>
+              <td>{{ stock.quantity }}</td>
+              <td>{{ stock.location|default:"-" }}</td>
+              <td>
+                {% if stock.expiration_date %}
+                  {{ stock.expiration_date|date:"M d, Y" }}
+                  {% if stock.is_expired %}
+                    <span class="badge badge-danger">Expired</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">No expiration</span>
+                {% endif %}
+              </td>
+              <td>{{ stock.lot_number|default:"-" }}</td>
+              <td>
+                <input type="number" name="quantity_{{ stock.id }}" min="1" max="{{ stock.quantity }}" value="1" class="form-control form-control-sm quantity-input" disabled style="width: 80px;">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="mt-3">
+        <label for="notes" class="form-label">Checkout Notes (Optional)</label>
+        <textarea name="notes" id="notes" class="form-control" rows="2" placeholder="Reason for checkout, who received items, etc."></textarea>
+      </div>
+      
+      <div class="mt-3">
+        <p><strong>Total Selected:</strong> <span id="total-quantity">0</span> units</p>
+      </div>
+      
+      {% else %}
+      <p class="text-muted">No active stock items found for this item.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <button type="submit" class="btn btn-primary" id="checkout-btn" disabled>Check Out Selected Items</button>
+    <a href="{% url 'view_item' item.id %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.stock-checkbox');
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    const totalQuantitySpan = document.getElementById('total-quantity');
+    const checkoutBtn = document.getElementById('checkout-btn');
+    
+    function updateTotal() {
+        let total = 0;
+        let anySelected = false;
+        
+        checkboxes.forEach(function(checkbox, index) {
+            const quantityInput = quantityInputs[index];
+            
+            if (checkbox.checked) {
+                anySelected = true;
+                quantityInput.disabled = false;
+                total += parseInt(quantityInput.value) || 0;
+            } else {
+                quantityInput.disabled = true;
+            }
+        });
+        
+        totalQuantitySpan.textContent = total;
+        checkoutBtn.disabled = !anySelected;
+    }
+    
+    checkboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateTotal);
+    });
+    
+    quantityInputs.forEach(function(input) {
+        input.addEventListener('input', updateTotal);
+    });
+    
+    // Initial state
+    updateTotal();
+});
+</script>
+
+{% endblock %}

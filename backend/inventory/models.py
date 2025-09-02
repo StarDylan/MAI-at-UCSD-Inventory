@@ -90,6 +90,9 @@ class Item(models.Model):
             ("view_internalstockingdetails", "Can view internal stocking"),
             ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=['name'], name='unique_item_name')
+        ]
 
     def __str__(self):
         return self.name
@@ -98,6 +101,12 @@ class Item(models.Model):
     def total_stock_quantity(self):
         """Calculate total quantity from all active stock items"""
         return sum(stock.quantity for stock in self.stock_items.filter(is_active=True))
+
+    @property
+    def aggregated_locations(self):
+        """Get comma-separated list of unique locations from active stock items"""
+        locations = self.stock_items.filter(is_active=True).exclude(location='').values_list('location', flat=True).distinct()
+        return ', '.join(sorted(locations)) if locations else ""
 
 
 class StockItem(models.Model):
@@ -115,6 +124,7 @@ class StockItem(models.Model):
         db_column="organization_id",
     )
     quantity = models.PositiveIntegerField(default=1)
+    location = models.CharField(max_length=100, blank=True, default="", help_text="Specific location where this stock is stored")
     date_received = models.DateField()
     expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
     lot_number = models.CharField(max_length=100, blank=True, default="")
@@ -127,7 +137,7 @@ class StockItem(models.Model):
             models.Index(fields=["organization", "date_received"]),
         ]
         permissions = [
-            ("view_stockitem", "Can view stock items"),
+            ("view_stockitem_details", "Can view stock item details"),
         ]
     
     def __str__(self):

@@ -1,0 +1,20 @@
+{% extends "shared/base.html" %} {% block body %}
+
+{% load crispy_forms_tags %}
+
+<h4>Edit Stock Item</h4>
+<p><strong>Item:</strong> {{ object.item.name }}</p>
+<p><strong>Original Organization:</strong> {{ object.organization.name }}</p>
+
+<form method="post">
+  {% csrf_token %}
+
+  {{ form|crispy }}
+
+  <p>
+    <input type="submit" class="btn btn-primary" value="Update Stock Item" />
+    <a href="{% url 'view_item' object.item.id %}" class="btn btn-secondary">Cancel</a>
+  </p>
+</form>
+
+{% endblock %}

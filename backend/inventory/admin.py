@@ -36,7 +36,7 @@ class StockItemInline(admin.TabularInline):
     model = models.StockItem
     extra = 0
     show_change_link = True
-    fields = ("organization", "quantity", "date_received", "expiration_date", "lot_number", "is_active")
+    fields = ("organization", "quantity", "location", "date_received", "expiration_date", "lot_number", "is_active")
 
 
 # ---------- Core data models ----------
@@ -125,6 +125,7 @@ class StockItemAdmin(admin.ModelAdmin):
         "item",
         "organization", 
         "quantity",
+        "location",
         "date_received",
         "expiration_date",
         "is_active",
@@ -135,6 +136,7 @@ class StockItemAdmin(admin.ModelAdmin):
         "id",
         "item__name",
         "organization__name",
+        "location",
         "lot_number",
         "notes",
     )

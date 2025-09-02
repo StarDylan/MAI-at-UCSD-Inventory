@@ -90,7 +90,7 @@ class OrganizationForm(forms.ModelForm):
 class StockItemForm(forms.ModelForm):
     class Meta:
         model = StockItem
-        fields = ['organization', 'quantity', 'date_received', 'expiration_date', 'lot_number', 'notes']
+        fields = ['organization', 'quantity', 'location', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date', 'value': date.today()}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
@@ -122,6 +122,7 @@ class ItemWithStockForm(forms.Form):
         label="Received From Organization"
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label="Initial Quantity")
+    stock_location = forms.CharField(max_length=100, required=False, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
         initial=date.today,
@@ -185,6 +186,7 @@ class ItemWithStockForm(forms.Form):
                 item=item,
                 organization=self.cleaned_data['organization'],
                 quantity=self.cleaned_data['quantity'],
+                location=self.cleaned_data['stock_location'],
                 date_received=self.cleaned_data['date_received'],
                 expiration_date=self.cleaned_data['expiration_date'],
                 lot_number=self.cleaned_data['lot_number'],
@@ -197,6 +199,22 @@ class ItemWithStockForm(forms.Form):
 class ItemWithLocationChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: models.Item):
         return f"{obj.name} [{obj.location}]"
+
+
+class StockItemEditForm(forms.ModelForm):
+    """Form for editing individual stock items"""
+    class Meta:
+        model = StockItem
+        fields = ['organization', 'quantity', 'location', 'date_received', 'expiration_date', 'lot_number', 'notes', 'is_active']
+        widgets = {
+            'date_received': forms.DateInput(attrs={'type': 'date'}),
+            'expiration_date': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['organization'].queryset = Organization.objects.all().order_by('name')
 
 
 class Search_QuantityAdd(forms.Form):
@@ -214,6 +232,12 @@ class Search_QuantityAdd(forms.Form):
         min_value=1,
         label="Quantity to add",
         widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
+    )
+    location = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Box A"}),
+        label="Stock Location"
     )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -239,21 +263,38 @@ class Search_QuantityAdd(forms.Form):
 
 
 class Search_QuantityRemove(forms.Form):
-    """Form for removing stock (check-out) - marks StockItem as inactive or reduces quantity"""
+    """Form for removing stock (check-out) - allows selection of specific stock items"""
     item = ItemWithLocationChoiceField(
         queryset=models.Item.active_objects.order_by("name"),
         widget=forms.Select(attrs={"class": "form-select"})
     )
-    quantity = forms.IntegerField(
-        min_value=1,
-        label="Quantity to remove",
-        widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # We'll add stock item selection fields dynamically via JavaScript
+
+
+class StockItemCheckoutForm(forms.Form):
+    """Form for checking out from specific stock items"""
+    stock_items = forms.ModelMultipleChoiceField(
+        queryset=StockItem.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Select stock items to check out from"
+    )
+    quantities = forms.CharField(
+        widget=forms.HiddenInput(),
+        help_text="JSON string of quantities for each stock item"
     )
     notes = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}), 
         required=False, 
         label="Checkout Notes"
     )
+    
+    def __init__(self, item=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if item:
+            self.fields['stock_items'].queryset = item.stock_items.filter(is_active=True).order_by('expiration_date', 'date_received')
 
 class UserCreationForm(forms.Form):
     username = forms.CharField(max_length=150, required=True)

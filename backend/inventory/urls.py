@@ -13,6 +13,7 @@ from inventory.views import (
     audit,
     auth,
     categories,
+    checkout,
     dashboard,
     images,
     items,
@@ -52,6 +53,7 @@ urlpatterns = [
     
     # Item Management
     path('edit/item/<uuid:pk>/', items.ItemUpdateView.as_view(), name='edit_item'),
+    path('edit/stock/<uuid:pk>/', items.StockItemUpdateView.as_view(), name='edit_stock_item'),
     path('create/item/', items.ItemCreateView.as_view(), name='create_item'),
     path('delete/item/<uuid:uuid>/', items.item_soft_delete_view, name='delete_item'),
     path('restore/item/<uuid:uuid>/', items.item_restore_view, name='restore_item'),
@@ -71,6 +73,8 @@ urlpatterns = [
     # Search and Quantity Management
     path('search/check_in/', search.SearchCheckInView.as_view(), name='search_check_in'),
     path('search/check_out/', search.SearchCheckOutView.as_view(), name='search_check_out'),
+    path('checkout/<uuid:item_uuid>/', checkout.checkout_item_select, name='checkout_item_select'),
+    path('checkout/<uuid:item_uuid>/process/', checkout.checkout_item_process, name='checkout_item_process'),
     
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),

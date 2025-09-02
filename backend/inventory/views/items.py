@@ -15,7 +15,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.views.generic import UpdateView, CreateView
 
 from inventory import models
-from inventory.forms import ItemForm, ItemWithStockForm
+from inventory.forms import ItemForm, ItemWithStockForm, StockItemEditForm
 from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem
 from .utils import audit_log_state, audit_log_event
 
@@ -360,7 +360,7 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         """
         Process valid form submission and log the creation.
         
-        Creates both Item and initial StockItem, then logs the creation event.
+        Creates both Item and initial StockItem, then logs separate creation events.
         
         Args:
             form: Valid ItemWithStockForm instance
@@ -368,16 +368,46 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         Returns:
             HttpResponseRedirect: Redirect to new item's detail view
         """
-        # Log the creation event
-        before_state = audit_log_state(None)
-        new_item = form.save(commit=True)  # This creates both Item and StockItem
-        after_state = audit_log_state(new_item)
+        # Create the item first
+        selected_subcategory = form.cleaned_data['subcategory']
+        new_item = models.Item(
+            name=form.cleaned_data['name'],
+            category=selected_subcategory.category,
+            subcategory=selected_subcategory,
+            location=form.cleaned_data['location'],
+            url=form.cleaned_data['url'],
+            notes_public=form.cleaned_data['notes_public'],
+            notes_private=form.cleaned_data['notes_private']
+        )
+        new_item.save()
         
+        # Log item creation event
         audit_log_event(
             self.request.user, 
-            f"Created item \"{new_item.name}\" with initial stock", 
-            before_state, 
-            after_state
+            f"Created item \"{new_item.name}\"", 
+            audit_log_state(None), 
+            audit_log_state(new_item)
+        )
+        
+        # Create initial StockItem
+        stock_item = StockItem(
+            item=new_item,
+            organization=form.cleaned_data['organization'],
+            quantity=form.cleaned_data['quantity'],
+            location=form.cleaned_data['stock_location'],
+            date_received=form.cleaned_data['date_received'],
+            expiration_date=form.cleaned_data['expiration_date'],
+            lot_number=form.cleaned_data['lot_number'],
+            notes=form.cleaned_data['stock_notes']
+        )
+        stock_item.save()
+        
+        # Log stock item creation event
+        audit_log_event(
+            self.request.user, 
+            f"Added initial stock for item \"{new_item.name}\" - {stock_item.quantity} units from {stock_item.organization.name}", 
+            audit_log_state(None), 
+            audit_log_state(stock_item)
         )
         
         self.object = new_item
@@ -391,3 +421,53 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             str: URL to the new item's detail view
         """
         return reverse_lazy('view_item', kwargs={'uuid': self.object.pk})
+
+
+class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    """
+    Class-based view for updating individual stock item information.
+    
+    Provides a form for editing stock item details and handles the update process
+    with proper audit logging of changes.
+    """
+    model = StockItem
+    form_class = StockItemEditForm
+    template_name = "items/edit_stock.html"
+    permission_required = 'inventory.change_stockitem'
+
+    def form_valid(self, form):
+        """
+        Process valid form submission and log the changes.
+        
+        Args:
+            form: Valid StockItemEditForm instance
+            
+        Returns:
+            HttpResponseRedirect: Redirect to item detail view
+        """
+        # Get the current state before changes for audit logging
+        before_model = StockItem.objects.get(pk=form.instance.pk)
+        before_state = audit_log_state(before_model)
+        
+        # Save the changes
+        response = super().form_valid(form)
+        
+        # Log the update event
+        after_state = audit_log_state(self.object)
+        audit_log_event(
+            self.request.user, 
+            f"Updated stock item for \"{self.object.item.name}\" from {self.object.organization.name}", 
+            before_state, 
+            after_state
+        )
+        
+        return response
+
+    def get_success_url(self):
+        """
+        Get the URL to redirect to after successful form submission.
+        
+        Returns:
+            str: URL to the item's detail view
+        """
+        return reverse_lazy('view_item', kwargs={'uuid': self.object.item.pk})
