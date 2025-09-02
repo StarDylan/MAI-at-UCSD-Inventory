@@ -16,6 +16,7 @@ from inventory.views import (
     dashboard,
     images,
     items,
+    organizations,
     search,
     subcategories,
     users
@@ -54,6 +55,13 @@ urlpatterns = [
     path('create/item/', items.ItemCreateView.as_view(), name='create_item'),
     path('delete/item/<uuid:uuid>/', items.item_soft_delete_view, name='delete_item'),
     path('restore/item/<uuid:uuid>/', items.item_restore_view, name='restore_item'),
+    
+    # Organization Management
+    path('organizations/', organizations.OrganizationListView.as_view(), name='organization_list'),
+    path('organizations/create/', organizations.OrganizationCreateView.as_view(), name='create_organization'),
+    path('organizations/edit/<uuid:pk>/', organizations.OrganizationUpdateView.as_view(), name='edit_organization'),
+    path('api/organizations/create/', organizations.organization_create_ajax, name='organization_create_ajax'),
+    path('api/organizations/list/', organizations.organization_list_api, name='organization_list_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),

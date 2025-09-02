@@ -29,7 +29,7 @@
                 <td>{{ item.subcategory.name }}</td>
                 <td>{{ item.name }}</td>
                 <td>{{ item.location }}</td>
-                <td>{{ item.quantity_active }}</td>
+                <td>{{ item.total_stock_quantity }}</td>
                 <td class="text-right">
                     <a href="{% url 'view_item' item.id %}"><button class="btn"><i class="material-icons">description</i></button></a>
                     {% if not item.is_deleted and perms.inventory.change_item %}

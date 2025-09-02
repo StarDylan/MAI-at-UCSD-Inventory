@@ -111,8 +111,8 @@
     </div>
 
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Quantity</span>
-      <span class="flex-fill text-right">{{ item.quantity_active }}</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Total Quantity</span>
+      <span class="flex-fill text-right">{{ item.total_stock_quantity }}</span>
     </div>
 
     {% if item.url %}
@@ -121,6 +121,68 @@
       <span class="flex-fill text-right"><a href="{{ item.url }}">Click here</a></span>
     </div>
     {% endif %}
+  </div>
+
+  <br />
+
+  <div class="card">
+    <div class="card-header">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">inventory</i> Stock Details</span>
+    </div>
+    <div class="card-body">
+      {% if stock_items %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>Organization</th>
+              <th>Quantity</th>
+              <th>Date Received</th>
+              <th>Expiration Date</th>
+              <th>Lot Number</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stock in stock_items %}
+            <tr {% if stock.is_expired %}class="table-danger"{% endif %}>
+              <td>{{ stock.organization.name }}</td>
+              <td>{{ stock.quantity }}</td>
+              <td>{{ stock.date_received|date:"M d, Y" }}</td>
+              <td>
+                {% if stock.expiration_date %}
+                  {{ stock.expiration_date|date:"M d, Y" }}
+                  {% if stock.is_expired %}
+                    <span class="badge badge-danger">Expired</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">No expiration</span>
+                {% endif %}
+              </td>
+              <td>{{ stock.lot_number|default:"-" }}</td>
+              <td>
+                {% if stock.is_active %}
+                  <span class="badge badge-success">Active</span>
+                {% else %}
+                  <span class="badge badge-secondary">Inactive</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% if stock.notes %}
+            <tr>
+              <td colspan="6" class="text-muted small">
+                <strong>Notes:</strong> {{ stock.notes|linebreaksbr }}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted">No stock records found for this item.</p>
+      {% endif %}
+    </div>
   </div>
 
   <br />

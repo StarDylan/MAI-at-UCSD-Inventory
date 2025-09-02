@@ -12,7 +12,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.views.generic import FormView
 
 from inventory.forms import Search_QuantityAdd, Search_QuantityRemove
-from inventory.models import Item
+from inventory.models import Item, StockItem
 from .utils import audit_log_state, audit_log_event
 
 
@@ -50,8 +50,8 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         """
         Process valid form submission for checking in items.
         
-        Increases the item's active quantity by the specified amount
-        and logs the transaction in the audit trail.
+        Creates a new StockItem record for the incoming stock and logs
+        the transaction in the audit trail.
         
         Args:
             form: Valid Search_QuantityAdd form instance
@@ -61,20 +61,32 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         """
         item = form.cleaned_data['item']
         quantity = form.cleaned_data['quantity']
+        organization = form.cleaned_data['organization']
+        date_received = form.cleaned_data['date_received']
+        expiration_date = form.cleaned_data['expiration_date']
+        lot_number = form.cleaned_data['lot_number']
+        notes = form.cleaned_data['notes']
 
         # Get the item and log current state
         item = get_object_or_404(Item, id=item.id)
         before_state = audit_log_state(item)
         
-        # Update quantity
-        item.quantity_active += quantity
-        item.save()
+        # Create new StockItem
+        stock_item = StockItem.objects.create(
+            item=item,
+            organization=organization,
+            quantity=quantity,
+            date_received=date_received,
+            expiration_date=expiration_date,
+            lot_number=lot_number,
+            notes=notes
+        )
         
         # Log the check-in event
         after_state = audit_log_state(item)
         audit_log_event(
             self.request.user, 
-            f"Checked in {quantity} of item \"{item.name}\"", 
+            f"Checked in {quantity} of item \"{item.name}\" from {organization.name}", 
             before_state, 
             after_state
         )
@@ -114,8 +126,8 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         """
         Process valid form submission for checking out items.
         
-        Decreases the item's active quantity by the specified amount after
-        validating that sufficient quantity is available.
+        Reduces quantities from existing StockItem records by marking them as 
+        inactive or reducing their quantities (FIFO - First expiring first).
         
         Args:
             form: Valid Search_QuantityRemove form instance
@@ -125,31 +137,56 @@ class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             HttpResponse: Form with errors if insufficient quantity
         """
         item = form.cleaned_data['item']
-        quantity = form.cleaned_data['quantity']
+        quantity_to_remove = form.cleaned_data['quantity']
+        notes = form.cleaned_data['notes']
 
         # Get the item and validate availability
         item = get_object_or_404(Item, id=item.id)
         
         # Check if sufficient quantity is available
-        if item.quantity_active < quantity:
+        total_available = item.total_stock_quantity
+        if total_available < quantity_to_remove:
             form.add_error(
                 'quantity', 
-                f"Cannot check out {quantity} items. Only {item.quantity_active} available."
+                f"Cannot check out {quantity_to_remove} items. Only {total_available} available."
             )
             return self.form_invalid(form)
 
         # Log current state before update
         before_state = audit_log_state(item)
         
-        # Update quantity
-        item.quantity_active -= quantity
-        item.save()
+        # Get active stock items ordered by expiration date (FIFO)
+        stock_items = item.stock_items.filter(is_active=True).order_by('expiration_date', 'date_received')
+        
+        remaining_to_remove = quantity_to_remove
+        removed_items = []
+        
+        for stock_item in stock_items:
+            if remaining_to_remove <= 0:
+                break
+                
+            if stock_item.quantity <= remaining_to_remove:
+                # Mark entire stock item as inactive
+                remaining_to_remove -= stock_item.quantity
+                stock_item.is_active = False
+                stock_item.notes += f"\n[Checkout] {notes}" if notes else ""
+                stock_item.save()
+                removed_items.append(f"{stock_item.quantity} from {stock_item.organization.name}")
+            else:
+                # Reduce quantity of this stock item
+                quantity_taken = remaining_to_remove
+                stock_item.quantity -= quantity_taken
+                stock_item.notes += f"\n[Checkout] Removed {quantity_taken}: {notes}" if notes else f"\n[Checkout] Removed {quantity_taken}"
+                stock_item.save()
+                remaining_to_remove = 0
+                removed_items.append(f"{quantity_taken} from {stock_item.organization.name}")
         
         # Log the check-out event
         after_state = audit_log_state(item)
+        removed_details = ", ".join(removed_items)
         audit_log_event(
             self.request.user, 
-            f"Checked out {quantity} of item \"{item.name}\"", 
+            f"Checked out {quantity_to_remove} of item \"{item.name}\" ({removed_details})", 
             before_state, 
             after_state
         )

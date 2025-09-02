@@ -69,7 +69,6 @@ class ItemAdmin(admin.ModelAdmin):
         "category",
         "subcategory",
         "location",
-        "quantity_active",
         "total_stock_display",
         "is_deleted",
         "url_link",

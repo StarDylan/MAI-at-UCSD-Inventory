@@ -15,8 +15,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.views.generic import UpdateView, CreateView
 
 from inventory import models
-from inventory.forms import ItemForm
-from inventory.models import Category, Item, Subcategory, AuditEvent
+from inventory.forms import ItemForm, ItemWithStockForm
+from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem
 from .utils import audit_log_state, audit_log_event
 
 
@@ -138,7 +138,7 @@ def view_item_detail(request, uuid):
     """
     Display detailed information for a specific item.
     
-    Shows item details, associated images, and audit history.
+    Shows item details, stock items with expiration dates, associated images, and audit history.
     Handles permissions for viewing deleted items.
     
     Args:
@@ -164,8 +164,9 @@ def view_item_detail(request, uuid):
          not request.user.has_perm('inventory.view_deleteditem'))):
         return HttpResponseForbidden()
 
-    # Fetch related images and audit events
+    # Fetch related images, stock items, and audit events
     images = item.images.all().order_by('id')
+    stock_items = item.stock_items.select_related('organization').filter(is_active=True).order_by('expiration_date', 'date_received')
     events = AuditEvent.objects.filter(entity_id=uuid).order_by('created_at')
 
     # Prepare audit events for template display
@@ -178,6 +179,7 @@ def view_item_detail(request, uuid):
     context = {
         'item': item,
         'images': images,
+        'stock_items': stock_items,
         'audit': events,
     }
     
@@ -344,13 +346,13 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
 
 class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
-    Class-based view for creating new items.
+    Class-based view for creating new items with initial stock.
     
-    Provides a form for creating new inventory items and handles the creation
-    process with proper audit logging.
+    Provides a form for creating new inventory items along with their initial
+    stock information including organization, expiration date, and quantity.
     """
     model = models.Item
-    form_class = ItemForm
+    form_class = ItemWithStockForm
     template_name = "items/create.html"
     permission_required = 'inventory.add_item'
 
@@ -358,25 +360,28 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         """
         Process valid form submission and log the creation.
         
+        Creates both Item and initial StockItem, then logs the creation event.
+        
         Args:
-            form: Valid ItemForm instance
+            form: Valid ItemWithStockForm instance
             
         Returns:
             HttpResponseRedirect: Redirect to new item's detail view
         """
         # Log the creation event
         before_state = audit_log_state(None)
-        new_item = form.save(commit=False)
+        new_item = form.save(commit=True)  # This creates both Item and StockItem
         after_state = audit_log_state(new_item)
         
         audit_log_event(
             self.request.user, 
-            f"Created item \"{new_item.name}\"", 
+            f"Created item \"{new_item.name}\" with initial stock", 
             before_state, 
             after_state
         )
         
-        return super().form_valid(form)
+        self.object = new_item
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
         """
