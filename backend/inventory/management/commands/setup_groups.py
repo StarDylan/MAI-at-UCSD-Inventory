@@ -28,6 +28,8 @@ class Command(BaseCommand):
         user_ct = ContentType.objects.get_for_model(model=models.User)
         item_ct = ContentType.objects.get_for_model(model=models.Item)
         image_ct = ContentType.objects.get_for_model(model=models.Image)
+        organization_ct = ContentType.objects.get_for_model(model=models.Organization)
+        stockitem_ct = ContentType.objects.get_for_model(model=models.StockItem)
 
         user_permissions = []
 
@@ -40,6 +42,11 @@ class Command(BaseCommand):
 
             Permission.objects.get(codename='delete_item', content_type=item_ct),
             Permission.objects.get(codename='add_image', content_type=image_ct),
+
+            # Stock item permissions for members
+            Permission.objects.get(codename='view_stockitem', content_type=stockitem_ct),
+            Permission.objects.get(codename='add_stockitem', content_type=stockitem_ct),
+            Permission.objects.get(codename='change_stockitem', content_type=stockitem_ct),
 
         ]
 
@@ -66,6 +73,14 @@ class Command(BaseCommand):
             Permission.objects.get(codename='restore_deleteditem', content_type=item_ct),
 
             Permission.objects.get(codename='view_advancedpropertiesitem', content_type=item_ct),
+
+            # Organization and stock item admin permissions
+            Permission.objects.get(codename='add_organization', content_type=organization_ct),
+            Permission.objects.get(codename='change_organization', content_type=organization_ct),
+            Permission.objects.get(codename='delete_organization', content_type=organization_ct),
+            Permission.objects.get(codename='view_organization', content_type=organization_ct),
+
+            Permission.objects.get(codename='delete_stockitem', content_type=stockitem_ct),
         ]
 
         # Add the permissions to the Member group
