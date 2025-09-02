@@ -68,7 +68,6 @@ class ItemAdmin(admin.ModelAdmin):
         "name",
         "category",
         "subcategory",
-        "location",
         "total_stock_display",
         "is_deleted",
         "url_link",
@@ -77,7 +76,6 @@ class ItemAdmin(admin.ModelAdmin):
     search_fields = (
         "id",
         "name",
-        "location",
         "url",
         "notes_public",
         "notes_private",

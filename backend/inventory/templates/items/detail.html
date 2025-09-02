@@ -94,13 +94,6 @@
       </span>
     </div>
 
-    {% if perms.inventory.view_internalstockingdetails %}
-    <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">map</i> Location</span>
-      <span class="flex-fill text-right">{{ item.location }}</span>
-    </div>
-    {% endif %}
-
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
       <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
@@ -143,13 +136,12 @@
         <table class="table table-sm table-hover">
           <thead>
             <tr>
-              <th>Organization</th>
+              <th>Origin</th>
               <th>Quantity</th>
               <th>Location</th>
               <th>Date Received</th>
               <th>Expiration Date</th>
               <th>Lot Number</th>
-              <th>Status</th>
               {% if perms.inventory.view_internalstockingdetails %}
               <th>Actions</th>
               {% endif %}
@@ -173,13 +165,6 @@
                 {% endif %}
               </td>
               <td>{{ stock.lot_number|default:"-" }}</td>
-              <td>
-                {% if stock.quantity > 0 %}
-                  <span class="badge badge-success">Active</span>
-                {% else %}
-                  <span class="badge badge-secondary">Inactive</span>
-                {% endif %}
-              </td>
               {% if perms.inventory.view_internalstockingdetails %}
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>

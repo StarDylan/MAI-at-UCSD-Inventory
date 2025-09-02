@@ -23,7 +23,6 @@
               <th>Select</th>
               <th>Organization</th>
               <th>Available</th>
-              <th>Location</th>
               <th>Expiration</th>
               <th>Lot Number</th>
               <th>Quantity to Take</th>
@@ -37,7 +36,6 @@
               </td>
               <td>{{ stock.organization.name }}</td>
               <td>{{ stock.quantity }}</td>
-              <td>{{ stock.location|default:"-" }}</td>
               <td>
                 {% if stock.expiration_date %}
                   {{ stock.expiration_date|date:"M d, Y" }}
@@ -50,7 +48,7 @@
               </td>
               <td>{{ stock.lot_number|default:"-" }}</td>
               <td>
-                <input type="number" name="quantity_{{ stock.id }}" min="1" max="{{ stock.quantity }}" value="1" class="form-control form-control-sm quantity-input" disabled style="width: 80px;">
+                <input type="number" name="quantity_{{ stock.id }}" min="1" max="{{ stock.quantity }}" value="{{ stock.quantity }}" class="form-control form-control-sm quantity-input" disabled style="width: 80px;">
               </td>
             </tr>
             {% endfor %}

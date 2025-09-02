@@ -93,9 +93,15 @@ def checkout_item_process(request, item_uuid):
     # Log the check-out event
     after_state = audit_log_state(item)
     removed_details = ", ".join(removed_items)
+
+    if notes:
+        notes_end_tag = f" - User Notes: {notes}"
+    else:
+        notes_end_tag = ""
+
     audit_log_event(
         request.user, 
-        f"Checked out {total_to_remove} of item \"{item.name}\" ({removed_details})", 
+        f"Checked out {total_to_remove} of item \"{item.name}\" ({removed_details}){notes_end_tag}", 
         before_state, 
         after_state
     )

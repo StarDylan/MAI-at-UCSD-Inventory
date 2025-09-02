@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'subcategory', "location", "url", 'notes_public', 'notes_private']
+        fields = ['name', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -217,7 +217,8 @@ class ItemWithStockForm(forms.Form):
 
 class ItemWithLocationChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: models.Item):
-        return f"{obj.name} [{obj.location}]"
+        # Get all locations from the stock items
+        return f"{obj.name} [{obj.aggregated_locations}]"
 
 
 class StockItemEditForm(forms.ModelForm):
@@ -260,7 +261,6 @@ class Search_QuantityAdd(forms.Form):
     )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-        initial=date.today,
         label="Date Received"
     )
     expiration_date = forms.DateField(

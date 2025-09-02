@@ -70,7 +70,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
 
         # Get the item and log current state
         item = get_object_or_404(Item, id=item.id)
-        before_state = audit_log_state(item)
+        before_state = audit_log_state(None)
         
         # Create new StockItem
         stock_item = StockItem.objects.create(
@@ -85,11 +85,11 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         )
         
         # Log the check-in event
-        after_state = audit_log_state(item)
+        after_state = audit_log_state(stock_item)
         audit_log_event(
             self.request.user, 
             f"Checked in {quantity} of item \"{item.name}\" from {organization.name}", 
-            before_state, 
+            before_state,
             after_state
         )
 

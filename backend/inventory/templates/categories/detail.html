@@ -17,7 +17,6 @@
                 <th scope="col">Category</th>
                 <th scope="col">Subcategory</th>
                 <th scope="col">Item</th>
-                <th scope="col">Location</th>
                 <th scope="col">Quantity</th>
                 <th scope="col"></th>
             </tr>
@@ -28,7 +27,6 @@
                 <td>{{ item.category.name }}</td>
                 <td>{{ item.subcategory.name }}</td>
                 <td>{{ item.name }}</td>
-                <td>{{ item.location }}</td>
                 <td>{{ item.total_stock_quantity }}</td>
                 <td class="text-right">
                     <a href="{% url 'view_item' item.id %}"><button class="btn"><i class="material-icons">description</i></button></a>

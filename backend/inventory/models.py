@@ -70,9 +70,7 @@ class Item(models.Model):
         db_column="subcategory_id",
     )
 
-    name = models.CharField(max_length=255)
-    location = models.CharField(max_length=100, blank=True, default="")
-    
+    name = models.CharField(max_length=255)    
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
