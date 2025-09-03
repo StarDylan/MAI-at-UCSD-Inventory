@@ -57,4 +57,4 @@ The setup_groups management command has been updated to include:
    - Expiration date (if applicable)
    - Lot number for tracking
 
-The Item model now shows both the original `quantity_active` field and a new `total_stock_quantity` property that sums active stock items.
+The Item model now shows the `total_stock_quantity` property, which sums active stock items.
