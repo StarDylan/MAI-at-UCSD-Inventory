@@ -57,10 +57,21 @@ def view_all_items(request):
     Returns:
         HttpResponse: Rendered template with all items
     """
+    from django.db.models import Sum, Case, When, IntegerField
+    
     # Fetch all items with related category and subcategory data
+    # Use annotations to avoid N+1 queries for total_stock_quantity
     items = (Item.active_objects
             .select_related('category', 'subcategory')
-            .all()
+            .annotate(
+                total_stock_quantity=Sum(
+                    Case(
+                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                        default=0,
+                        output_field=IntegerField()
+                    )
+                )
+            )
             .order_by('name'))
 
     context = {
@@ -86,12 +97,24 @@ def view_category_items(request, uuid):
     Raises:
         Http404: If category with given UUID doesn't exist
     """
+    from django.db.models import Sum, Case, When, IntegerField
+    
     category = get_object_or_404(Category, id=uuid)
     
     # Fetch items in the category with related data
+    # Use annotations to avoid N+1 queries for total_stock_quantity
     items = (Item.active_objects
             .filter(category=category)
             .select_related('category', 'subcategory')
+            .annotate(
+                total_stock_quantity=Sum(
+                    Case(
+                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                        default=0,
+                        output_field=IntegerField()
+                    )
+                )
+            )
             .order_by('name'))
 
     context = {
@@ -117,12 +140,24 @@ def view_subcategory_items(request, uuid):
     Raises:
         Http404: If subcategory with given UUID doesn't exist
     """
+    from django.db.models import Sum, Case, When, IntegerField
+    
     subcategory = get_object_or_404(Subcategory, id=uuid)
     
     # Fetch items in the subcategory with related data
+    # Use annotations to avoid N+1 queries for total_stock_quantity
     items = (Item.active_objects
             .filter(subcategory=subcategory)
             .select_related('category', 'subcategory')
+            .annotate(
+                total_stock_quantity=Sum(
+                    Case(
+                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                        default=0,
+                        output_field=IntegerField()
+                    )
+                )
+            )
             .order_by('name'))
 
     context = {
@@ -288,7 +323,19 @@ def view_deleted_items(request):
     Raises:
         PermissionDenied: If user doesn't have view_deleteditem permission
     """
-    deleted_items = Item.objects.filter(is_deleted=True)
+    from django.db.models import Sum, Case, When, IntegerField
+    
+    # Use annotations to avoid N+1 queries for total_stock_quantity
+    deleted_items = Item.objects.filter(is_deleted=True).annotate(
+        total_stock_quantity=Sum(
+            Case(
+                When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                default=0,
+                output_field=IntegerField()
+            )
+        )
+    )
+    
     context = {
         'category': {"name": "Deleted Items"}, 
         'items': deleted_items
@@ -414,14 +461,28 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         import json
+        from django.db.models import Sum, Case, When, IntegerField
         context = super().get_context_data(**kwargs)
-        items_qs = models.Item.active_objects.all().values('id', 'name', 'category__name', 'subcategory__name')
+        
+        # Use annotations to calculate total_stock_quantity in the database
+        # to avoid N+1 queries when the template accesses item.total_stock_quantity
+        items_qs = models.Item.active_objects.select_related('category', 'subcategory').annotate(
+            total_stock_quantity=Sum(
+                Case(
+                    When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                    default=0,
+                    output_field=IntegerField()
+                )
+            )
+        ).values('id', 'name', 'category__name', 'subcategory__name', 'total_stock_quantity')
+        
         items_list = [
             {
                 'id': str(item['id']),
                 'name': item['name'],
                 'category__name': item['category__name'],
                 'subcategory__name': item['subcategory__name'],
+                'total_stock_quantity': item['total_stock_quantity'] or 0,
             }
             for item in items_qs
         ]
