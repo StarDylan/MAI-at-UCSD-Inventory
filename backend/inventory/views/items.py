@@ -166,7 +166,7 @@ def view_item_detail(request, uuid):
 
     # Fetch related images, stock items, and audit events
     images = item.images.all().order_by('id')
-    stock_items = item.stock_items.select_related('organization').filter(quantity__gt=0).order_by('expiration_date', 'date_received')
+    stock_items = item.stock_items.select_related('organization').order_by('expiration_date', 'date_received')
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))

@@ -55,8 +55,7 @@ def checkout_item_process(request, item_uuid):
     
     # Validate that all selected stock items exist and have sufficient quantity
     stock_items = StockItem.objects.filter(id__in=selected_stock_ids, quantity__gt=0)
-    total_to_remove = sum(quantities.values())
-    
+
     before_states = []
     after_states = []
     items_removed = []
@@ -83,18 +82,11 @@ def checkout_item_process(request, item_uuid):
         
         
         before_states.append(audit_log_state(stock_item))
-        if stock_item.quantity == quantity_to_remove:
-            # Set quantity to 0 to mark as inactive
-            stock_item.quantity = 0
-            stock_item.save()
-            items_removed.append(stock_item.quantity)
-            locations.append(stock_item.location)
-        else:
-            # Reduce quantity of this stock item
-            stock_item.quantity -= quantity_to_remove
-            stock_item.save()
-            items_removed.append(quantity_to_remove)
-            locations.append(stock_item.location)
+
+        stock_item.quantity -= quantity_to_remove
+        stock_item.save()
+        items_removed.append(quantity_to_remove)
+        locations.append(stock_item.location)
 
         after_states.append(audit_log_state(stock_item))
     
@@ -104,10 +96,10 @@ def checkout_item_process(request, item_uuid):
     else:
         notes_end_tag = ""
 
-    for before_state, after_state, quantity, location in zip(before_states, after_states, items_removed, locations):
+    for before_state, after_state, qty_removed, location in zip(before_states, after_states, items_removed, locations):
         audit_log_event(
             request.user, 
-            f"Checked out {quantity} of item \"{item.name}\"{notes_end_tag} from {location}", 
+            f"Checked out {qty_removed} of item \"{item.name}\"{notes_end_tag} from {location}", 
             before_state, 
             after_state
         )
