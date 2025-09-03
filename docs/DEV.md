@@ -23,7 +23,7 @@ Individual stock batches with expiration tracking.
 - `expiration_date`: Expiration date (optional for non-perishable items)
 - `lot_number`: Batch/lot identifier
 - `notes`: Additional notes
-- `is_active`: Whether this stock is still available
+- Stock availability is now determined by `quantity`: when `quantity == 0`, the stock is considered inactive.
 
 ### Key Features
 
