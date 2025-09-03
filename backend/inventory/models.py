@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.db.models.functions import Lower
 from django.db import models
 import uuid
 
@@ -46,7 +47,7 @@ class Organization(models.Model):
     
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['name'], name='unique_organization_name')
+            models.UniqueConstraint(Lower('name'), name='unique_organization_name')
         ]
     
     def __str__(self):
@@ -91,7 +92,7 @@ class Item(models.Model):
             ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
         constraints = [
-            models.UniqueConstraint(fields=['name'], name='unique_item_name')
+            models.UniqueConstraint(Lower('name'), name='unique_item_name')
         ]
 
     def __str__(self):
