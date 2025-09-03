@@ -1,16 +1,95 @@
-{% extends "shared/base.html" %} {% block body %}
-
-{% load crispy_forms_tags %}
+{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
 
 <h4>Create Item</h4>
 <form method="post" action="{% url 'create_item' %}">
-  {% csrf_token %}
-
-  {{ form|crispy }}
+  {% csrf_token %} {{ form|crispy }}
 
   <p>
     <input type="submit" class="btn btn-primary" value="Create Item" />
   </p>
 </form>
+
+<div id="search-results-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
+  <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Existing Items</h6>
+  <ul id="existing-items-list" style="list-style: none; padding: 0; margin: 0"></ul>
+</div>
+
+{# Safely output all_items as JSON for JS #}
+<script id="all-items-json" type="application/json">
+  {{ all_items_json|safe }}
+</script>
+
+<script>
+  // Wait for DOM to be fully loaded
+  document.addEventListener("DOMContentLoaded", function () {
+    // Move the search results container right after the item name input
+    const itemNameInput = document.getElementById("id_name");
+    const searchContainer = document.getElementById("search-results-container");
+
+    if (itemNameInput && searchContainer) {
+      // Disable browser autocomplete on the item name input
+      itemNameInput.setAttribute("autocomplete", "off");
+
+      // Find the form group containing the item name input
+      const formGroup = itemNameInput.closest(".form-group") || itemNameInput.closest(".mb-3");
+      if (formGroup) {
+        // Insert the search container right after the form group
+        formGroup.parentNode.insertBefore(searchContainer, formGroup.nextSibling);
+      }
+    }
+  });
+
+  // Find the Item Name input (assuming crispy forms renders it with id 'id_name')
+  const itemNameInput = document.getElementById("id_name");
+  const itemsList = document.getElementById("existing-items-list");
+  const searchContainer = document.getElementById("search-results-container");
+  const allItems = JSON.parse(document.getElementById("all-items-json").textContent);
+
+  let searchTimeout;
+
+  function renderList(matches) {
+    itemsList.innerHTML = "";
+    if (matches.length === 0) {
+      searchContainer.style.display = "none";
+      return;
+    }
+    matches.forEach((item) => {
+      const li = document.createElement("li");
+      li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff;";
+      li.setAttribute("data-id", item.id);
+      li.innerHTML =
+        `<div><strong>${item.name}</strong> ` +
+        (item.category__name ? `<span style='color: #6c757d;'>${item.category__name} > ${item.subcategory__name}</span> ` : "") +
+        `</div><button style='padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #0d6efd; color: #0d6efd; background-color: transparent; border-radius: 0.25rem; cursor: pointer;' class='checkin-btn'>Check In</button>`;
+      itemsList.appendChild(li);
+    });
+    searchContainer.style.display = "";
+  }
+
+  itemNameInput.addEventListener("input", function () {
+    const query = this.value.trim().toLowerCase();
+
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+
+    if (!query) {
+      searchContainer.style.display = "none";
+      return;
+    }
+
+    // Add delay before searching
+    searchTimeout = setTimeout(() => {
+      const matches = allItems.filter((item) => item.name.toLowerCase().includes(query));
+      renderList(matches);
+    }, 300); // 300ms delay
+  });
+
+  itemsList.addEventListener("click", function (e) {
+    if (e.target.classList.contains("checkin-btn")) {
+      const itemId = e.target.closest("li").getAttribute("data-id");
+      window.location.href = `/search/check_in/${itemId}/`;
+    }
+  });
+</script>
 
 {% endblock %}

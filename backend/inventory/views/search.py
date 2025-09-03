@@ -32,7 +32,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         Add extra context data to the template.
         
         Provides the action type, default quantity, and list of available items
-        for the check-in form.
+        for the check-in form. If an item_uuid is provided in the URL, pre-select that item.
         
         Args:
             **kwargs: Additional keyword arguments
@@ -44,7 +44,38 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         context['action'] = 'Check in'
         context['defaultQuantity'] = 1
         context["items"] = Item.active_objects.all().order_by('name')
+        
+        # Pre-select item if item_uuid is provided in URL
+        item_uuid = self.kwargs.get('item_uuid')
+        if item_uuid:
+            try:
+                selected_item = Item.active_objects.get(id=item_uuid)
+                context['selected_item'] = selected_item
+            except Item.DoesNotExist:
+                pass
+                
         return context
+
+    def get_initial(self):
+        """
+        Get initial form data.
+        
+        If an item_uuid is provided in the URL, pre-populate the item field.
+        
+        Returns:
+            dict: Initial form data
+        """
+        initial = super().get_initial()
+        
+        item_uuid = self.kwargs.get('item_uuid')
+        if item_uuid:
+            try:
+                selected_item = Item.active_objects.get(id=item_uuid)
+                initial['item'] = selected_item
+            except Item.DoesNotExist:
+                pass
+                
+        return initial
 
     def form_valid(self, form):
         """

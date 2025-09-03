@@ -412,6 +412,22 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
 
         return kwargs 
 
+    def get_context_data(self, **kwargs):
+        import json
+        context = super().get_context_data(**kwargs)
+        items_qs = models.Item.active_objects.all().values('id', 'name', 'category__name', 'subcategory__name')
+        items_list = [
+            {
+                'id': str(item['id']),
+                'name': item['name'],
+                'category__name': item['category__name'],
+                'subcategory__name': item['subcategory__name'],
+            }
+            for item in items_qs
+        ]
+        context['all_items_json'] = json.dumps(items_list)
+        return context
+
     def get_success_url(self):
         """
         Get the URL to redirect to after successful form submission.
