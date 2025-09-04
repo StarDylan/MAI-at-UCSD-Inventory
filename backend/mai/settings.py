@@ -87,6 +87,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "inventory.context_processors.sentry_context_processor",
             ],
         },
     },
@@ -213,3 +214,14 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+
+
+if env('SENTRY_DSN', default=None):
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=env('SENTRY_DSN'),
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+)

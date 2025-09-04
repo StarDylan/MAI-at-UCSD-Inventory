@@ -292,6 +292,7 @@ dependencies = [
     { name = "gunicorn" },
     { name = "psycopg2-binary" },
     { name = "ruff" },
+    { name = "sentry-sdk", extra = ["django"] },
     { name = "uvicorn" },
     { name = "uvicorn-worker" },
     { name = "whitenoise" },
@@ -311,6 +312,7 @@ requires-dist = [
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "ruff", specifier = ">=0.12.9" },
+    { name = "sentry-sdk", extras = ["django"], specifier = ">=2.36.0" },
     { name = "uvicorn", specifier = ">=0.35.0" },
     { name = "uvicorn-worker", specifier = ">=0.3.0" },
     { name = "whitenoise", specifier = ">=6.9.0" },
@@ -415,6 +417,24 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/c1/5f9a839a697ce1acd7af44836f7c2181cdae5accd17a5cb85fcbd694075e/ruff-0.12.9-py3-none-win32.whl", hash = "sha256:cc7a37bd2509974379d0115cc5608a1a4a6c4bff1b452ea69db83c8855d53f93", size = 11734785 },
     { url = "https://files.pythonhosted.org/packages/fa/66/cdddc2d1d9a9f677520b7cfc490d234336f523d4b429c1298de359a3be08/ruff-0.12.9-py3-none-win_amd64.whl", hash = "sha256:6fb15b1977309741d7d098c8a3cb7a30bc112760a00fb6efb7abc85f00ba5908", size = 12840654 },
     { url = "https://files.pythonhosted.org/packages/ac/fd/669816bc6b5b93b9586f3c1d87cd6bc05028470b3ecfebb5938252c47a35/ruff-0.12.9-py3-none-win_arm64.whl", hash = "sha256:63c8c819739d86b96d500cce885956a1a48ab056bbcbc61b747ad494b2485089", size = 11949623 },
+]
+
+[[package]]
+name = "sentry-sdk"
+version = "2.36.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a1/ac/52fcbba981793d3c90807b79cf6fa130cd25a54d152e653da3ed6d5defef/sentry_sdk-2.36.0.tar.gz", hash = "sha256:af9260e8155e41e8217615a453828e98aa40740865ac4b16b1ccb6a63b4b2e31", size = 343655 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/17/41ea723cb40f036d699cd954e2894fe7a044b0fd9a0e6bd881b1c9dda14e/sentry_sdk-2.36.0-py2.py3-none-any.whl", hash = "sha256:0f95586a141068d215376e5bf8ebd279e126f7f42805e9570190ef82a7e232b3", size = 364905 },
+]
+
+[package.optional-dependencies]
+django = [
+    { name = "django" },
 ]
 
 [[package]]

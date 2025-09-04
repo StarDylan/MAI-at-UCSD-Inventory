@@ -12,9 +12,7 @@
   
   Usage: All other templates should extend this template using {% extends "base.html" %}
 -->
-{% endcomment %}
-
-{% load static %}
+{% endcomment %} {% load static %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -76,6 +74,53 @@
       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
       <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.11.1/sorting/datetime-moment.js"></script>
       <script src="{% static 'inventory/jdd.min.js' %}"></script>
+
+      {% if SENTRY_DSN %}
+      <script
+        src="https://browser.sentry-cdn.com/10.10.0/bundle.tracing.replay.feedback.min.js"
+        integrity="sha384-eC8pqKuREzjmYIOojOjht36mVxSbp1OtP9CNMim7JG5uf1F+T8m0X4pdVpWV572g"
+        crossorigin="anonymous"
+      ></script>
+      <script>
+        Sentry.init({
+          dsn: "{{ SENTRY_DSN }}",
+          // This sets the sample rate to be 10%. You may want this to be 100% while
+          // in development and sample at a lower rate in production
+          replaysSessionSampleRate: 0.1,
+
+          // If the entire session is not sampled, use the below sample rate to sample
+          // sessions when an error occurs.
+          replaysOnErrorSampleRate: 1.0,
+
+          // Setup Replay and set the privacy options
+          integrations: [
+            Sentry.replayIntegration({
+              maskAllText: false,
+              blockAllMedia: false,
+            }),
+          ],
+        });
+
+        // Lazy load the Feedback integration
+        Sentry.lazyLoadIntegration("feedbackIntegration")
+          .then((feedbackIntegration) => {
+            Sentry.addIntegration(
+              feedbackIntegration({
+                maskAllText: false,
+                blockAllMedia: false,
+                submitButtonLabel: "Send Feedback",
+                triggerLabel: "Feedback",
+                formTitle: "Feature or Bug Report",
+                messagePlaceholder: "Please describe the feature you'd like to see or the issue you encountered.",
+              })
+            );
+          })
+          .catch(() => {
+            // This can happen if, e.g., a network error occurs,
+            // in which case User Feedback will not be enabled.
+          });
+      </script>
+      {% endif %}
 
       <footer class="footer">
         <br />
