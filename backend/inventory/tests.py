@@ -113,4 +113,174 @@ class StockItemModelTest(TestCase):
         self.assertEqual(str(stock), expected_str)
 
 
+class ItemGTINTest(TestCase):
+    def setUp(self):
+        """Set up test data for GTIN tests"""
+        self.category = Category.objects.create(name="Test Category")
+        self.organization = Organization.objects.create(
+            name="Test Org",
+            description="Test organization"
+        )
+
+    def test_item_with_gtin(self):
+        """Test creating an item with GTIN"""
+        item = Item.objects.create(
+            name="Test Item with GTIN",
+            gtin="1234567890123",
+            category=self.category
+        )
+        self.assertEqual(item.gtin, "1234567890123")
+
+    def test_item_without_gtin(self):
+        """Test creating an item without GTIN (blank)"""
+        item = Item.objects.create(
+            name="Test Item without GTIN",
+            category=self.category
+        )
+        self.assertEqual(item.gtin, "")
+
+    def test_gtin_uniqueness_constraint(self):
+        """Test that GTIN must be unique when provided"""
+        # Create first item with GTIN
+        Item.objects.create(
+            name="First Item",
+            gtin="1234567890123",
+            category=self.category
+        )
+        
+        # Try to create second item with same GTIN - should raise IntegrityError
+        with self.assertRaises(Exception):  # Django will raise IntegrityError
+            Item.objects.create(
+                name="Second Item",
+                gtin="1234567890123",
+                category=self.category
+            )
+
+    def test_gtin_uniqueness_allows_empty(self):
+        """Test that multiple items can have empty GTIN"""
+        # Create two items with empty GTIN
+        item1 = Item.objects.create(
+            name="First Item",
+            gtin="",
+            category=self.category
+        )
+        item2 = Item.objects.create(
+            name="Second Item",
+            gtin="",
+            category=self.category
+        )
+        
+        # Should succeed without errors
+        self.assertEqual(item1.gtin, "")
+        self.assertEqual(item2.gtin, "")
+
+    def test_different_gtins_allowed(self):
+        """Test that different GTINs can be used on different items"""
+        item1 = Item.objects.create(
+            name="First Item",
+            gtin="1234567890123",
+            category=self.category
+        )
+        item2 = Item.objects.create(
+            name="Second Item",
+            gtin="9876543210987",
+            category=self.category
+        )
+        
+        self.assertEqual(item1.gtin, "1234567890123")
+        self.assertEqual(item2.gtin, "9876543210987")
+
+
+class ItemWithStockFormGTINTest(TestCase):
+    def setUp(self):
+        """Set up test data for form tests"""
+        from .models import Subcategory
+        self.category = Category.objects.create(name="Test Category")
+        self.subcategory = Subcategory.objects.create(
+            name="Test Subcategory",
+            category=self.category
+        )
+        self.organization = Organization.objects.create(
+            name="Test Org",
+            description="Test organization"
+        )
+
+    def test_form_gtin_validation_duplicate(self):
+        """Test that form validation catches duplicate GTIN"""
+        from .forms import ItemWithStockForm
+        
+        # Create an existing item with GTIN
+        Item.objects.create(
+            name="Existing Item",
+            gtin="1234567890123",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        
+        # Try to create a new item with the same GTIN
+        form_data = {
+            'name': 'New Item',
+            'gtin': '1234567890123',  # Duplicate GTIN
+            'subcategory': self.subcategory.id,
+            'organization': self.organization.id,
+            'quantity': 1,
+            'date_received': date.today(),
+        }
+        
+        form = ItemWithStockForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('gtin', form.errors)
+        self.assertIn('duplicate_gtin', str(form.errors['gtin']))
+
+    def test_form_gtin_validation_unique(self):
+        """Test that form validation allows unique GTIN"""
+        from .forms import ItemWithStockForm
+        
+        # Create an existing item with GTIN
+        Item.objects.create(
+            name="Existing Item",
+            gtin="1234567890123",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        
+        # Try to create a new item with a different GTIN
+        form_data = {
+            'name': 'New Item',
+            'gtin': '9876543210987',  # Different GTIN
+            'subcategory': self.subcategory.id,
+            'organization': self.organization.id,
+            'quantity': 1,
+            'date_received': date.today(),
+        }
+        
+        form = ItemWithStockForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+    def test_form_gtin_validation_empty(self):
+        """Test that form validation allows empty GTIN"""
+        from .forms import ItemWithStockForm
+        
+        # Create an existing item with GTIN
+        Item.objects.create(
+            name="Existing Item",
+            gtin="1234567890123",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        
+        # Try to create a new item with empty GTIN
+        form_data = {
+            'name': 'New Item',
+            'gtin': '',  # Empty GTIN
+            'subcategory': self.subcategory.id,
+            'organization': self.organization.id,
+            'quantity': 1,
+            'date_received': date.today(),
+        }
+        
+        form = ItemWithStockForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+
 # Create your other tests here.

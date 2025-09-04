@@ -15,6 +15,7 @@
         <th scope="col">Category</th>
         <th scope="col">Subcategory</th>
         <th scope="col">Item</th>
+        <th scope="col">GTIN</th>
         <th scope="col">Quantity</th>
         <th scope="col"></th>
       </tr>
@@ -25,6 +26,7 @@
         <td>{{ item.category.name }}</td>
         <td>{{ item.subcategory.name }}</td>
         <td>{{ item.name }}</td>
+        <td>{{ item.gtin|default:"-" }}</td>
         <td>{{ item.stock_items_quantity_annotated }}</td>
         <td class="text-right">
           <a href="{% url 'view_item' item.id %}"

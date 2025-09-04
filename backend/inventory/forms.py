@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'gtin', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -108,6 +108,12 @@ class ItemWithStockForm(forms.Form):
     """Combined form for creating both Item and initial StockItem"""
     # Item fields
     name = forms.CharField(max_length=255, label="Item Name")
+    gtin = forms.CharField(
+        max_length=14, 
+        required=False, 
+        label="GTIN (Global Trade Item Number)",
+        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
+    )
     subcategory = forms.ModelChoiceField(
         queryset=models.Subcategory.objects.all(),
         label="Category"
@@ -178,6 +184,25 @@ class ItemWithStockForm(forms.Form):
         # Always return the cleaned data for this field
         return name
 
+    def clean_gtin(self):
+        """
+        Validates that the GTIN is unique if provided.
+        """
+        gtin = self.cleaned_data.get('gtin', '').strip()
+        
+        # If GTIN is provided, check for uniqueness
+        if gtin:
+            existing_item = models.Item.objects.filter(gtin=gtin).first()
+            if existing_item:
+                # Raise a specific error that we can catch to redirect to check-in
+                raise forms.ValidationError(
+                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. "
+                    f"Did you mean to check in stock for this existing item instead?",
+                    code='duplicate_gtin'
+                )
+        
+        return gtin
+
     def save(self, commit=True):
         """Create both Item and initial StockItem"""
         # The cleaned_data from the form is used to create both objects
@@ -187,6 +212,7 @@ class ItemWithStockForm(forms.Form):
         selected_subcategory = data['subcategory']
         item = models.Item(
             name=data['name'],
+            gtin=data['gtin'],
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],

@@ -72,6 +72,7 @@ class Item(models.Model):
     )
 
     name = models.CharField(max_length=255)    
+    gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
@@ -92,7 +93,12 @@ class Item(models.Model):
             ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
         constraints = [
-            models.UniqueConstraint(Lower('name'), name='unique_item_name')
+            models.UniqueConstraint(Lower('name'), name='unique_item_name'),
+            models.UniqueConstraint(
+                fields=['gtin'], 
+                condition=models.Q(gtin__gt=''),
+                name='unique_item_gtin'
+            )
         ]
 
     def __str__(self):

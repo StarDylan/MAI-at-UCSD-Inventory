@@ -445,6 +445,35 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         
         # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
+
+    def form_invalid(self, form):
+        """
+        Handle form validation errors, with special handling for GTIN duplicates.
+        
+        If the form has a GTIN duplicate error, redirect to check-in for the existing item.
+        Otherwise, show the form with validation errors.
+        
+        Args:
+            form: Invalid ItemWithStockForm instance
+            
+        Returns:
+            HttpResponseRedirect: Redirect to check-in view if GTIN duplicate
+            HttpResponse: Rendered form with errors otherwise
+        """
+        # Check if there's a GTIN duplicate error
+        gtin_errors = form.errors.get('gtin', [])
+        for error in gtin_errors:
+            if hasattr(error, 'code') and error.code == 'duplicate_gtin':
+                # Find the existing item with this GTIN
+                gtin = form.cleaned_data.get('gtin', '').strip()
+                if gtin:
+                    existing_item = models.Item.objects.filter(gtin=gtin).first()
+                    if existing_item:
+                        # Redirect to check-in view for the existing item
+                        return redirect('search_check_in_item', item_uuid=existing_item.id)
+        
+        # Fall back to default form_invalid behavior
+        return super().form_invalid(form)
     
     def get_form_kwargs(self):
         """
@@ -474,12 +503,13 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
                     output_field=IntegerField()
                 )
             )
-        ).values('id', 'name', 'category__name', 'subcategory__name', 'total_stock_quantity')
+        ).values('id', 'name', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity')
         
         items_list = [
             {
                 'id': str(item['id']),
                 'name': item['name'],
+                'gtin': item['gtin'] or '',
                 'category__name': item['category__name'],
                 'subcategory__name': item['subcategory__name'],
                 'total_stock_quantity': item['total_stock_quantity'] or 0,
