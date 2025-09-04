@@ -64,7 +64,7 @@ def view_all_items(request):
     items = (Item.active_objects
             .select_related('category', 'subcategory')
             .annotate(
-                total_stock_quantity=Sum(
+                stock_items_quantity_annotated=Sum(
                     Case(
                         When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                         default=0,
@@ -107,7 +107,7 @@ def view_category_items(request, uuid):
             .filter(category=category)
             .select_related('category', 'subcategory')
             .annotate(
-                total_stock_quantity=Sum(
+                stock_items_quantity_annotated=Sum(
                     Case(
                         When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                         default=0,
@@ -150,7 +150,7 @@ def view_subcategory_items(request, uuid):
             .filter(subcategory=subcategory)
             .select_related('category', 'subcategory')
             .annotate(
-                total_stock_quantity=Sum(
+                stock_items_quantity_annotated=Sum(
                     Case(
                         When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                         default=0,
@@ -327,7 +327,7 @@ def view_deleted_items(request):
     
     # Use annotations to avoid N+1 queries for total_stock_quantity
     deleted_items = Item.objects.filter(is_deleted=True).annotate(
-        total_stock_quantity=Sum(
+        stock_items_quantity_annotated=Sum(
             Case(
                 When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                 default=0,
