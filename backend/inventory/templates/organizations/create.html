@@ -1,0 +1,18 @@
+{% extends "shared/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block body %}
+
+<h4>Create Organization</h4>
+<form method="post" action="{% url 'create_organization' %}">
+  {% csrf_token %}
+
+  {{ form|crispy }}
+
+  <p>
+    <input type="submit" class="btn btn-primary" value="Create Organization" />
+    <a href="{% url 'organization_list' %}" class="btn btn-secondary">Cancel</a>
+  </p>
+</form>
+
+{% endblock %}

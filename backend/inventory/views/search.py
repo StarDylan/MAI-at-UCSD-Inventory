@@ -12,7 +12,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.views.generic import FormView
 
 from inventory.forms import Search_QuantityAdd, Search_QuantityRemove
-from inventory.models import Item
+from inventory.models import Item, StockItem
 from .utils import audit_log_state, audit_log_event
 
 
@@ -32,7 +32,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         Add extra context data to the template.
         
         Provides the action type, default quantity, and list of available items
-        for the check-in form.
+        for the check-in form. If an item_uuid is provided in the URL, pre-select that item.
         
         Args:
             **kwargs: Additional keyword arguments
@@ -44,14 +44,45 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         context['action'] = 'Check in'
         context['defaultQuantity'] = 1
         context["items"] = Item.active_objects.all().order_by('name')
+        
+        # Pre-select item if item_uuid is provided in URL
+        item_uuid = self.kwargs.get('item_uuid')
+        if item_uuid:
+            try:
+                selected_item = Item.active_objects.get(id=item_uuid)
+                context['selected_item'] = selected_item
+            except Item.DoesNotExist:
+                pass
+                
         return context
+
+    def get_initial(self):
+        """
+        Get initial form data.
+        
+        If an item_uuid is provided in the URL, pre-populate the item field.
+        
+        Returns:
+            dict: Initial form data
+        """
+        initial = super().get_initial()
+        
+        item_uuid = self.kwargs.get('item_uuid')
+        if item_uuid:
+            try:
+                selected_item = Item.active_objects.get(id=item_uuid)
+                initial['item'] = selected_item
+            except Item.DoesNotExist:
+                pass
+                
+        return initial
 
     def form_valid(self, form):
         """
         Process valid form submission for checking in items.
         
-        Increases the item's active quantity by the specified amount
-        and logs the transaction in the audit trail.
+        Creates a new StockItem record for the incoming stock and logs
+        the transaction in the audit trail.
         
         Args:
             form: Valid Search_QuantityAdd form instance
@@ -61,96 +92,35 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         """
         item = form.cleaned_data['item']
         quantity = form.cleaned_data['quantity']
+        organization = form.cleaned_data['organization']
+        location = form.cleaned_data['location']
+        date_received = form.cleaned_data['date_received']
+        expiration_date = form.cleaned_data['expiration_date']
+        lot_number = form.cleaned_data['lot_number']
+        notes = form.cleaned_data['notes']
 
         # Get the item and log current state
         item = get_object_or_404(Item, id=item.id)
-        before_state = audit_log_state(item)
+        before_state = audit_log_state(None)
         
-        # Update quantity
-        item.quantity_active += quantity
-        item.save()
+        # Create new StockItem
+        stock_item = StockItem.objects.create(
+            item=item,
+            organization=organization,
+            quantity=quantity,
+            location=location,
+            date_received=date_received,
+            expiration_date=expiration_date,
+            lot_number=lot_number,
+            notes=notes
+        )
         
         # Log the check-in event
-        after_state = audit_log_state(item)
+        after_state = audit_log_state(stock_item)
         audit_log_event(
             self.request.user, 
-            f"Checked in {quantity} of item \"{item.name}\"", 
-            before_state, 
-            after_state
-        )
-
-        return redirect(reverse_lazy('view_item', kwargs={'uuid': item.id}))
-
-
-class SearchCheckOutView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
-    """
-    View for checking items out of inventory (decreasing quantity).
-    
-    Provides a form-based interface for removing quantity from existing items
-    with validation to prevent negative quantities and audit logging.
-    """
-    template_name = 'search/update_quantity.html'
-    form_class = Search_QuantityRemove
-    permission_required = 'inventory.change_item'
-
-    def get_context_data(self, **kwargs):
-        """
-        Add extra context data to the template.
-        
-        Provides the action type and list of available items for the check-out form.
-        
-        Args:
-            **kwargs: Additional keyword arguments
-            
-        Returns:
-            dict: Template context with form-specific data
-        """
-        context = super().get_context_data(**kwargs)
-        context['action'] = 'Check out'
-        context["items"] = Item.active_objects.all().order_by('name')
-        return context
-
-    def form_valid(self, form: Search_QuantityRemove):
-        """
-        Process valid form submission for checking out items.
-        
-        Decreases the item's active quantity by the specified amount after
-        validating that sufficient quantity is available.
-        
-        Args:
-            form: Valid Search_QuantityRemove form instance
-            
-        Returns:
-            HttpResponseRedirect: Redirect to item detail view
-            HttpResponse: Form with errors if insufficient quantity
-        """
-        item = form.cleaned_data['item']
-        quantity = form.cleaned_data['quantity']
-
-        # Get the item and validate availability
-        item = get_object_or_404(Item, id=item.id)
-        
-        # Check if sufficient quantity is available
-        if item.quantity_active < quantity:
-            form.add_error(
-                'quantity', 
-                f"Cannot check out {quantity} items. Only {item.quantity_active} available."
-            )
-            return self.form_invalid(form)
-
-        # Log current state before update
-        before_state = audit_log_state(item)
-        
-        # Update quantity
-        item.quantity_active -= quantity
-        item.save()
-        
-        # Log the check-out event
-        after_state = audit_log_state(item)
-        audit_log_event(
-            self.request.user, 
-            f"Checked out {quantity} of item \"{item.name}\"", 
-            before_state, 
+            f"Checked in {quantity} of item \"{item.name}\" from {location}", 
+            before_state,
             after_state
         )
 

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.db.models.functions import Lower
 from django.db import models
 import uuid
 
@@ -36,6 +37,23 @@ class Subcategory(models.Model):
         return f"{self.category.name} / {self.name}"
 
 
+class Organization(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(Lower('name'), name='unique_organization_name')
+        ]
+    
+    def __str__(self):
+        return self.name
+
+
 class Item(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     category = models.ForeignKey(
@@ -53,17 +71,16 @@ class Item(models.Model):
         db_column="subcategory_id",
     )
 
-    name = models.CharField(max_length=255)
-    location = models.CharField(max_length=100, blank=True, default="")
-    quantity_active = models.PositiveIntegerField(default=0)
-    
+    name = models.CharField(max_length=255)    
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
 
     is_deleted = models.BooleanField(default=False)
-    
-    # All `Post.objects` queries will now
+
+    objects = models.Manager()  # The default manager.
+
+    # All `Post.active_objects` queries will now
     # automatically exclude deleted posts.
     active_objects = ActiveManager()
     
@@ -74,9 +91,58 @@ class Item(models.Model):
             ("view_internalstockingdetails", "Can view internal stocking"),
             ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
+        constraints = [
+            models.UniqueConstraint(Lower('name'), name='unique_item_name')
+        ]
 
     def __str__(self):
         return self.name
+    
+    @property
+    def total_stock_quantity(self):
+        """Calculate total quantity from all active stock items"""
+        return sum(stock.quantity for stock in self.stock_items.filter(quantity__gt=0))
+
+    @property
+    def aggregated_locations(self):
+        """Get comma-separated list of unique locations from active stock items"""
+        locations = self.stock_items.filter(quantity__gt=0).exclude(location='').values_list('location', flat=True).distinct()
+        return ', '.join(sorted(locations)) if locations else ""
+
+
+class StockItem(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    item = models.ForeignKey(
+        Item,
+        related_name="stock_items",
+        on_delete=models.CASCADE,
+        db_column="item_id",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        related_name="stock_items",
+        on_delete=models.PROTECT,
+        db_column="organization_id",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    location = models.CharField(max_length=100, blank=True, default="", help_text="Specific location where this stock is stored")
+    date_received = models.DateField()
+    expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
+    lot_number = models.CharField(max_length=100, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+
+    
+    def __str__(self):
+        return f"{self.item.name} - {self.quantity} units from {self.location}"
+    
+    @property
+    def is_expired(self):
+        """Check if this stock item has expired"""
+        if not self.expiration_date:
+            return False
+        from django.utils import timezone
+        return self.expiration_date < timezone.now().date()
+
 
 class User(AbstractUser):
     user_picture = models.CharField(max_length=255, default="/static/inventory/original_logo_square.png")

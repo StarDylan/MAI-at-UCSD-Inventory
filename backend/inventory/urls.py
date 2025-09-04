@@ -13,9 +13,11 @@ from inventory.views import (
     audit,
     auth,
     categories,
+    checkout,
     dashboard,
     images,
     items,
+    organizations,
     search,
     subcategories,
     users
@@ -51,9 +53,17 @@ urlpatterns = [
     
     # Item Management
     path('edit/item/<uuid:pk>/', items.ItemUpdateView.as_view(), name='edit_item'),
+    path('edit/stock/<uuid:pk>/', items.StockItemUpdateView.as_view(), name='edit_stock_item'),
     path('create/item/', items.ItemCreateView.as_view(), name='create_item'),
     path('delete/item/<uuid:uuid>/', items.item_soft_delete_view, name='delete_item'),
     path('restore/item/<uuid:uuid>/', items.item_restore_view, name='restore_item'),
+    
+    # Organization Management
+    path('organizations/', organizations.OrganizationListView.as_view(), name='organization_list'),
+    path('organizations/create/', organizations.OrganizationCreateView.as_view(), name='create_organization'),
+    path('organizations/edit/<uuid:pk>/', organizations.OrganizationUpdateView.as_view(), name='edit_organization'),
+    path('api/organizations/create/', organizations.organization_create_ajax, name='organization_create_ajax'),
+    path('api/organizations/list/', organizations.organization_list_api, name='organization_list_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
@@ -62,7 +72,9 @@ urlpatterns = [
     
     # Search and Quantity Management
     path('search/check_in/', search.SearchCheckInView.as_view(), name='search_check_in'),
-    path('search/check_out/', search.SearchCheckOutView.as_view(), name='search_check_out'),
+    path('search/check_in/<uuid:item_uuid>/', search.SearchCheckInView.as_view(), name='search_check_in_item'),
+    path('checkout/<uuid:item_uuid>/', checkout.checkout_item_select, name='checkout_item_select'),
+    path('checkout/<uuid:item_uuid>/process/', checkout.checkout_item_process, name='checkout_item_process'),
     
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),

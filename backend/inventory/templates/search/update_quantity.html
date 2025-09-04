@@ -18,7 +18,26 @@
     {% csrf_token %}
     <div class="form-group">
         {{ form.item|as_crispy_field }}
+        {% if form.organization %}
+        {{ form.organization|as_crispy_field }}
+        {% endif %}
+        
         {{ form.quantity|as_crispy_field }}
+        {% if form.location %}
+        {{ form.location|as_crispy_field }}
+        {% endif %}
+        {% if form.date_received %}
+        {{ form.date_received|as_crispy_field }}
+        {% endif %}
+        {% if form.expiration_date %}
+        {{ form.expiration_date|as_crispy_field }}
+        {% endif %}
+        {% if form.lot_number %}
+        {{ form.lot_number|as_crispy_field }}
+        {% endif %}
+        {% if form.notes %}
+        {{ form.notes|as_crispy_field }}
+        {% endif %}
     </div>
 
     <p><input type="submit" class="btn btn-primary" value="Submit"></p>
@@ -34,6 +53,15 @@
             "width": "100%" 
 
         });
+        {% if form.organization %}
+        $('#{{ form.organization.id_for_label }}').select2({  // init Select2 on organization field
+            placeholder: "{{ form.organization.label }}",
+            allowClear: true,
+            "box-sizing": "border-box",
+            "width": "100%" 
+
+        });
+        {% endif %}
     });
 </script>
 
