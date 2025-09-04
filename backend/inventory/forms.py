@@ -128,7 +128,7 @@ class ItemWithStockForm(forms.Form):
         label="Received From Organization"
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label="Initial Quantity")
-    stock_location = forms.CharField(max_length=100, required=False, label="Stock Location")
+    stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
         label="Date Received"
@@ -279,7 +279,7 @@ class Search_QuantityAdd(forms.Form):
     )
     location = forms.CharField(
         max_length=100,
-        required=False,
+        required=True,
         widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Box A"}),
         label="Stock Location"
     )

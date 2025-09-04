@@ -131,7 +131,7 @@ class StockItem(models.Model):
         db_column="organization_id",
     )
     quantity = models.PositiveIntegerField(default=1)
-    location = models.CharField(max_length=100, blank=True, default="", help_text="Specific location where this stock is stored")
+    location = models.CharField(max_length=100, blank=False, help_text="Specific location where this stock is stored")
     date_received = models.DateField()
     expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
     lot_number = models.CharField(max_length=100, blank=True, default="")

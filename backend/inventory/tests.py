@@ -44,6 +44,7 @@ class StockItemModelTest(TestCase):
             item=self.item,
             organization=self.organization,
             quantity=10,
+            location="Test Location",
             date_received=date.today(),
             expiration_date=date.today() + timedelta(days=30),
             lot_number="LOT123"
@@ -59,6 +60,7 @@ class StockItemModelTest(TestCase):
             item=self.item,
             organization=self.organization,
             quantity=5,
+            location="Storage Room A",
             date_received=date.today()
         )
         self.assertIsNone(stock.expiration_date)
@@ -71,6 +73,7 @@ class StockItemModelTest(TestCase):
             item=self.item,
             organization=self.organization,
             quantity=3,
+            location="Expired Storage",
             date_received=date.today() - timedelta(days=10),
             expiration_date=expired_date
         )
@@ -83,18 +86,21 @@ class StockItemModelTest(TestCase):
             item=self.item,
             organization=self.organization,
             quantity=10,
+            location="Shelf A",
             date_received=date.today()
         )
         StockItem.objects.create(
             item=self.item,
             organization=self.organization,
             quantity=5,
+            location="Shelf B",
             date_received=date.today()
         )
         StockItem.objects.create(
             item=self.item,
             organization=self.organization,
             quantity=0,  # This should not be counted (inactive)
+            location="Storage",
             date_received=date.today()
         )
         
@@ -107,9 +113,10 @@ class StockItemModelTest(TestCase):
             item=self.item,
             organization=self.organization,
             quantity=7,
+            location="Warehouse A",
             date_received=date.today()
         )
-        expected_str = f"{self.item.name} - 7 units from {self.organization.name}"
+        expected_str = f"{self.item.name} - 7 units from Warehouse A"
         self.assertEqual(str(stock), expected_str)
 
 
@@ -205,6 +212,80 @@ class ItemWithStockFormGTINTest(TestCase):
             description="Test organization"
         )
 
+    def test_form_requires_stock_location(self):
+        """Test that form validation requires stock location"""
+        from .forms import ItemWithStockForm
+        
+        # Try to create a form without stock_location
+        form_data = {
+            'name': 'Test Item',
+            'gtin': '',
+            'subcategory': self.subcategory.id,
+            'organization': self.organization.id,
+            'quantity': 1,
+            'date_received': date.today(),
+            # Missing stock_location
+        }
+        
+        form = ItemWithStockForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('stock_location', form.errors)
+
+    def test_quantity_add_form_requires_location(self):
+        """Test that Search_QuantityAdd form requires location"""
+        from .forms import Search_QuantityAdd
+        
+        # Create an item first
+        item = Item.objects.create(
+            name="Test Item",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        
+        # Try to create a form without location
+        form_data = {
+            'item': item.id,
+            'organization': self.organization.id,
+            'quantity': 5,
+            'date_received': date.today(),
+            # Missing location
+        }
+        
+        form = Search_QuantityAdd(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('location', form.errors)
+
+    def test_stock_item_model_form_requires_location(self):
+        """Test that StockItemForm requires location due to model constraint"""
+        from .forms import StockItemForm
+        
+        # Try to create a form without location
+        form_data = {
+            'organization': self.organization.id,
+            'quantity': 5,
+            'date_received': date.today(),
+            # Missing location
+        }
+        
+        form = StockItemForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('location', form.errors)
+
+    def test_stock_item_model_form_accepts_location(self):
+        """Test that StockItemForm accepts when location is provided"""
+        from .forms import StockItemForm
+        
+        # Create a form with location
+        form_data = {
+            'organization': self.organization.id,
+            'quantity': 5,
+            'location': 'Warehouse B',
+            'date_received': date.today(),
+        }
+        
+        form = StockItemForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
     def test_form_gtin_validation_duplicate(self):
         """Test that form validation catches duplicate GTIN"""
         from .forms import ItemWithStockForm
@@ -224,6 +305,7 @@ class ItemWithStockFormGTINTest(TestCase):
             'subcategory': self.subcategory.id,
             'organization': self.organization.id,
             'quantity': 1,
+            'stock_location': 'Test Location',
             'date_received': date.today(),
         }
         
@@ -251,6 +333,7 @@ class ItemWithStockFormGTINTest(TestCase):
             'subcategory': self.subcategory.id,
             'organization': self.organization.id,
             'quantity': 1,
+            'stock_location': 'Test Location',
             'date_received': date.today(),
         }
         
@@ -276,6 +359,7 @@ class ItemWithStockFormGTINTest(TestCase):
             'subcategory': self.subcategory.id,
             'organization': self.organization.id,
             'quantity': 1,
+            'stock_location': 'Test Location',
             'date_received': date.today(),
         }
         
