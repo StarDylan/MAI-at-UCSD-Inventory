@@ -38,20 +38,6 @@
     />
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/dt-1.10.25/datatables.min.css" />
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
-    <script>
-      if (!sessionStorage.getItem("_swa") && document.referrer.indexOf(location.protocol + "//" + location.host) !== 0) {
-        fetch(
-          "https://counter.dev/track?" +
-            new URLSearchParams({
-              referrer: document.referrer,
-              screen: screen.width + "x" + screen.height,
-              user: "lambda-one",
-              utcoffset: "-7",
-            })
-        );
-      }
-      sessionStorage.setItem("_swa", "1");
-    </script>
   </head>
   {% include "shared/navbar.html" %}
   <body>
