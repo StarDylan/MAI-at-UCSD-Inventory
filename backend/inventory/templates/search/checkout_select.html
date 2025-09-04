@@ -22,6 +22,7 @@
             <tr>
               <th>Select</th>
               <th>Origin Org</th>
+              <th>Stock Location</th>
               <th>Available</th>
               <th>Expiration</th>
               <th>Lot Number</th>
@@ -35,6 +36,7 @@
                 <input type="checkbox" name="stock_items" value="{{ stock.id }}" class="stock-checkbox" data-max="{{ stock.quantity }}" />
               </td>
               <td>{{ stock.organization.name }}</td>
+              <td>{{ stock.location }}</td>
               <td>{{ stock.quantity }}</td>
               <td>
                 {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
@@ -59,7 +61,7 @@
             </tr>
             {% if stock.notes %}
             <tr>
-              <td colspan="6" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes }}</td>
+              <td colspan="7" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes }}</td>
             </tr>
             {% endif %} {% endfor %}
           </tbody>
