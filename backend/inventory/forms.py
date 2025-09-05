@@ -177,8 +177,8 @@ class ItemWithStockForm(forms.Form):
         label="Stock Notes",
         help_text="Public Notes specific to this stock entry",
     )
-    notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Notes", help_text="Notes visible to all users")
-    notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Notes", help_text="Notes visible only to MAI members")
+    notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Item Notes", help_text="Notes visible to all users")
+    notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Item Notes", help_text="Notes visible only to MAI members")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
