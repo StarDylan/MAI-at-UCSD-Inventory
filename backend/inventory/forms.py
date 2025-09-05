@@ -124,7 +124,6 @@ class ItemWithStockForm(forms.Form):
     
     # Single GTIN field with toggle
     gtin = forms.CharField(
-        max_length=14, 
         required=False, 
         label="GTIN (Global Trade Item Number)",
         help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number",
@@ -224,8 +223,14 @@ class ItemWithStockForm(forms.Form):
         Validates that the GTIN is unique if provided.
         """
         gtin = self.cleaned_data.get('gtin', '').strip()
-        
+
+
         if gtin:
+            if len(gtin) > 14:
+                raise forms.ValidationError(
+                    "GTIN must be at most 14 characters long.",
+                    code='invalid_gtin_length'
+                )
             # Check if GTIN exists on any item
             if models.Item.objects.filter(gtin=gtin).exists():
                 existing_item = models.Item.objects.filter(gtin=gtin).first()
