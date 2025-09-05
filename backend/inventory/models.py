@@ -135,9 +135,6 @@ class StockItem(models.Model):
 
     class Meta:
         ordering = ['detail', 'expiration_date', 'date_received']
-        permissions = [
-            ("delete_stockitem", "Can delete stock items"),
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['gtin'], 
