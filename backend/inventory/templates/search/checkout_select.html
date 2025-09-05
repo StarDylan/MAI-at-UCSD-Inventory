@@ -84,7 +84,11 @@
       </div>
 
       <div class="mt-3">
-        <p><strong>Total Selected:</strong> <span id="total-quantity">0</span> units</p>
+        <p><strong>Total Selected:</strong> <span id="total-quantity">0</span> units
+        {% if item.items_per_box %}
+          <small class="text-muted" id="box-calculation"></small>
+        {% endif %}
+        </p>
       </div>
 
       {% else %}
@@ -105,6 +109,8 @@
     const quantityInputs = document.querySelectorAll(".quantity-input");
     const totalQuantitySpan = document.getElementById("total-quantity");
     const checkoutBtn = document.getElementById("checkout-btn");
+    const boxCalculationSpan = document.getElementById("box-calculation");
+    const itemsPerBox = {{ item.items_per_box|default:"null" }};
 
     function updateTotal() {
       let total = 0;
@@ -124,6 +130,24 @@
 
       totalQuantitySpan.textContent = total;
       checkoutBtn.disabled = !anySelected;
+
+      // Update box calculation if items per box is set
+      if (boxCalculationSpan && itemsPerBox && total > 0) {
+        const exactBoxes = total / itemsPerBox;
+        const wholeBoxes = Math.floor(exactBoxes);
+        const remainingItems = total % itemsPerBox;
+        
+        if (remainingItems === 0) {
+          // Exact number of boxes
+          boxCalculationSpan.textContent = ` (${exactBoxes} ${exactBoxes === 1 ? 'box' : 'boxes'})`;
+        } else {
+          // Partial boxes
+          const ceilingBoxes = Math.ceil(exactBoxes);
+          boxCalculationSpan.textContent = ` (${exactBoxes.toFixed(1)} boxes/${ceilingBoxes} boxes)`;
+        }
+      } else if (boxCalculationSpan) {
+        boxCalculationSpan.textContent = '';
+      }
     }
 
     checkboxes.forEach(function (checkbox) {
