@@ -671,7 +671,7 @@ def items_search_api(request):
         search_conditions &= (
             Q(name__icontains=general_query) | 
             Q(manufacturer__icontains=general_query) |
-            Q(gtin__icontains=general_query)
+            Q(gtin__exact=general_query)  # Exact match for GTIN
         )
     
     if name_query:
@@ -681,7 +681,7 @@ def items_search_api(request):
         search_conditions &= Q(manufacturer__icontains=manufacturer_query)
     
     if gtin_query:
-        search_conditions &= Q(gtin__icontains=gtin_query)
+        search_conditions &= Q(gtin__exact=gtin_query)  # Exact match for GTIN
     
     # Search items by the built conditions
     items_qs = (models.Item.active_objects
@@ -705,10 +705,10 @@ def items_search_api(request):
         stock_gtin_conditions = Q()
         
         if general_query:
-            stock_gtin_conditions |= Q(gtin__icontains=general_query)
+            stock_gtin_conditions |= Q(gtin__exact=general_query)  # Exact match for GTIN
         
         if gtin_query:
-            stock_gtin_conditions |= Q(gtin__icontains=gtin_query)
+            stock_gtin_conditions |= Q(gtin__exact=gtin_query)  # Exact match for GTIN
         
         if stock_gtin_conditions:
             # Build additional conditions for items found via stock GTIN
@@ -726,7 +726,7 @@ def items_search_api(request):
                 additional_item_conditions &= (
                     Q(item__name__icontains=general_query) |
                     Q(item__manufacturer__icontains=general_query) |
-                    Q(item__gtin__icontains=general_query)
+                    Q(item__gtin__exact=general_query)  # Exact match for GTIN
                 )
             
             stock_item_matches = (models.StockItem.objects

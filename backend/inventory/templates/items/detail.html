@@ -10,6 +10,9 @@
     <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
     {% endif %} {% if perms.inventory.change_item %}
     <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i></a>
+    {% endif %}
+    {% if perms.inventory.add_stockitem %}
+    <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
     {% endif %} {% endif %}
   </a>
 
@@ -81,21 +84,17 @@
     </div>
     {% endif %}
 
-    {% with gtins=item.get_gtins %}
-    {% if gtins %}
+    {% if item.gtin %}
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle">
         <i class="material-icons">qr_code</i> 
-        <span data-toggle="tooltip" data-placement="top" title="Global Trade Item Number">GTIN{% if gtins|length > 1 %}s{% endif %}</span>
+        <span data-toggle="tooltip" data-placement="top" title="Global Trade Item Number">GTIN</span>
       </span>
       <span class="flex-fill text-right">
-        {% for gtin in gtins %}
-          <span class="badge badge-success mr-1">{{ gtin }}</span>
-        {% endfor %}
+        <span>{{ item.gtin }}</span>
       </span>
     </div>
     {% endif %}
-    {% endwith %}
 
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Total Quantity</span>

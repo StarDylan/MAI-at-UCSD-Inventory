@@ -1,7 +1,7 @@
 {% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
 
 <h4>Create Item</h4>
-<form method="post" action="{% url 'create_item' %}">
+<form method="post" action="{% url 'create_item' %}" autocomplete="off">
   {% csrf_token %} {{ form|crispy }}
 
   <p>
@@ -243,7 +243,15 @@
 
         const matches = allManufacturers.filter((manufacturer) => manufacturer.toLowerCase().includes(query.toLowerCase()));
 
-        renderManufacturerSuggestions(matches);
+        // Check if there's an exact match (case-insensitive)
+        const hasExactMatch = allManufacturers.some((manufacturer) => manufacturer.toLowerCase() === query.toLowerCase());
+
+        // Only hide suggestions if there's an exact match, otherwise show matches
+        if (hasExactMatch) {
+          manufacturerSuggestionsContainer.style.display = "none";
+        } else {
+          renderManufacturerSuggestions(matches);
+        }
       }
 
       manufacturerInput.addEventListener("input", function () {
@@ -259,20 +267,6 @@
 
         // Also trigger main search
         triggerSearch();
-      });
-
-      // Hide suggestions when clicking outside
-      document.addEventListener("click", function (e) {
-        if (!manufacturerInput.contains(e.target) && !manufacturerSuggestionsContainer.contains(e.target)) {
-          manufacturerSuggestionsContainer.style.display = "none";
-        }
-      });
-
-      // Hide suggestions when manufacturer input loses focus (with small delay to allow clicks)
-      manufacturerInput.addEventListener("blur", function () {
-        setTimeout(() => {
-          manufacturerSuggestionsContainer.style.display = "none";
-        }, 150);
       });
 
       // Load manufacturers on page load
