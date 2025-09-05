@@ -72,7 +72,6 @@ class Item(models.Model):
     )
 
     name = models.CharField(max_length=255)    
-    gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
@@ -93,12 +92,7 @@ class Item(models.Model):
             ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
         constraints = [
-            models.UniqueConstraint(Lower('name'), name='unique_item_name'),
-            models.UniqueConstraint(
-                fields=['gtin'], 
-                condition=models.Q(gtin__gt=''),
-                name='unique_item_gtin'
-            )
+            models.UniqueConstraint(Lower('name'), name='unique_item_name')
         ]
 
     def __str__(self):
@@ -132,14 +126,27 @@ class StockItem(models.Model):
     )
     quantity = models.PositiveIntegerField(default=1)
     location = models.CharField(max_length=100, blank=False, help_text="Specific location where this stock is stored")
+    gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
+    detail = models.CharField(max_length=255, blank=True, default="", help_text="Additional details like size, color, variant, etc.")
     date_received = models.DateField()
     expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
     lot_number = models.CharField(max_length=100, blank=True, default="")
     notes = models.TextField(blank=True, default="")
 
+    class Meta:
+        ordering = ['detail', 'expiration_date', 'date_received']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['gtin'], 
+                condition=models.Q(gtin__gt=''),
+                name='unique_stockitem_gtin'
+            )
+        ]
+
     
     def __str__(self):
-        return f"{self.item.name} - {self.quantity} units from {self.location}"
+        detail_str = f" - {self.detail}" if self.detail else ""
+        return f"{self.item.name}{detail_str} - {self.quantity} units from {self.location}"
     
     @property
     def is_expired(self):

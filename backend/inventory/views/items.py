@@ -201,7 +201,7 @@ def view_item_detail(request, uuid):
 
     # Fetch related images, stock items, and audit events
     images = item.images.all().order_by('id')
-    stock_items = item.stock_items.select_related('organization').order_by('expiration_date', 'date_received')
+    stock_items = item.stock_items.select_related('organization').order_by('detail', 'expiration_date', 'date_received')
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))
@@ -464,13 +464,13 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         gtin_errors = form.errors.get('gtin', [])
         for error in gtin_errors:
             if hasattr(error, 'code') and error.code == 'duplicate_gtin':
-                # Find the existing item with this GTIN
+                # Find the existing stock item with this GTIN
                 gtin = form.cleaned_data.get('gtin', '').strip()
                 if gtin:
-                    existing_item = models.Item.objects.filter(gtin=gtin).first()
-                    if existing_item:
+                    existing_stock_item = models.StockItem.objects.filter(gtin=gtin).first()
+                    if existing_stock_item:
                         # Redirect to check-in view for the existing item
-                        return redirect('search_check_in_item', item_uuid=existing_item.id)
+                        return redirect('search_check_in_item', item_uuid=existing_stock_item.item.id)
         
         # Fall back to default form_invalid behavior
         return super().form_invalid(form)
@@ -503,19 +503,24 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
                     output_field=IntegerField()
                 )
             )
-        ).values('id', 'name', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity')
+        ).values('id', 'name', 'category__name', 'subcategory__name', 'total_stock_quantity')
         
-        items_list = [
-            {
+        items_list = []
+        for item in items_qs:
+            # Get all GTINs from stock items for this item
+            stock_gtins = models.StockItem.objects.filter(
+                item_id=item['id'], 
+                gtin__gt=''
+            ).values_list('gtin', flat=True).distinct()
+            
+            items_list.append({
                 'id': str(item['id']),
                 'name': item['name'],
-                'gtin': item['gtin'] or '',
+                'gtins': list(stock_gtins),  # List of GTINs from stock items
                 'category__name': item['category__name'],
                 'subcategory__name': item['subcategory__name'],
                 'total_stock_quantity': item['total_stock_quantity'] or 0,
-            }
-            for item in items_qs
-        ]
+            })
         context['all_items_json'] = json.dumps(items_list)
         return context
 

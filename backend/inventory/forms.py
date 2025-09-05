@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'gtin', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -91,7 +91,7 @@ class OrganizationForm(forms.ModelForm):
 class StockItemForm(forms.ModelForm):
     class Meta:
         model = StockItem
-        fields = ['organization', 'quantity', 'location', 'date_received', 'expiration_date', 'lot_number', 'notes']
+        fields = ['organization', 'quantity', 'location', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date', 'value': date.today()}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
@@ -108,12 +108,6 @@ class ItemWithStockForm(forms.Form):
     """Combined form for creating both Item and initial StockItem"""
     # Item fields
     name = forms.CharField(max_length=255, label="Item Name")
-    gtin = forms.CharField(
-        max_length=14, 
-        required=False, 
-        label="GTIN (Global Trade Item Number)",
-        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
-    )
     subcategory = forms.ModelChoiceField(
         queryset=models.Subcategory.objects.all(),
         label="Category"
@@ -129,6 +123,18 @@ class ItemWithStockForm(forms.Form):
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label="Initial Quantity")
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
+    gtin = forms.CharField(
+        max_length=14, 
+        required=False, 
+        label="GTIN (Global Trade Item Number)",
+        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
+    )
+    detail = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Detail",
+        help_text="Additional details like size, color, variant, etc."
+    )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
         label="Date Received"
@@ -192,11 +198,11 @@ class ItemWithStockForm(forms.Form):
         
         # If GTIN is provided, check for uniqueness
         if gtin:
-            existing_item = models.Item.objects.filter(gtin=gtin).first()
-            if existing_item:
+            existing_stock_item = models.StockItem.objects.filter(gtin=gtin).first()
+            if existing_stock_item:
                 # Raise a specific error that we can catch to redirect to check-in
                 raise forms.ValidationError(
-                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. "
+                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock_item.item.name}'. "
                     f"Did you mean to check in stock for this existing item instead?",
                     code='duplicate_gtin'
                 )
@@ -212,7 +218,6 @@ class ItemWithStockForm(forms.Form):
         selected_subcategory = data['subcategory']
         item = models.Item(
             name=data['name'],
-            gtin=data['gtin'],
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],
@@ -229,6 +234,8 @@ class ItemWithStockForm(forms.Form):
                 organization=data['organization'],
                 quantity=data['quantity'],
                 location=data['stock_location'],
+                gtin=data['gtin'],
+                detail=data['detail'],
                 date_received=data['date_received'],
                 expiration_date=data['expiration_date'],
                 lot_number=data['lot_number'],
@@ -249,7 +256,7 @@ class StockItemEditForm(forms.ModelForm):
     """Form for editing individual stock items"""
     class Meta:
         model = StockItem
-        fields = ['organization', 'quantity', 'location', 'date_received', 'expiration_date', 'lot_number', 'notes']
+        fields = ['organization', 'quantity', 'location', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date'}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
@@ -282,6 +289,20 @@ class Search_QuantityAdd(forms.Form):
         required=True,
         widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Box A"}),
         label="Stock Location"
+    )
+    gtin = forms.CharField(
+        max_length=14, 
+        required=False, 
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. 1234567890123"}),
+        label="GTIN (Global Trade Item Number)",
+        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
+    )
+    detail = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Size L, Red, 16oz"}),
+        label="Detail",
+        help_text="Additional details like size, color, variant, etc."
     )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -337,7 +358,7 @@ class StockItemCheckoutForm(forms.Form):
     def __init__(self, item=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if item:
-            self.fields['stock_items'].queryset = item.stock_items.filter(quantity__gt=0).order_by('expiration_date', 'date_received')
+            self.fields['stock_items'].queryset = item.stock_items.filter(quantity__gt=0).order_by('detail', 'expiration_date', 'date_received')
 
 class UserCreationForm(forms.Form):
     username = forms.CharField(max_length=150, required=True)
