@@ -121,13 +121,6 @@ class ItemWithStockForm(forms.Form):
         help_text="Product manufacturer or brand name",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Samsung, Apple, 3M'})
     )
-    items_per_box = forms.IntegerField(
-        min_value=1,
-        required=False,
-        label="Items Per Box (Optional)",
-        help_text="Number of individual items in a single box/package",
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
-    )
     
     # Single GTIN field with toggle
     gtin = forms.CharField(
@@ -165,6 +158,13 @@ class ItemWithStockForm(forms.Form):
         label="Received From Organization"
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label=" Quantity")
+    items_per_box = forms.IntegerField(
+        min_value=1,
+        required=False,
+        label="Items Per Box (Optional)",
+        help_text="Number of individual items in a single box/package",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
+    )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),

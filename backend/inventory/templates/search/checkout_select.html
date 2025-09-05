@@ -22,14 +22,16 @@
             <tr>
               <th>Select</th>
               <th>Detail</th>
-              <th>GTIN</th>
-              <th>Origin Org</th>
               <th>Stock Location</th>
+              {% endif %} {% if not item.gtin %}
+              <th>GTIN</th>
+              {% endif %}
               <th>Available</th>
               <th>Expiration</th>
               <th>Lot Number</th>
               <th>Quantity to Take</th>
-              {% if item.items_per_box %}<th>Boxes</th>{% endif %}
+              {% if item.items_per_box %}
+              <th>Boxes</th>
             </tr>
           </thead>
           <tbody>
@@ -39,6 +41,8 @@
                 <input type="checkbox" name="stock_items" value="{{ stock.id }}" class="stock-checkbox" data-max="{{ stock.quantity }}" />
               </td>
               <td>{{ stock.detail|default:"-" }}</td>
+              <td>{{ stock.location }}</td>
+              {% if not item.gtin %}
               <td>
                 {% if stock.gtin %}
                 <span class="font-weight-bold text-success">{{ stock.gtin }}</span>
@@ -46,8 +50,7 @@
                 <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td>{{ stock.organization.name }}</td>
-              <td>{{ stock.location }}</td>
+              {% endif %}
               <td>{{ stock.quantity }}</td>
               <td>
                 {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
@@ -101,10 +104,10 @@
       </div>
 
       <div class="mt-3">
-        <p><strong>Total Selected:</strong> <span id="total-quantity">0</span> units
-        {% if item.items_per_box %}
+        <p>
+          <strong>Total Selected:</strong> <span id="total-quantity">0</span> units {% if item.items_per_box %}
           <small class="text-muted" id="box-calculation"></small>
-        {% endif %}
+          {% endif %}
         </p>
       </div>
 
@@ -190,7 +193,7 @@
         const exactBoxes = total / itemsPerBox;
         const wholeBoxes = Math.floor(exactBoxes);
         const remainingItems = total % itemsPerBox;
-        
+
         if (remainingItems === 0) {
           // Exact number of boxes
           boxCalculationSpan.textContent = ` (${exactBoxes} ${exactBoxes === 1 ? 'box' : 'boxes'})`;
