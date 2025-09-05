@@ -95,12 +95,13 @@
       <span class="flex-fill text-right">{{ item.name }}</span>
     </div>
 
-    {% if item.gtin %}
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">qr_code</i> GTIN</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle">
+        <i class="material-icons">qr_code</i>
+        <span data-toggle="tooltip" data-placement="top" title="Global Trade Item Number">GTIN</span>
+      </span>
       <span class="flex-fill text-right">{{ item.gtin }}</span>
     </div>
-    {% endif %}
 
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Total Quantity</span>
@@ -132,13 +133,13 @@
         <table class="table table-sm table-hover">
           <thead>
             <tr>
-              <th>Origin Org</th>
               <th>Quantity</th>
               <th>Location</th>
-              <th>Date Received</th>
               <th>Expiration Date</th>
+              <th>Origin Org</th>
+              <th>Date Received</th>
               <th>Lot Number</th>
-              {% if perms.inventory.view_internalstockingdetails %}
+              {% if perms.inventory.change_stockitem %}
               <th>Actions</th>
               {% endif %}
             </tr>
@@ -146,10 +147,8 @@
           <tbody>
             {% for stock in stock_items %} {% if stock.quantity > 0 %}
             <tr {% if stock.is_expired %}class="table-danger" {% endif %}>
-              <td>{{ stock.organization.name }}</td>
               <td>{{ stock.quantity }}</td>
               <td>{{ stock.location|default:"-" }}</td>
-              <td>{{ stock.date_received|date:"M d, Y" }}</td>
               <td>
                 {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
                 <span class="badge badge-danger">Expired</span>
@@ -157,8 +156,10 @@
                 <span class="text-muted">No expiration</span>
                 {% endif %}
               </td>
+              <td>{{ stock.organization.name }}</td>
+              <td>{{ stock.date_received|date:"M d, Y" }}</td>
               <td>{{ stock.lot_number|default:"-" }}</td>
-              {% if perms.inventory.view_internalstockingdetails %}
+              {% if perms.inventory.change_stockitem %}
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
               </td>
@@ -166,9 +167,7 @@
             </tr>
             {% if stock.notes and perms.inventory.view_internalstockingdetails %}
             <tr>
-              <td colspan="{% if perms.inventory.view_internalstockingdetails %}8{% else %}7{% endif %}" class="text-muted small">
-                <strong>Private Stock Notes:</strong> {{ stock.notes|linebreaksbr }}
-              </td>
+              <td colspan="{% if perms.inventory.change_stockitem %}8{% else %}7{% endif %}" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
             </tr>
             {% endif %} {% endif %} {% endfor %}
           </tbody>
@@ -387,6 +386,9 @@
 
 <script>
   window.onload = function () {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+
     $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
     $("#audit_table").DataTable({
       lengthMenu: [
