@@ -616,6 +616,32 @@ def manufacturer_autocomplete_api(request):
     return JsonResponse({'manufacturers': list(manufacturers)})
 
 
+def stock_location_autocomplete_api(request):
+    """
+    API endpoint to get list of stock locations for autocomplete.
+    
+    Returns JSON list of distinct stock locations from existing stock items
+    for use in autocomplete functionality.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        JsonResponse: JSON response with stock locations list
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    # Get distinct stock locations that are not empty
+    locations = (models.StockItem.objects
+                .exclude(location='')
+                .values_list('location', flat=True)
+                .distinct()
+                .order_by('location'))
+    
+    return JsonResponse({'locations': list(locations)})
+
+
 def items_search_api(request):
     """
     API endpoint to search items by name, manufacturer, or GTIN.

@@ -19,6 +19,11 @@
   <ul id="manufacturer-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
 </div>
 
+<div id="stock-location-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
+  <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Suggested Locations</h6>
+  <ul id="stock-location-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
+</div>
+
 <script>
   // Wait for DOM to be fully loaded
   document.addEventListener("DOMContentLoaded", function () {
@@ -271,6 +276,106 @@
 
       // Load manufacturers on page load
       loadManufacturers();
+    }
+  });
+
+  // Stock Location autocomplete functionality
+  document.addEventListener("DOMContentLoaded", function () {
+    const stockLocationInput = document.getElementById("id_stock_location");
+    const stockLocationSuggestionsContainer = document.getElementById("stock-location-suggestions-container");
+    const stockLocationSuggestionsList = document.getElementById("stock-location-suggestions-list");
+    let allStockLocations = [];
+    let stockLocationTimeout;
+
+    if (stockLocationInput) {
+      // Disable browser autocomplete
+      stockLocationInput.setAttribute("autocomplete", "off");
+
+      // Position the suggestions container after the stock location input
+      const stockLocationFormGroup = stockLocationInput.closest(".form-group") || stockLocationInput.closest(".mb-3");
+      if (stockLocationFormGroup && stockLocationSuggestionsContainer) {
+        stockLocationFormGroup.parentNode.insertBefore(stockLocationSuggestionsContainer, stockLocationFormGroup.nextSibling);
+      }
+
+      // Load stock locations from API
+      function loadStockLocations() {
+        fetch("/api/stock-locations/autocomplete/")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.locations) {
+              allStockLocations = data.locations;
+            }
+          })
+          .catch((error) => console.log("Error loading stock locations:", error));
+      }
+
+      function renderStockLocationSuggestions(matches) {
+        stockLocationSuggestionsList.innerHTML = "";
+        if (matches.length === 0) {
+          stockLocationSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        matches.slice(0, 5).forEach((location) => {
+          // Limit to 5 suggestions
+          const li = document.createElement("li");
+          li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s;";
+          li.textContent = location;
+
+          // Add hover effect
+          li.addEventListener("mouseenter", function () {
+            this.style.backgroundColor = "#f8f9fa";
+          });
+          li.addEventListener("mouseleave", function () {
+            this.style.backgroundColor = "#fff";
+          });
+
+          // Add click handler
+          li.addEventListener("click", function () {
+            stockLocationInput.value = location;
+            stockLocationSuggestionsContainer.style.display = "none";
+            stockLocationInput.focus();
+          });
+
+          stockLocationSuggestionsList.appendChild(li);
+        });
+
+        stockLocationSuggestionsContainer.style.display = "";
+      }
+
+      function searchStockLocations(query) {
+        if (!query || query.length < 1) {
+          stockLocationSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        const matches = allStockLocations.filter((location) => location.toLowerCase().includes(query.toLowerCase()));
+
+        // Check if there's an exact match (case-insensitive)
+        const hasExactMatch = allStockLocations.some((location) => location.toLowerCase() === query.toLowerCase());
+
+        // Only hide suggestions if there's an exact match, otherwise show matches
+        if (hasExactMatch) {
+          stockLocationSuggestionsContainer.style.display = "none";
+        } else {
+          renderStockLocationSuggestions(matches);
+        }
+      }
+
+      stockLocationInput.addEventListener("input", function () {
+        const query = this.value.trim();
+
+        // Clear previous timeout
+        clearTimeout(stockLocationTimeout);
+
+        // Add delay before searching stock locations
+        stockLocationTimeout = setTimeout(() => {
+          searchStockLocations(query);
+        }, 200); // 200ms delay for stock location suggestions
+      });
+
+      // Load stock locations on page load
+      loadStockLocations();
     }
   });
 </script>
