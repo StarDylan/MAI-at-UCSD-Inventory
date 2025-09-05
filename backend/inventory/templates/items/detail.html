@@ -107,6 +107,13 @@
       <span class="flex-fill text-right">{{ item.total_stock_quantity }}</span>
     </div>
 
+    {% if item.items_per_box %}
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">inventory_2</i> Items per Box</span>
+      <span class="flex-fill text-right">{{ item.items_per_box }}</span>
+    </div>
+    {% endif %}
+
     {% if item.aggregated_locations and perms.inventory.view_internalstockingdetails %}
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">place</i> Stock Locations</span>
