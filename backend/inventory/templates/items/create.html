@@ -23,7 +23,7 @@
   // Wait for DOM to be fully loaded
   document.addEventListener("DOMContentLoaded", function () {
     // Move the search results container right after the item name input
-    const itemNameInput = document.getElementById("id_gtin");
+    const itemNameInput = document.getElementById("id_name");
     const searchContainer = document.getElementById("search-results-container");
 
     if (itemNameInput && searchContainer) {
@@ -59,10 +59,12 @@
       li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff;";
       li.setAttribute("data-id", item.id);
 
-      // Build item display with GTIN if available
+      // Build item display with GTINs if available
       let itemInfo = `<strong>${item.name}</strong>`;
-      if (item.gtin) {
-        itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTIN: ${item.gtin}]</span>`;
+      if (item.gtins && item.gtins.length > 0) {
+        const gtinDisplay = item.gtins.slice(0, 2).join(', '); // Show first 2 GTINs
+        const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : '';
+        itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTINs: ${gtinDisplay}${moreText}]</span>`;
       }
       if (item.category__name) {
         itemInfo += ` <span style='color: #6c757d;'>${item.category__name} > ${item.subcategory__name}</span>`;
@@ -81,9 +83,9 @@
     }
 
     const matches = allItems.filter((item) => {
-      // Search by name or GTIN
+      // Search by name or GTINs
       const nameMatch = item.name.toLowerCase().includes(query.toLowerCase());
-      const gtinMatch = item.gtin && item.gtin.includes(query);
+      const gtinMatch = item.gtins && item.gtins.some(gtin => gtin.includes(query));
       return nameMatch || gtinMatch;
     });
 

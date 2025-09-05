@@ -21,6 +21,8 @@
           <thead>
             <tr>
               <th>Select</th>
+              <th>Detail</th>
+              <th>GTIN</th>
               <th>Origin Org</th>
               <th>Stock Location</th>
               <th>Available</th>
@@ -34,6 +36,14 @@
             <tr {% if stock.is_expired %}class="table-danger" {% endif %}>
               <td>
                 <input type="checkbox" name="stock_items" value="{{ stock.id }}" class="stock-checkbox" data-max="{{ stock.quantity }}" />
+              </td>
+              <td>{{ stock.detail|default:"-" }}</td>
+              <td>
+                {% if stock.gtin %}
+                  <span class="font-weight-bold text-success">{{ stock.gtin }}</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
               </td>
               <td>{{ stock.organization.name }}</td>
               <td>{{ stock.location }}</td>
@@ -61,7 +71,7 @@
             </tr>
             {% if stock.notes %}
             <tr>
-              <td colspan="7" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes }}</td>
+              <td colspan="9" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes }}</td>
             </tr>
             {% endif %} {% endfor %}
           </tbody>

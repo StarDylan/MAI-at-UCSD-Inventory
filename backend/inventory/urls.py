@@ -54,6 +54,7 @@ urlpatterns = [
     # Item Management
     path('edit/item/<uuid:pk>/', items.ItemUpdateView.as_view(), name='edit_item'),
     path('edit/stock/<uuid:pk>/', items.StockItemUpdateView.as_view(), name='edit_stock_item'),
+    path('delete/stock/<uuid:uuid>/', items.stock_item_delete_view, name='delete_stock_item'),
     path('create/item/', items.ItemCreateView.as_view(), name='create_item'),
     path('delete/item/<uuid:uuid>/', items.item_soft_delete_view, name='delete_item'),
     path('restore/item/<uuid:uuid>/', items.item_restore_view, name='restore_item'),
