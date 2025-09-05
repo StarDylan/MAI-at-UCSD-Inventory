@@ -180,9 +180,9 @@
               </td>
               {% endif %}
             </tr>
-            {% if stock.notes and perms.inventory.view_internalstockingdetails %}
+            {% if stock.notes %}
             <tr>
-              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
+              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small" style="padding-left: 2rem; border-top: none;"><strong>Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
             </tr>
             {% endif %} {% endif %} {% endfor %}
           </tbody>

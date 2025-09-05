@@ -100,13 +100,14 @@ class StockItemForm(forms.ModelForm):
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date', 'value': date.today()}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 3}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
         self.fields['date_received'].initial = date.today()
+        self.fields['notes'].help_text = "Public Notes specific to this stock entry"
 
 
 class ItemWithStockForm(forms.Form):
@@ -137,29 +138,27 @@ class ItemWithStockForm(forms.Form):
         initial='item',
         widget=forms.RadioSelect,
         label="GTIN applies to",
-        help_text="Choose whether this GTIN identifies the entire item or just this specific variant"
     )
     
     detail = forms.CharField(
         max_length=255,
         required=False,
         label="Variant Detail (Optional)",
-        help_text="Additional details like size, color, variant, etc."
+        help_text="Additional details like size, color, variant, etc.",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Size L, Red, 16oz"}),
     )
     subcategory = forms.ModelChoiceField(
         queryset=models.Subcategory.objects.all(),
         label="Category"
     )
     url = forms.URLField(required=False, label="URL")
-    notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Notes")
-    notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Notes")
     
     # StockItem fields
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.all(),
         label="Received From Organization"
     )
-    quantity = forms.IntegerField(min_value=1, initial=1, label="Initial Quantity")
+    quantity = forms.IntegerField(min_value=1, initial=1, label=" Quantity")
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
@@ -171,11 +170,15 @@ class ItemWithStockForm(forms.Form):
         label="Expiration Date (optional for non-perishable items)"
     )
     lot_number = forms.CharField(max_length=100, required=False, label="Lot Number")
+    
     stock_notes = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 2}), 
+        widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}), 
         required=False, 
-        label="Stock Notes"
+        label="Stock Notes",
+        help_text="Public Notes specific to this stock entry",
     )
+    notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Notes", help_text="Notes visible to all users")
+    notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Notes", help_text="Notes visible only to MAI members")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -301,12 +304,13 @@ class StockItemEditForm(forms.ModelForm):
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date'}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 3}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+        self.fields['notes'].help_text = "Public Notes specific to this stock entry"
         
         # Disable GTIN field if the item has a GTIN
         if self.instance and self.instance.pk and self.instance.item.gtin:
@@ -366,9 +370,10 @@ class Search_QuantityAdd(forms.Form):
         label="Lot Number"
     )
     notes = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}), 
+        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'e.g. Received in good condition, slight box damage'}), 
         required=False, 
-        label="Notes"
+        label="Notes",
+        help_text="Public Notes specific to this stock entry"
     )
 
     def __init__(self, *args, **kwargs):
@@ -406,9 +411,10 @@ class StockItemCheckoutForm(forms.Form):
         help_text="JSON string of quantities for each stock item"
     )
     notes = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}), 
+        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'e.g. Received in good condition, slight box damage'}), 
         required=False, 
-        label="Checkout Notes"
+        label="Checkout Notes",
+        help_text="Public Notes specific to this checkout"
     )
     
     def __init__(self, item=None, *args, **kwargs):
