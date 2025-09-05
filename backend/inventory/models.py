@@ -71,7 +71,8 @@ class Item(models.Model):
         db_column="subcategory_id",
     )
 
-    name = models.CharField(max_length=255)    
+    name = models.CharField(max_length=255)
+    manufacturer = models.CharField(max_length=255, blank=True, default="", help_text="Product manufacturer or brand name")
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)

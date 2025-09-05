@@ -6,7 +6,7 @@ item creation, viewing, editing, deletion (soft delete), and restoration.
 Items are the core entities in the inventory system.
 """
 
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
 from django.urls import reverse_lazy
@@ -620,3 +620,29 @@ def stock_item_delete_view(request, uuid):
     stock_item.delete()
     
     return redirect('view_item', uuid=item_uuid)
+
+
+def manufacturer_autocomplete_api(request):
+    """
+    API endpoint to get list of manufacturers for autocomplete.
+    
+    Returns JSON list of distinct manufacturers from existing items
+    for use in autocomplete functionality.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        JsonResponse: JSON response with manufacturers list
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    # Get distinct manufacturers that are not empty, limited to active items
+    manufacturers = (models.Item.active_objects
+                    .exclude(manufacturer='')
+                    .values_list('manufacturer', flat=True)
+                    .distinct()
+                    .order_by('manufacturer'))
+    
+    return JsonResponse({'manufacturers': list(manufacturers)})

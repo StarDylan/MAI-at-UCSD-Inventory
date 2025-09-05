@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'manufacturer', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -108,6 +108,13 @@ class ItemWithStockForm(forms.Form):
     """Combined form for creating both Item and initial StockItem"""
     # Item fields
     name = forms.CharField(max_length=255, label="Item Name")
+    manufacturer = forms.CharField(
+        max_length=255, 
+        required=False, 
+        label="Manufacturer",
+        help_text="Product manufacturer or brand name",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Samsung, Apple, 3M'})
+    )
     subcategory = forms.ModelChoiceField(
         queryset=models.Subcategory.objects.all(),
         label="Category"
@@ -218,6 +225,7 @@ class ItemWithStockForm(forms.Form):
         selected_subcategory = data['subcategory']
         item = models.Item(
             name=data['name'],
+            manufacturer=data['manufacturer'],
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],
