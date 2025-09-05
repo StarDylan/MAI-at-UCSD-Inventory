@@ -143,7 +143,7 @@ class ItemWithStockForm(forms.Form):
     detail = forms.CharField(
         max_length=255,
         required=False,
-        label="Stock Detail (Optional)",
+        label="Variant Detail (Optional)",
         help_text="Additional details like size, color, variant, etc."
     )
     subcategory = forms.ModelChoiceField(

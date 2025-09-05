@@ -135,7 +135,9 @@
               <th>Origin Org</th>
               <th>Date Received</th>
               {% endif %}
+              {% if not item.gtin %}
               <th>GTIN</th>
+              {% endif %}
               <th>Lot Number</th>
               {% if perms.inventory.change_stockitem and not item.is_deleted %}
               <th>Actions</th>
@@ -159,6 +161,8 @@
                 <td>{{ stock.organization.name }}</td>
                 <td>{{ stock.date_received|date:"M d, Y" }}</td>
                 {% endif %}
+                
+                {% if not item.gtin %}
                 <td>
                   {% if stock.gtin %}
                     <span>{{ stock.gtin }}</span>
@@ -166,6 +170,7 @@
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
+                {% endif %}
               <td>{{ stock.lot_number|default:"-" }}</td>
               {% if perms.inventory.change_stockitem and not item.is_deleted%}
               <td>

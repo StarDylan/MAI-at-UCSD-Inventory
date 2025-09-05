@@ -23,7 +23,7 @@
   // Wait for DOM to be fully loaded
   document.addEventListener("DOMContentLoaded", function () {
     // Move the search results container right after the item name input
-    const itemNameInput = document.getElementById("id_name");
+    const itemNameInput = document.getElementById("id_gtin");
     const searchContainer = document.getElementById("search-results-container");
 
     if (itemNameInput && searchContainer) {
@@ -39,27 +39,57 @@
     }
   });
 
-  // Find the Item Name and GTIN inputs
+  // Find the Item Name, GTIN, and Manufacturer inputs
   const itemNameInput = document.getElementById("id_name");
   const gtinInput = document.getElementById("id_gtin");
+  const manufacturerInput = document.getElementById("id_manufacturer");
   const itemsList = document.getElementById("existing-items-list");
   const searchContainer = document.getElementById("search-results-container");
 
   let searchTimeout;
 
-  function renderList(matches) {
+  // Function to collect current search values and trigger search
+  function triggerSearch() {
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+
+    // Add delay before searching
+    searchTimeout = setTimeout(() => {
+      const searchParams = {};
+
+      if (itemNameInput && itemNameInput.value.trim()) {
+        searchParams.name = itemNameInput.value.trim();
+      }
+
+      if (gtinInput && gtinInput.value.trim()) {
+        searchParams.gtin = gtinInput.value.trim();
+      }
+
+      if (manufacturerInput && manufacturerInput.value.trim()) {
+        searchParams.manufacturer = manufacturerInput.value.trim();
+      }
+
+      searchItems(searchParams);
+    }, 300); // 300ms delay
+  }
+
+  function renderList(data) {
     itemsList.innerHTML = "";
-    if (matches.length === 0) {
+    if (!data.items || data.items.length === 0) {
       searchContainer.style.display = "none";
       return;
     }
-    matches.forEach((item) => {
+
+    data.items.forEach((item) => {
       const li = document.createElement("li");
       li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff;";
       li.setAttribute("data-id", item.id);
 
       // Build item display with GTINs if available
       let itemInfo = `<strong>${item.name}</strong>`;
+      if (item.manufacturer) {
+        itemInfo += ` <span style='color: #6c757d; font-size: 0.875rem;'>[${item.manufacturer}]</span>`;
+      }
       if (item.gtins && item.gtins.length > 0) {
         const gtinDisplay = item.gtins.slice(0, 2).join(", "); // Show first 2 GTINs
         const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : "";
@@ -72,21 +102,45 @@
       li.innerHTML = `<div>${itemInfo}</div><button style='padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #0d6efd; color: #0d6efd; background-color: transparent; border-radius: 0.25rem; cursor: pointer;' class='checkin-btn'>Check In</button>`;
       itemsList.appendChild(li);
     });
+
+    // Add "+X More" indicator if there are more results
+    if (data.has_more) {
+      const moreCount = data.total_count - data.items.length;
+      const moreLi = document.createElement("li");
+      moreLi.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #f8f9fa; text-align: center; color: #6c757d; font-style: italic;";
+      moreLi.textContent = `+${moreCount} more item${moreCount !== 1 ? "s" : ""} (${data.total_count} total)`;
+      itemsList.appendChild(moreLi);
+    }
+
     searchContainer.style.display = "";
   }
 
-  function searchItems(query) {
-    if (!query || query.length < 2) {
+  function searchItems(searchParams = {}) {
+    // Check if any search parameter has content
+    const hasValidSearch = Object.values(searchParams).some((value) => value && value.length >= 2);
+
+    if (!hasValidSearch) {
       searchContainer.style.display = "none";
       return;
     }
 
+    // Build query string from search parameters
+    const queryParams = new URLSearchParams();
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (value && value.trim()) {
+        queryParams.append(key, value.trim());
+      }
+    });
+
+    // Add limit parameter for top 5 results
+    queryParams.append("limit", "5");
+
     // Fetch search results from API
-    fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
+    fetch(`/api/items/search/?${queryParams.toString()}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.items) {
-          renderList(data.items);
+          renderList(data);
         } else {
           searchContainer.style.display = "none";
         }
@@ -97,31 +151,17 @@
       });
   }
 
-  itemNameInput.addEventListener("input", function () {
-    const query = this.value.trim();
+  // Add event listeners for search inputs
+  if (itemNameInput) {
+    itemNameInput.addEventListener("input", triggerSearch);
+  }
 
-    // Clear previous timeout
-    clearTimeout(searchTimeout);
-
-    // Add delay before searching
-    searchTimeout = setTimeout(() => {
-      searchItems(query);
-    }, 300); // 300ms delay
-  });
-
-  // Add GTIN input listener if GTIN field exists
   if (gtinInput) {
-    gtinInput.addEventListener("input", function () {
-      const query = this.value.trim();
+    gtinInput.addEventListener("input", triggerSearch);
+  }
 
-      // Clear previous timeout
-      clearTimeout(searchTimeout);
-
-      // Add delay before searching
-      searchTimeout = setTimeout(() => {
-        searchItems(query);
-      }, 300); // 300ms delay
-    });
+  if (manufacturerInput) {
+    manufacturerInput.addEventListener("input", triggerSearch);
   }
 
   itemsList.addEventListener("click", function (e) {
@@ -212,10 +252,13 @@
         // Clear previous timeout
         clearTimeout(manufacturerTimeout);
 
-        // Add delay before searching
+        // Add delay before searching manufacturers
         manufacturerTimeout = setTimeout(() => {
           searchManufacturers(query);
-        }, 200); // 200ms delay
+        }, 200); // 200ms delay for manufacturer suggestions
+
+        // Also trigger main search
+        triggerSearch();
       });
 
       // Hide suggestions when clicking outside
