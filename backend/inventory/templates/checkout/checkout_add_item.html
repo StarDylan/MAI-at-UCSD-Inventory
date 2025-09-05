@@ -1,0 +1,258 @@
+{% extends "shared/base.html" %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Add Items to Checkout</h2>
+  <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Checkout
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h6 class="mb-0">
+      <i class="fas fa-shopping-cart"></i>
+      Adding to: {{ checkout.organization.name }}
+    </h6>
+  </div>
+  <div class="card-body">
+    <p class="mb-0 text-muted">
+      Created {{ checkout.created_at|date:"M d, Y H:i" }} by {{ checkout.created_by.get_full_name|default:checkout.created_by.username }}
+    </p>
+  </div>
+</div>
+
+<!-- Search for Items -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Find Items to Add</h5>
+  </div>
+  <div class="card-body">
+    <div class="mb-3">
+      <input type="text" id="itemSearch" class="form-control" placeholder="Search for items..." autocomplete="off">
+    </div>
+    
+    <div id="searchResults" class="d-none">
+      <h6>Search Results:</h6>
+      <div id="itemsList" class="row">
+        <!-- Search results will be populated here -->
+      </div>
+    </div>
+    
+    <div id="noSearchYet" class="text-center py-4">
+      <i class="fas fa-search fa-2x text-muted mb-3"></i>
+      <h5 class="text-muted">Search for Items</h5>
+      <p class="text-muted">Start typing to find items to add to the checkout.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addItemModalLabel">Add Item to Checkout</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modalItemInfo" class="mb-3">
+          <!-- Item info will be populated here -->
+        </div>
+        
+        <form id="addItemForm">
+          {% csrf_token %}
+          <input type="hidden" id="selectedStockItem" name="stock_item_id">
+          
+          <div class="mb-3">
+            <label for="stockItemSelect" class="form-label">Stock Item</label>
+            <select id="stockItemSelect" name="stock_item_id" class="form-select" required>
+              <option value="">Select stock item...</option>
+            </select>
+            <div class="form-text">Choose which specific stock to take from</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="quantityInput" class="form-label">Quantity</label>
+            <input type="number" id="quantityInput" name="quantity" class="form-control" min="1" required>
+            <div class="form-text" id="quantityHelp">Available quantity will be shown here</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="costInput" class="form-label">Cost per Item (optional)</label>
+            <input type="number" id="costInput" name="cost_per_item" class="form-control" step="0.01" min="0">
+            <div class="form-text">Leave blank if cost is not known</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="notesInput" class="form-label">Notes (optional)</label>
+            <textarea id="notesInput" name="notes" class="form-control" rows="2" placeholder="Any additional notes for this line item..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmAddItem">Add to Checkout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemSearch = document.getElementById('itemSearch');
+    const searchResults = document.getElementById('searchResults');
+    const itemsList = document.getElementById('itemsList');
+    const noSearchYet = document.getElementById('noSearchYet');
+    const addItemModal = new bootstrap.Modal(document.getElementById('addItemModal'));
+    const stockItemSelect = document.getElementById('stockItemSelect');
+    const quantityInput = document.getElementById('quantityInput');
+    const quantityHelp = document.getElementById('quantityHelp');
+    
+    let searchTimeout;
+    let currentItem = null;
+    
+    // Search for items
+    itemSearch.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            searchResults.classList.add('d-none');
+            noSearchYet.classList.remove('d-none');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySearchResults(data.items || []);
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                });
+        }, 300);
+    });
+    
+    // Display search results
+    function displaySearchResults(items) {
+        noSearchYet.classList.add('d-none');
+        
+        if (items.length === 0) {
+            itemsList.innerHTML = '<div class="col-12"><p class="text-muted">No items found</p></div>';
+        } else {
+            itemsList.innerHTML = items.map(item => `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">${item.name}</h6>
+                            ${item.manufacturer ? `<p class="text-muted small mb-2">${item.manufacturer}</p>` : ''}
+                            <p class="small mb-2">
+                                <strong>${item.total_stock_quantity}</strong> total available
+                            </p>
+                            <button class="btn btn-primary btn-sm" onclick="selectItem('${item.id}', '${item.name}')">
+                                Add to Checkout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        searchResults.classList.remove('d-none');
+    }
+    
+    // Select an item to add
+    window.selectItem = function(itemId, itemName) {
+        currentItem = { id: itemId, name: itemName };
+        
+        // Update modal title and info
+        document.getElementById('addItemModalLabel').textContent = `Add ${itemName} to Checkout`;
+        document.getElementById('modalItemInfo').innerHTML = `
+            <div class="alert alert-info">
+                <strong>Item:</strong> ${itemName}<br>
+                <strong>Checkout:</strong> {{ checkout.organization.name }}
+            </div>
+        `;
+        
+        // Load stock items for this item
+        fetch(`/api/items/${itemId}/stock-items/`)
+            .then(response => response.json())
+            .then(data => {
+                stockItemSelect.innerHTML = '<option value="">Select stock item...</option>';
+                data.stock_items.forEach(stockItem => {
+                    stockItemSelect.innerHTML += `
+                        <option value="${stockItem.id}" 
+                                data-quantity="${stockItem.quantity}"
+                                data-location="${stockItem.location}"
+                                data-organization="${stockItem.organization}">
+                            ${stockItem.display_name}
+                        </option>
+                    `;
+                });
+            })
+            .catch(error => {
+                console.error('Error loading stock items:', error);
+            });
+        
+        // Reset form
+        document.getElementById('addItemForm').reset();
+        quantityInput.value = '';
+        quantityHelp.textContent = 'Available quantity will be shown here';
+        
+        addItemModal.show();
+    };
+    
+    // Update quantity limits when stock item changes
+    stockItemSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            const maxQuantity = selectedOption.dataset.quantity;
+            quantityInput.max = maxQuantity;
+            quantityInput.value = Math.min(1, maxQuantity);
+            quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
+        } else {
+            quantityInput.max = '';
+            quantityInput.value = '';
+            quantityHelp.textContent = 'Available quantity will be shown here';
+        }
+    });
+    
+    // Add item to checkout
+    document.getElementById('confirmAddItem').addEventListener('click', function() {
+        const formData = new FormData(document.getElementById('addItemForm'));
+        formData.set('stock_item_id', stockItemSelect.value);
+        
+        if (!stockItemSelect.value || !quantityInput.value) {
+            alert('Please select a stock item and enter quantity');
+            return;
+        }
+        
+        fetch('{% url "checkout_add_item" checkout.id %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                addItemModal.hide();
+                // Show success message and optionally redirect or refresh
+                alert(data.message);
+                window.location.href = '{% url "checkout_detail" checkout.id %}';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error adding item:', error);
+            alert('An error occurred while adding the item');
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -19,6 +19,11 @@
       <li class="nav-item">
         <a class="nav-item nav-link" href="{% url 'view_all_items' %}">Search database</a>
       </li>
+      {% if perms.inventory.change_item %}
+      <li class="nav-item">
+        <a class="nav-item nav-link" href="{% url 'bulk_checkout_list' %}">Bulk Checkout</a>
+      </li>
+      {% endif %}
       {% if perms.inventory.view_organization %}
       <li class="nav-item">
         <a class="nav-item nav-link" href="{% url 'organization_list' %}">Organizations</a>

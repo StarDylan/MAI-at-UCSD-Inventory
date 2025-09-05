@@ -12,6 +12,7 @@ from django.conf.urls.static import static
 from inventory.views import (
     audit,
     auth,
+    bulk_checkout,
     categories,
     checkout,
     dashboard,
@@ -69,6 +70,7 @@ urlpatterns = [
     path('api/manufacturers/autocomplete/', items.manufacturer_autocomplete_api, name='manufacturer_autocomplete_api'),
     path('api/stock-locations/autocomplete/', items.stock_location_autocomplete_api, name='stock_location_autocomplete_api'),
     path('api/items/search/', items.items_search_api, name='items_search_api'),
+    path('api/items/<uuid:item_uuid>/stock-items/', bulk_checkout.get_stock_items_api, name='get_stock_items_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
@@ -78,8 +80,20 @@ urlpatterns = [
     # Search and Quantity Management
     path('search/check_in/', search.SearchCheckInView.as_view(), name='search_check_in'),
     path('search/check_in/<uuid:item_uuid>/', search.SearchCheckInView.as_view(), name='search_check_in_item'),
+    
+    # Checkout Management (single item)
     path('checkout/<uuid:item_uuid>/', checkout.checkout_item_select, name='checkout_item_select'),
     path('checkout/<uuid:item_uuid>/process/', checkout.checkout_item_process, name='checkout_item_process'),
+    
+    # Bulk Checkout System
+    path('bulk-checkout/', bulk_checkout.BulkCheckoutListView.as_view(), name='bulk_checkout_list'),
+    path('bulk-checkout/create/', bulk_checkout.checkout_create_view, name='checkout_create'),
+    path('bulk-checkout/<uuid:checkout_id>/', bulk_checkout.checkout_detail_view, name='checkout_detail'),
+    path('bulk-checkout/<uuid:checkout_id>/add-item/', bulk_checkout.checkout_add_item_view, name='checkout_add_item'),
+    path('bulk-checkout/<uuid:checkout_id>/remove-item/<uuid:item_id>/', bulk_checkout.checkout_remove_item_view, name='checkout_remove_item'),
+    path('bulk-checkout/<uuid:checkout_id>/complete/', bulk_checkout.checkout_complete_view, name='checkout_complete'),
+    path('bulk-checkout/<uuid:checkout_id>/undo/', bulk_checkout.checkout_undo_view, name='checkout_undo'),
+    path('item/<uuid:item_uuid>/add-to-checkout/', bulk_checkout.add_to_checkout_from_item_view, name='add_to_checkout_from_item'),
     
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),

@@ -1,0 +1,124 @@
+{% extends "shared/base.html" %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Add to Checkout</h2>
+  <a href="{% url 'view_item' item.id %}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to {{ item.name }}
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Add {{ item.name }} to Checkout</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          
+          <div class="mb-3">
+            <label for="{{ form.checkout.id_for_label }}" class="form-label">
+              {{ form.checkout.label }} <span class="text-danger">*</span>
+            </label>
+            {{ form.checkout }}
+            {% if form.checkout.help_text %}
+              <div class="form-text">{{ form.checkout.help_text }}</div>
+            {% endif %}
+            {% if form.checkout.errors %}
+              <div class="invalid-feedback d-block">
+                {{ form.checkout.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="mb-3">
+            <label for="{{ form.stock_item.id_for_label }}" class="form-label">
+              {{ form.stock_item.label }} <span class="text-danger">*</span>
+            </label>
+            {{ form.stock_item }}
+            {% if form.stock_item.help_text %}
+              <div class="form-text">{{ form.stock_item.help_text }}</div>
+            {% endif %}
+            {% if form.stock_item.errors %}
+              <div class="invalid-feedback d-block">
+                {{ form.stock_item.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="mb-3">
+            <label for="{{ form.quantity.id_for_label }}" class="form-label">
+              {{ form.quantity.label }} <span class="text-danger">*</span>
+            </label>
+            {{ form.quantity }}
+            {% if form.quantity.help_text %}
+              <div class="form-text">{{ form.quantity.help_text }}</div>
+            {% endif %}
+            {% if form.quantity.errors %}
+              <div class="invalid-feedback d-block">
+                {{ form.quantity.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="mb-3">
+            <label for="{{ form.cost_per_item.id_for_label }}" class="form-label">
+              {{ form.cost_per_item.label }}
+            </label>
+            {{ form.cost_per_item }}
+            {% if form.cost_per_item.help_text %}
+              <div class="form-text">{{ form.cost_per_item.help_text }}</div>
+            {% endif %}
+            {% if form.cost_per_item.errors %}
+              <div class="invalid-feedback d-block">
+                {{ form.cost_per_item.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-plus"></i> Add to Checkout
+            </button>
+            <a href="{% url 'view_item' item.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Item Information</h6>
+      </div>
+      <div class="card-body">
+        <p><strong>Item:</strong> {{ item.name }}</p>
+        {% if item.manufacturer %}
+          <p><strong>Manufacturer:</strong> {{ item.manufacturer }}</p>
+        {% endif %}
+        <p><strong>Total Available:</strong> {{ item.total_stock_quantity }} units</p>
+        {% if item.aggregated_locations %}
+          <p><strong>Locations:</strong> {{ item.aggregated_locations }}</p>
+        {% endif %}
+      </div>
+    </div>
+    
+    {% if not form.checkout.queryset %}
+      <div class="card mt-3">
+        <div class="card-body">
+          <h6 class="text-warning">
+            <i class="fas fa-exclamation-triangle"></i> No Active Checkouts
+          </h6>
+          <p class="small mb-2">There are no active checkouts to add items to.</p>
+          <a href="{% url 'checkout_create' %}" class="btn btn-primary btn-sm">
+            Create New Checkout
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

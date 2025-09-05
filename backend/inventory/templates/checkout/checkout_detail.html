@@ -1,0 +1,211 @@
+{% extends "shared/base.html" %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2>
+      {% if checkout.is_completed %}
+        <i class="fas fa-check-circle text-success"></i>
+      {% else %}
+        <i class="fas fa-shopping-cart text-primary"></i>
+      {% endif %}
+      Checkout for {{ checkout.organization.name }}
+    </h2>
+    <p class="text-muted mb-0">
+      Created by {{ checkout.created_by.get_full_name|default:checkout.created_by.username }} 
+      on {{ checkout.created_at|date:"M d, Y H:i" }}
+      {% if checkout.is_completed %}
+        <br>Completed by {{ checkout.completed_by.get_full_name|default:checkout.completed_by.username }} 
+        on {{ checkout.completed_at|date:"M d, Y H:i" }}
+      {% endif %}
+    </p>
+  </div>
+  <div>
+    <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Checkouts
+    </a>
+    {% if not checkout.is_completed %}
+      <a href="{% url 'checkout_add_item' checkout.id %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Items
+      </a>
+      {% if checkout_items %}
+        <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success">
+          <i class="fas fa-check"></i> Complete Checkout
+        </a>
+      {% endif %}
+    {% else %}
+      <a href="{% url 'checkout_undo' checkout.id %}" 
+         class="btn btn-warning"
+         onclick="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.')">
+        <i class="fas fa-undo"></i> Undo Checkout
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Checkout Summary -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h4 class="text-primary">{{ checkout.total_items_count }}</h4>
+        <small class="text-muted">Total Items</small>
+      </div>
+    </div>
+  </div>
+  {% if checkout.total_weight %}
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h4 class="text-info">{{ checkout.total_weight }} kg</h4>
+          <small class="text-muted">Total Weight</small>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  {% if checkout.total_cost %}
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h4 class="text-success">${{ checkout.total_cost|floatformat:2 }}</h4>
+          <small class="text-muted">Total Cost</small>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h6 class="{% if checkout.is_completed %}text-success{% else %}text-warning{% endif %}">
+          {% if checkout.is_completed %}
+            <i class="fas fa-check-circle"></i> Completed
+          {% else %}
+            <i class="fas fa-clock"></i> Active
+          {% endif %}
+        </h6>
+        <small class="text-muted">Status</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notes -->
+{% if checkout.notes %}
+  <div class="card mb-4">
+    <div class="card-header">
+      <h6 class="mb-0">Notes</h6>
+    </div>
+    <div class="card-body">
+      <p class="mb-0">{{ checkout.notes|linebreaks }}</p>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Checkout Items -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Items in Checkout</h5>
+    {% if not checkout.is_completed and checkout_items %}
+      <span class="badge bg-primary">{{ checkout_items|length }} item{{ checkout_items|length|pluralize }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if checkout_items %}
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Detail</th>
+              <th>From Location</th>
+              <th>Quantity</th>
+              <th>Cost per Item</th>
+              <th>Total Cost</th>
+              {% if not checkout.is_completed %}
+                <th>Actions</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in checkout_items %}
+              <tr>
+                <td>
+                  <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none">
+                    {{ item.stock_item.item.name }}
+                  </a>
+                  {% if item.stock_item.item.manufacturer %}
+                    <br><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.stock_item.detail %}
+                    {{ item.stock_item.detail }}
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {{ item.stock_item.location }}
+                  <br><small class="text-muted">{{ item.stock_item.organization.name }}</small>
+                </td>
+                <td>
+                  <strong>{{ item.quantity }}</strong>
+                  {% if item.stock_item.expiration_date %}
+                    <br><small class="text-muted">Exp: {{ item.stock_item.expiration_date|date:"M d, Y" }}</small>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.cost_per_item %}
+                    ${{ item.cost_per_item|floatformat:2 }}
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.total_cost %}
+                    <strong>${{ item.total_cost|floatformat:2 }}</strong>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                {% if not checkout.is_completed %}
+                  <td>
+                    <form method="post" action="{% url 'checkout_remove_item' checkout.id item.id %}" 
+                          style="display: inline;"
+                          onsubmit="return confirm('Remove this item from the checkout?')">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                {% endif %}
+              </tr>
+              {% if item.notes %}
+                <tr>
+                  <td colspan="{% if checkout.is_completed %}6{% else %}7{% endif %}" class="border-top-0 pt-0">
+                    <small class="text-muted">
+                      <i class="fas fa-sticky-note"></i> {{ item.notes }}
+                    </small>
+                  </td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center py-4">
+        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No items in checkout</h5>
+        <p class="text-muted">Add some items to get started.</p>
+        {% if not checkout.is_completed %}
+          <a href="{% url 'checkout_add_item' checkout.id %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Items
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
