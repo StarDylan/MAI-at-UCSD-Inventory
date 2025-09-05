@@ -48,6 +48,7 @@ class Command(BaseCommand):
             Permission.objects.get(codename='view_stockitem', content_type=stockitem_ct),
             Permission.objects.get(codename='add_stockitem', content_type=stockitem_ct),
             Permission.objects.get(codename='change_stockitem', content_type=stockitem_ct),
+            Permission.objects.get(codename='delete_stockitem', content_type=stockitem_ct),
 
         ]
 

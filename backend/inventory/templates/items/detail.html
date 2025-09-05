@@ -59,40 +59,19 @@
   </style>
 
   <div class="list-group mt-3">
-    {% if perms.inventory.view_advancedpropertiesitem %}
-    <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Item ID</span>
-      <span class="flex-fill text-right"><code>{{ item.id }}</code></span>
-    </div>
 
+    {% if item.is_deleted %}
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Category ID</span>
-      <span class="flex-fill text-right"><code>{{ item.category.id }}</code></span>
-    </div>
-
-    <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">code</i> Subcategory ID</span>
-      <span class="flex-fill text-right"><code>{{ item.subcategory.id }}</code></span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">visibility</i> Item Status</span>
+      <span class="flex-fill text-right">
+        <div style="color: red">Deleted</div>
+      </span>
     </div>
     {% endif %}
 
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">visibility</i> Item Status</span>
-      <span class="flex-fill text-right">
-        {% if item.is_deleted %}
-        <div style="color: red">Deleted</div>
-        {% else %} Active {% endif %}
-      </span>
-    </div>
-
-    <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
       <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
-    </div>
-
-    <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">title</i> Item Name</span>
-      <span class="flex-fill text-right">{{ item.name }}</span>
     </div>
 
     <div class="d-flex list-group-item flex-row">
@@ -125,13 +104,17 @@
         <table class="table table-sm table-hover">
           <thead>
             <tr>
-              <th>Origin Org</th>
+              <th>Detail</th>
               <th>Quantity</th>
-              <th>Location</th>
-              <th>Date Received</th>
               <th>Expiration Date</th>
+            {% if perms.inventory.view_internalstockingdetails %}
+              <th>Location</th>
+              <th>Origin Org</th>
+              <th>Date Received</th>
+              {% endif %}
+              <th>GTIN</th>
               <th>Lot Number</th>
-              {% if perms.inventory.view_internalstockingdetails %}
+              {% if perms.inventory.change_stockitem and not item.is_deleted %}
               <th>Actions</th>
               {% endif %}
             </tr>
@@ -139,29 +122,40 @@
           <tbody>
             {% for stock in stock_items %} {% if stock.quantity > 0 %}
             <tr {% if stock.is_expired %}class="table-danger" {% endif %}>
-              <td>{{ stock.organization.name }}</td>
+              <td>{{ stock.detail|default:"-" }}</td>
               <td>{{ stock.quantity }}</td>
-              <td>{{ stock.location|default:"-" }}</td>
-              <td>{{ stock.date_received|date:"M d, Y" }}</td>
               <td>
-                {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
-                <span class="badge badge-danger">Expired</span>
-                {% endif %} {% else %}
-                <span class="text-muted">No expiration</span>
+                  {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
+                  <span class="badge badge-danger">Expired</span>
+                  {% endif %} {% else %}
+                  <span class="text-muted">No expiration</span>
+                  {% endif %}
+            </td>
+            {% if perms.inventory.view_internalstockingdetails %}
+              <td>{{ stock.location|default:"-" }}</td>
+                <td>{{ stock.organization.name }}</td>
+                <td>{{ stock.date_received|date:"M d, Y" }}</td>
                 {% endif %}
-              </td>
+                <td>
+                  {% if stock.gtin %}
+                    <span>{{ stock.gtin }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
               <td>{{ stock.lot_number|default:"-" }}</td>
-              {% if perms.inventory.view_internalstockingdetails %}
+              {% if perms.inventory.change_stockitem and not item.is_deleted%}
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                {% if perms.inventory.delete_stockitem %}
+                <button onclick="confirmStockDelete('{{ stock.id }}','{{ stock.item.name }}','{{ stock.detail|default:"" }}','{{ stock.location }}')" class="btn btn-sm btn-outline-danger">Delete</button>
+                {% endif %}
               </td>
               {% endif %}
             </tr>
             {% if stock.notes and perms.inventory.view_internalstockingdetails %}
             <tr>
-              <td colspan="{% if perms.inventory.view_internalstockingdetails %}8{% else %}7{% endif %}" class="text-muted small">
-                <strong>Private Stock Notes:</strong> {{ stock.notes|linebreaksbr }}
-              </td>
+              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
             </tr>
             {% endif %} {% endif %} {% endfor %}
           </tbody>
@@ -304,6 +298,13 @@
       window.location.href = "{% url 'restore_item' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
     }
   }
+  function confirmStockDelete(id, itemName, detail, location) {
+    var stockDescription = detail ? itemName + " (" + detail + ")" : itemName;
+    stockDescription += " from " + location;
+    if (confirm("Are you sure you want to delete this stock item?\n\n" + stockDescription + "\n\nThis action cannot be undone.")) {
+      window.location.href = "{% url 'delete_stock_item' '00000000-0000-0000-0000-000000000000' %}".replace("00000000-0000-0000-0000-000000000000", id);
+    }
+  }
 </script>
 
 <script>
@@ -380,6 +381,9 @@
 
 <script>
   window.onload = function () {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+
     $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
     $("#audit_table").DataTable({
       lengthMenu: [

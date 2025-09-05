@@ -39,8 +39,9 @@
     }
   });
 
-  // Find the Item Name input (assuming crispy forms renders it with id 'id_name')
+  // Find the Item Name and GTIN inputs
   const itemNameInput = document.getElementById("id_name");
+  const gtinInput = document.getElementById("id_gtin");
   const itemsList = document.getElementById("existing-items-list");
   const searchContainer = document.getElementById("search-results-container");
   const allItems = JSON.parse(document.getElementById("all-items-json").textContent);
@@ -57,32 +58,66 @@
       const li = document.createElement("li");
       li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff;";
       li.setAttribute("data-id", item.id);
-      li.innerHTML =
-        `<div><strong>${item.name}</strong> ` +
-        (item.category__name ? `<span style='color: #6c757d;'>${item.category__name} > ${item.subcategory__name}</span> ` : "") +
-        `</div><button style='padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #0d6efd; color: #0d6efd; background-color: transparent; border-radius: 0.25rem; cursor: pointer;' class='checkin-btn'>Check In</button>`;
+
+      // Build item display with GTINs if available
+      let itemInfo = `<strong>${item.name}</strong>`;
+      if (item.gtins && item.gtins.length > 0) {
+        const gtinDisplay = item.gtins.slice(0, 2).join(', '); // Show first 2 GTINs
+        const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : '';
+        itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTINs: ${gtinDisplay}${moreText}]</span>`;
+      }
+      if (item.category__name) {
+        itemInfo += ` <span style='color: #6c757d;'>${item.category__name} > ${item.subcategory__name}</span>`;
+      }
+
+      li.innerHTML = `<div>${itemInfo}</div><button style='padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #0d6efd; color: #0d6efd; background-color: transparent; border-radius: 0.25rem; cursor: pointer;' class='checkin-btn'>Check In</button>`;
       itemsList.appendChild(li);
     });
     searchContainer.style.display = "";
   }
 
-  itemNameInput.addEventListener("input", function () {
-    const query = this.value.trim().toLowerCase();
-
-    // Clear previous timeout
-    clearTimeout(searchTimeout);
-
+  function searchItems(query) {
     if (!query) {
       searchContainer.style.display = "none";
       return;
     }
 
+    const matches = allItems.filter((item) => {
+      // Search by name or GTINs
+      const nameMatch = item.name.toLowerCase().includes(query.toLowerCase());
+      const gtinMatch = item.gtins && item.gtins.some(gtin => gtin.includes(query));
+      return nameMatch || gtinMatch;
+    });
+
+    renderList(matches);
+  }
+
+  itemNameInput.addEventListener("input", function () {
+    const query = this.value.trim();
+
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+
     // Add delay before searching
     searchTimeout = setTimeout(() => {
-      const matches = allItems.filter((item) => item.name.toLowerCase().includes(query));
-      renderList(matches);
+      searchItems(query);
     }, 300); // 300ms delay
   });
+
+  // Add GTIN input listener if GTIN field exists
+  if (gtinInput) {
+    gtinInput.addEventListener("input", function () {
+      const query = this.value.trim();
+
+      // Clear previous timeout
+      clearTimeout(searchTimeout);
+
+      // Add delay before searching
+      searchTimeout = setTimeout(() => {
+        searchItems(query);
+      }, 300); // 300ms delay
+    });
+  }
 
   itemsList.addEventListener("click", function (e) {
     if (e.target.classList.contains("checkin-btn")) {

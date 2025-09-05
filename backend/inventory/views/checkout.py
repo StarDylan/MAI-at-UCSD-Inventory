@@ -22,7 +22,7 @@ def checkout_item_select(request, item_uuid):
     View for selecting which stock items to check out from a specific item.
     """
     item = get_object_or_404(Item, id=item_uuid)
-    stock_items = item.stock_items.filter(quantity__gt=0).order_by('expiration_date', 'date_received')
+    stock_items = item.stock_items.filter(quantity__gt=0).order_by('detail', 'expiration_date', 'date_received')
     
     context = {
         'item': item,

@@ -201,7 +201,7 @@ def view_item_detail(request, uuid):
 
     # Fetch related images, stock items, and audit events
     images = item.images.all().order_by('id')
-    stock_items = item.stock_items.select_related('organization').order_by('expiration_date', 'date_received')
+    stock_items = item.stock_items.select_related('organization').order_by('detail', 'expiration_date', 'date_received')
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))
@@ -445,6 +445,35 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         
         # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
+
+    def form_invalid(self, form):
+        """
+        Handle form validation errors, with special handling for GTIN duplicates.
+        
+        If the form has a GTIN duplicate error, redirect to check-in for the existing item.
+        Otherwise, show the form with validation errors.
+        
+        Args:
+            form: Invalid ItemWithStockForm instance
+            
+        Returns:
+            HttpResponseRedirect: Redirect to check-in view if GTIN duplicate
+            HttpResponse: Rendered form with errors otherwise
+        """
+        # Check if there's a GTIN duplicate error
+        gtin_errors = form.errors.get('gtin', [])
+        for error in gtin_errors:
+            if hasattr(error, 'code') and error.code == 'duplicate_gtin':
+                # Find the existing stock item with this GTIN
+                gtin = form.cleaned_data.get('gtin', '').strip()
+                if gtin:
+                    existing_stock_item = models.StockItem.objects.filter(gtin=gtin).first()
+                    if existing_stock_item:
+                        # Redirect to check-in view for the existing item
+                        return redirect('search_check_in_item', item_uuid=existing_stock_item.item.id)
+        
+        # Fall back to default form_invalid behavior
+        return super().form_invalid(form)
     
     def get_form_kwargs(self):
         """
@@ -476,16 +505,22 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             )
         ).values('id', 'name', 'category__name', 'subcategory__name', 'total_stock_quantity')
         
-        items_list = [
-            {
+        items_list = []
+        for item in items_qs:
+            # Get all GTINs from stock items for this item
+            stock_gtins = models.StockItem.objects.filter(
+                item_id=item['id'], 
+                gtin__gt=''
+            ).values_list('gtin', flat=True).distinct()
+            
+            items_list.append({
                 'id': str(item['id']),
                 'name': item['name'],
+                'gtins': list(stock_gtins),  # List of GTINs from stock items
                 'category__name': item['category__name'],
                 'subcategory__name': item['subcategory__name'],
                 'total_stock_quantity': item['total_stock_quantity'] or 0,
-            }
-            for item in items_qs
-        ]
+            })
         context['all_items_json'] = json.dumps(items_list)
         return context
 
@@ -546,3 +581,42 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
             str: URL to the item's detail view
         """
         return reverse_lazy('view_item', kwargs={'uuid': self.object.item.pk})
+
+
+@login_required
+@permission_required('inventory.delete_stockitem', raise_exception=True)
+def stock_item_delete_view(request, uuid):
+    """
+    Delete a stock item.
+    
+    Completely removes the stock item from the database.
+    
+    Args:
+        request: HTTP request object
+        uuid: UUID of the stock item to delete
+        
+    Returns:
+        HttpResponseRedirect: Redirect to item detail view after deletion
+        
+    Raises:
+        Http404: If stock item with given UUID doesn't exist
+        PermissionDenied: If user doesn't have delete_stockitem permission
+    """
+    stock_item = get_object_or_404(StockItem, id=uuid)
+    item_uuid = stock_item.item.pk
+    
+    # Log the state before deletion
+    before_state = audit_log_state(stock_item)
+    
+    # Log the deletion event
+    audit_log_event(
+        request.user, 
+        f"Deleted stock item for \"{stock_item.item.name}\" - {stock_item.quantity} units from {stock_item.location}", 
+        before_state, 
+        audit_log_state(None)
+    )
+    
+    # Perform deletion
+    stock_item.delete()
+    
+    return redirect('view_item', uuid=item_uuid)
