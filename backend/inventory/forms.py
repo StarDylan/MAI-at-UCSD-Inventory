@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'manufacturer', 'gtin', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'manufacturer', 'gtin', 'items_per_box', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,6 +158,13 @@ class ItemWithStockForm(forms.Form):
         label="Received From Organization"
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label=" Quantity")
+    items_per_box = forms.IntegerField(
+        min_value=1,
+        required=False,
+        label="Items Per Box (Optional)",
+        help_text="Number of individual items in a single box/package",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
+    )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
@@ -267,6 +274,7 @@ class ItemWithStockForm(forms.Form):
             name=data['name'],
             manufacturer=data['manufacturer'],
             gtin=item_gtin,
+            items_per_box=data.get('items_per_box'),
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],

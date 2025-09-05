@@ -22,13 +22,16 @@
             <tr>
               <th>Select</th>
               <th>Detail</th>
-              <th>GTIN</th>
-              <th>Origin Org</th>
               <th>Stock Location</th>
+              {% endif %} {% if not item.gtin %}
+              <th>GTIN</th>
+              {% endif %}
               <th>Available</th>
               <th>Expiration</th>
               <th>Lot Number</th>
               <th>Quantity to Take</th>
+              {% if item.items_per_box %}
+              <th>Boxes</th>
             </tr>
           </thead>
           <tbody>
@@ -38,6 +41,8 @@
                 <input type="checkbox" name="stock_items" value="{{ stock.id }}" class="stock-checkbox" data-max="{{ stock.quantity }}" />
               </td>
               <td>{{ stock.detail|default:"-" }}</td>
+              <td>{{ stock.location }}</td>
+              {% if not item.gtin %}
               <td>
                 {% if stock.gtin %}
                 <span class="font-weight-bold text-success">{{ stock.gtin }}</span>
@@ -45,8 +50,7 @@
                 <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td>{{ stock.organization.name }}</td>
-              <td>{{ stock.location }}</td>
+              {% endif %}
               <td>{{ stock.quantity }}</td>
               <td>
                 {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
@@ -66,8 +70,24 @@
                   class="form-control form-control-sm quantity-input"
                   disabled
                   style="width: 80px"
+                  data-stock-id="{{ stock.id }}"
                 />
               </td>
+              {% if item.items_per_box %}
+              <td>
+                <input
+                  type="number"
+                  name="boxes_{{ stock.id }}"
+                  min="0"
+                  step="0.1"
+                  value="0"
+                  class="form-control form-control-sm boxes-input"
+                  disabled
+                  style="width: 80px"
+                  data-stock-id="{{ stock.id }}"
+                />
+              </td>
+              {% endif %}
             </tr>
             {% if stock.notes %}
             <tr>
@@ -84,7 +104,11 @@
       </div>
 
       <div class="mt-3">
-        <p><strong>Total Selected:</strong> <span id="total-quantity">0</span> units</p>
+        <p>
+          <strong>Total Selected:</strong> <span id="total-quantity">0</span> units {% if item.items_per_box %}
+          <small class="text-muted" id="box-calculation"></small>
+          {% endif %}
+        </p>
       </div>
 
       {% else %}
@@ -103,8 +127,39 @@
   document.addEventListener("DOMContentLoaded", function () {
     const checkboxes = document.querySelectorAll(".stock-checkbox");
     const quantityInputs = document.querySelectorAll(".quantity-input");
+    const boxesInputs = document.querySelectorAll(".boxes-input");
     const totalQuantitySpan = document.getElementById("total-quantity");
     const checkoutBtn = document.getElementById("checkout-btn");
+    const boxCalculationSpan = document.getElementById("box-calculation");
+    const itemsPerBox = {{ item.items_per_box|default:"null" }};
+
+    // Track which field is being updated to prevent infinite loops
+    let updatingField = null;
+
+    function updateBoxesFromQuantity(stockId, quantity) {
+      if (itemsPerBox && updatingField !== 'boxes') {
+        updatingField = 'quantity';
+        const boxesInput = document.querySelector(`input[name="boxes_${stockId}"]`);
+        if (boxesInput) {
+          const boxes = quantity / itemsPerBox;
+          boxesInput.value = boxes.toFixed(1);
+        }
+        updatingField = null;
+      }
+    }
+
+    function updateQuantityFromBoxes(stockId, boxes) {
+      if (itemsPerBox && updatingField !== 'quantity') {
+        updatingField = 'boxes';
+        const quantityInput = document.querySelector(`input[name="quantity_${stockId}"]`);
+        if (quantityInput) {
+          const quantity = Math.round(boxes * itemsPerBox);
+          const maxQuantity = parseInt(quantityInput.getAttribute('max'));
+          quantityInput.value = Math.min(quantity, maxQuantity);
+        }
+        updatingField = null;
+      }
+    }
 
     function updateTotal() {
       let total = 0;
@@ -112,26 +167,73 @@
 
       checkboxes.forEach(function (checkbox, index) {
         const quantityInput = quantityInputs[index];
+        const stockId = quantityInput.getAttribute('data-stock-id');
+        const boxesInput = document.querySelector(`input[name="boxes_${stockId}"]`);
 
         if (checkbox.checked) {
           anySelected = true;
           quantityInput.disabled = false;
+          if (boxesInput) {
+            boxesInput.disabled = false;
+          }
           total += parseInt(quantityInput.value) || 0;
         } else {
           quantityInput.disabled = true;
+          if (boxesInput) {
+            boxesInput.disabled = true;
+          }
         }
       });
 
       totalQuantitySpan.textContent = total;
       checkoutBtn.disabled = !anySelected;
+
+      // Update box calculation if items per box is set
+      if (boxCalculationSpan && itemsPerBox && total > 0) {
+        const exactBoxes = total / itemsPerBox;
+        const wholeBoxes = Math.floor(exactBoxes);
+        const remainingItems = total % itemsPerBox;
+
+        if (remainingItems === 0) {
+          // Exact number of boxes
+          boxCalculationSpan.textContent = ` (${exactBoxes} ${exactBoxes === 1 ? 'box' : 'boxes'})`;
+        } else {
+          // Partial boxes
+          const ceilingBoxes = Math.ceil(exactBoxes);
+          boxCalculationSpan.textContent = ` (${exactBoxes.toFixed(1)} boxes/${ceilingBoxes} boxes)`;
+        }
+      } else if (boxCalculationSpan) {
+        boxCalculationSpan.textContent = '';
+      }
     }
+
+    // Initialize boxes values on page load
+    quantityInputs.forEach(function (quantityInput) {
+      const stockId = quantityInput.getAttribute('data-stock-id');
+      const quantity = parseInt(quantityInput.value) || 0;
+      updateBoxesFromQuantity(stockId, quantity);
+    });
 
     checkboxes.forEach(function (checkbox) {
       checkbox.addEventListener("change", updateTotal);
     });
 
     quantityInputs.forEach(function (input) {
-      input.addEventListener("input", updateTotal);
+      input.addEventListener("input", function() {
+        const stockId = input.getAttribute('data-stock-id');
+        const quantity = parseInt(input.value) || 0;
+        updateBoxesFromQuantity(stockId, quantity);
+        updateTotal();
+      });
+    });
+
+    boxesInputs.forEach(function (input) {
+      input.addEventListener("input", function() {
+        const stockId = input.getAttribute('data-stock-id');
+        const boxes = parseFloat(input.value) || 0;
+        updateQuantityFromBoxes(stockId, boxes);
+        updateTotal();
+      });
     });
 
     // Initial state

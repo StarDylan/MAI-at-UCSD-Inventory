@@ -74,6 +74,7 @@ class Item(models.Model):
     name = models.CharField(max_length=255)
     manufacturer = models.CharField(max_length=255, blank=True, default="", help_text="Product manufacturer or brand name")
     gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
+    items_per_box = models.PositiveIntegerField(null=True, blank=True, help_text="Number of individual items in a single box/package")
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
