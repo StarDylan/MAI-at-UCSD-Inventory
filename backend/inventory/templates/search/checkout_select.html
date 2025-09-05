@@ -40,9 +40,9 @@
               <td>{{ stock.detail|default:"-" }}</td>
               <td>
                 {% if stock.gtin %}
-                  <span class="font-weight-bold text-success">{{ stock.gtin }}</span>
+                <span class="font-weight-bold text-success">{{ stock.gtin }}</span>
                 {% else %}
-                  <span class="text-muted">-</span>
+                <span class="text-muted">-</span>
                 {% endif %}
               </td>
               <td>{{ stock.organization.name }}</td>
@@ -71,7 +71,7 @@
             </tr>
             {% if stock.notes %}
             <tr>
-              <td colspan="9" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes }}</td>
+              <td colspan="9" class="text-muted small" style="padding-left: 2rem; border-top: none"><strong>Notes:</strong> {{ stock.notes }}</td>
             </tr>
             {% endif %} {% endfor %}
           </tbody>

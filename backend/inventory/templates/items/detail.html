@@ -1,19 +1,28 @@
 {% extends "shared/base.html" %} {% block body %}
 <div id="page">
-  <h4 style="text-align: left; float: left">{{ item.name }}</h4>
-  <a style="text-align: right; float: right">
-    {% if item.is_deleted %} {% if perms.inventory.restore_deleteditem %}
-    <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
-    {% endif %} {% else %} {% if perms.inventory.change_item %}
-    <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
-    {% endif %} {% if perms.inventory.delete_item %}
-    <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
-    {% endif %} {% if perms.inventory.change_item %}
-    <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i></a>
-    {% endif %} {% endif %}
-  </a>
-
-  <br />
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">{{ item.name }}</h4>
+    <div class="btn-group" role="group">
+      {% if item.is_deleted %} 
+        {% if perms.inventory.restore_deleteditem %}
+        <button class="btn" onclick="confirmRestore('{{ item.id }}','{{ item.name }}')"><i class="material-icons">restore</i></button>
+        {% endif %} 
+      {% else %} 
+        {% if perms.inventory.change_item %}
+        <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
+        {% endif %} 
+        {% if perms.inventory.delete_item %}
+        <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
+        {% endif %} 
+        {% if perms.inventory.add_stockitem %}
+        <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
+        {% endif %} 
+        {% if perms.inventory.change_item %}
+        <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i> Check Out Item</a>
+        {% endif %} 
+      {% endif %}
+    </div>
+  </div>
 
   <style type="text/css">
     .material-icons {
@@ -74,6 +83,25 @@
       <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
     </div>
 
+    {% if item.manufacturer %}
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">business</i> Manufacturer</span>
+      <span class="flex-fill text-right">{{ item.manufacturer }}</span>
+    </div>
+    {% endif %}
+
+    {% if item.gtin %}
+    <div class="d-flex list-group-item flex-row">
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle">
+        <i class="material-icons">qr_code</i> 
+        <span data-toggle="tooltip" data-placement="top" title="Global Trade Item Number">GTIN</span>
+      </span>
+      <span class="flex-fill text-right">
+        <span>{{ item.gtin }}</span>
+      </span>
+    </div>
+    {% endif %}
+
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Total Quantity</span>
       <span class="flex-fill text-right">{{ item.total_stock_quantity }}</span>
@@ -112,7 +140,9 @@
               <th>Origin Org</th>
               <th>Date Received</th>
               {% endif %}
+              {% if not item.gtin %}
               <th>GTIN</th>
+              {% endif %}
               <th>Lot Number</th>
               {% if perms.inventory.change_stockitem and not item.is_deleted %}
               <th>Actions</th>
@@ -136,6 +166,8 @@
                 <td>{{ stock.organization.name }}</td>
                 <td>{{ stock.date_received|date:"M d, Y" }}</td>
                 {% endif %}
+                
+                {% if not item.gtin %}
                 <td>
                   {% if stock.gtin %}
                     <span>{{ stock.gtin }}</span>
@@ -143,6 +175,7 @@
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
+                {% endif %}
               <td>{{ stock.lot_number|default:"-" }}</td>
               {% if perms.inventory.change_stockitem and not item.is_deleted%}
               <td>
@@ -153,9 +186,9 @@
               </td>
               {% endif %}
             </tr>
-            {% if stock.notes and perms.inventory.view_internalstockingdetails %}
+            {% if stock.notes %}
             <tr>
-              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small"><strong>Private Stock Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
+              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small" style="padding-left: 2rem; border-top: none;"><strong>Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
             </tr>
             {% endif %} {% endif %} {% endfor %}
           </tbody>

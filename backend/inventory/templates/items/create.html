@@ -1,7 +1,7 @@
 {% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
 
 <h4>Create Item</h4>
-<form method="post" action="{% url 'create_item' %}">
+<form method="post" action="{% url 'create_item' %}" autocomplete="off">
   {% csrf_token %} {{ form|crispy }}
 
   <p>
@@ -14,16 +14,21 @@
   <ul id="existing-items-list" style="list-style: none; padding: 0; margin: 0"></ul>
 </div>
 
-{# Safely output all_items as JSON for JS #}
-<script id="all-items-json" type="application/json">
-  {{ all_items_json|safe }}
-</script>
+<div id="manufacturer-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
+  <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Suggested Manufacturers</h6>
+  <ul id="manufacturer-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
+</div>
+
+<div id="stock-location-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
+  <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Suggested Locations</h6>
+  <ul id="stock-location-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
+</div>
 
 <script>
   // Wait for DOM to be fully loaded
   document.addEventListener("DOMContentLoaded", function () {
     // Move the search results container right after the item name input
-    const itemNameInput = document.getElementById("id_name");
+    const itemNameInput = document.getElementById("id_gtin");
     const searchContainer = document.getElementById("search-results-container");
 
     if (itemNameInput && searchContainer) {
@@ -39,31 +44,60 @@
     }
   });
 
-  // Find the Item Name and GTIN inputs
+  // Find the Item Name, GTIN, and Manufacturer inputs
   const itemNameInput = document.getElementById("id_name");
   const gtinInput = document.getElementById("id_gtin");
+  const manufacturerInput = document.getElementById("id_manufacturer");
   const itemsList = document.getElementById("existing-items-list");
   const searchContainer = document.getElementById("search-results-container");
-  const allItems = JSON.parse(document.getElementById("all-items-json").textContent);
 
   let searchTimeout;
 
-  function renderList(matches) {
+  // Function to collect current search values and trigger search
+  function triggerSearch() {
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+
+    // Add delay before searching
+    searchTimeout = setTimeout(() => {
+      const searchParams = {};
+
+      if (itemNameInput && itemNameInput.value.trim()) {
+        searchParams.name = itemNameInput.value.trim();
+      }
+
+      if (gtinInput && gtinInput.value.trim()) {
+        searchParams.gtin = gtinInput.value.trim();
+      }
+
+      if (manufacturerInput && manufacturerInput.value.trim()) {
+        searchParams.manufacturer = manufacturerInput.value.trim();
+      }
+
+      searchItems(searchParams);
+    }, 300); // 300ms delay
+  }
+
+  function renderList(data) {
     itemsList.innerHTML = "";
-    if (matches.length === 0) {
+    if (!data.items || data.items.length === 0) {
       searchContainer.style.display = "none";
       return;
     }
-    matches.forEach((item) => {
+
+    data.items.forEach((item) => {
       const li = document.createElement("li");
       li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff;";
       li.setAttribute("data-id", item.id);
 
       // Build item display with GTINs if available
       let itemInfo = `<strong>${item.name}</strong>`;
+      if (item.manufacturer) {
+        itemInfo += ` <span style='color: #6c757d; font-size: 0.875rem;'>[${item.manufacturer}]</span>`;
+      }
       if (item.gtins && item.gtins.length > 0) {
-        const gtinDisplay = item.gtins.slice(0, 2).join(', '); // Show first 2 GTINs
-        const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : '';
+        const gtinDisplay = item.gtins.slice(0, 2).join(", "); // Show first 2 GTINs
+        const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : "";
         itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTINs: ${gtinDisplay}${moreText}]</span>`;
       }
       if (item.category__name) {
@@ -73,56 +107,275 @@
       li.innerHTML = `<div>${itemInfo}</div><button style='padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #0d6efd; color: #0d6efd; background-color: transparent; border-radius: 0.25rem; cursor: pointer;' class='checkin-btn'>Check In</button>`;
       itemsList.appendChild(li);
     });
+
+    // Add "+X More" indicator if there are more results
+    if (data.has_more) {
+      const moreCount = data.total_count - data.items.length;
+      const moreLi = document.createElement("li");
+      moreLi.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #f8f9fa; text-align: center; color: #6c757d; font-style: italic;";
+      moreLi.textContent = `+${moreCount} more item${moreCount !== 1 ? "s" : ""} (${data.total_count} total)`;
+      itemsList.appendChild(moreLi);
+    }
+
     searchContainer.style.display = "";
   }
 
-  function searchItems(query) {
-    if (!query) {
+  function searchItems(searchParams = {}) {
+    // Check if any search parameter has content
+    const hasValidSearch = Object.values(searchParams).some((value) => value && value.length >= 2);
+
+    if (!hasValidSearch) {
       searchContainer.style.display = "none";
       return;
     }
 
-    const matches = allItems.filter((item) => {
-      // Search by name or GTINs
-      const nameMatch = item.name.toLowerCase().includes(query.toLowerCase());
-      const gtinMatch = item.gtins && item.gtins.some(gtin => gtin.includes(query));
-      return nameMatch || gtinMatch;
+    // Build query string from search parameters
+    const queryParams = new URLSearchParams();
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (value && value.trim()) {
+        queryParams.append(key, value.trim());
+      }
     });
 
-    renderList(matches);
+    // Add limit parameter for top 5 results
+    queryParams.append("limit", "5");
+
+    // Fetch search results from API
+    fetch(`/api/items/search/?${queryParams.toString()}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.items) {
+          renderList(data);
+        } else {
+          searchContainer.style.display = "none";
+        }
+      })
+      .catch((error) => {
+        console.error("Search error:", error);
+        searchContainer.style.display = "none";
+      });
   }
 
-  itemNameInput.addEventListener("input", function () {
-    const query = this.value.trim();
+  // Add event listeners for search inputs
+  if (itemNameInput) {
+    itemNameInput.addEventListener("input", triggerSearch);
+  }
 
-    // Clear previous timeout
-    clearTimeout(searchTimeout);
-
-    // Add delay before searching
-    searchTimeout = setTimeout(() => {
-      searchItems(query);
-    }, 300); // 300ms delay
-  });
-
-  // Add GTIN input listener if GTIN field exists
   if (gtinInput) {
-    gtinInput.addEventListener("input", function () {
-      const query = this.value.trim();
+    gtinInput.addEventListener("input", triggerSearch);
+  }
 
-      // Clear previous timeout
-      clearTimeout(searchTimeout);
-
-      // Add delay before searching
-      searchTimeout = setTimeout(() => {
-        searchItems(query);
-      }, 300); // 300ms delay
-    });
+  if (manufacturerInput) {
+    manufacturerInput.addEventListener("input", triggerSearch);
   }
 
   itemsList.addEventListener("click", function (e) {
     if (e.target.classList.contains("checkin-btn")) {
       const itemId = e.target.closest("li").getAttribute("data-id");
       window.location.href = `/search/check_in/${itemId}/`;
+    }
+  });
+
+  // Manufacturer autocomplete functionality
+  document.addEventListener("DOMContentLoaded", function () {
+    const manufacturerInput = document.getElementById("id_manufacturer");
+    const manufacturerSuggestionsContainer = document.getElementById("manufacturer-suggestions-container");
+    const manufacturerSuggestionsList = document.getElementById("manufacturer-suggestions-list");
+    let allManufacturers = [];
+    let manufacturerTimeout;
+
+    if (manufacturerInput) {
+      // Disable browser autocomplete
+      manufacturerInput.setAttribute("autocomplete", "off");
+
+      // Position the suggestions container after the manufacturer input
+      const manufacturerFormGroup = manufacturerInput.closest(".form-group") || manufacturerInput.closest(".mb-3");
+      if (manufacturerFormGroup && manufacturerSuggestionsContainer) {
+        manufacturerFormGroup.parentNode.insertBefore(manufacturerSuggestionsContainer, manufacturerFormGroup.nextSibling);
+      }
+
+      // Load manufacturers from API
+      function loadManufacturers() {
+        fetch("/api/manufacturers/autocomplete/")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.manufacturers) {
+              allManufacturers = data.manufacturers;
+            }
+          })
+          .catch((error) => console.log("Error loading manufacturers:", error));
+      }
+
+      function renderManufacturerSuggestions(matches) {
+        manufacturerSuggestionsList.innerHTML = "";
+        if (matches.length === 0) {
+          manufacturerSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        matches.slice(0, 5).forEach((manufacturer) => {
+          // Limit to 5 suggestions
+          const li = document.createElement("li");
+          li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s;";
+          li.textContent = manufacturer;
+
+          // Add hover effect
+          li.addEventListener("mouseenter", function () {
+            this.style.backgroundColor = "#f8f9fa";
+          });
+          li.addEventListener("mouseleave", function () {
+            this.style.backgroundColor = "#fff";
+          });
+
+          // Add click handler
+          li.addEventListener("click", function () {
+            manufacturerInput.value = manufacturer;
+            manufacturerSuggestionsContainer.style.display = "none";
+            manufacturerInput.focus();
+          });
+
+          manufacturerSuggestionsList.appendChild(li);
+        });
+
+        manufacturerSuggestionsContainer.style.display = "";
+      }
+
+      function searchManufacturers(query) {
+        if (!query || query.length < 1) {
+          manufacturerSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        const matches = allManufacturers.filter((manufacturer) => manufacturer.toLowerCase().includes(query.toLowerCase()));
+
+        // Check if there's an exact match (case-insensitive)
+        const hasExactMatch = allManufacturers.some((manufacturer) => manufacturer.toLowerCase() === query.toLowerCase());
+
+        // Only hide suggestions if there's an exact match, otherwise show matches
+        if (hasExactMatch) {
+          manufacturerSuggestionsContainer.style.display = "none";
+        } else {
+          renderManufacturerSuggestions(matches);
+        }
+      }
+
+      manufacturerInput.addEventListener("input", function () {
+        const query = this.value.trim();
+
+        // Clear previous timeout
+        clearTimeout(manufacturerTimeout);
+
+        // Add delay before searching manufacturers
+        manufacturerTimeout = setTimeout(() => {
+          searchManufacturers(query);
+        }, 200); // 200ms delay for manufacturer suggestions
+
+        // Also trigger main search
+        triggerSearch();
+      });
+
+      // Load manufacturers on page load
+      loadManufacturers();
+    }
+  });
+
+  // Stock Location autocomplete functionality
+  document.addEventListener("DOMContentLoaded", function () {
+    const stockLocationInput = document.getElementById("id_stock_location");
+    const stockLocationSuggestionsContainer = document.getElementById("stock-location-suggestions-container");
+    const stockLocationSuggestionsList = document.getElementById("stock-location-suggestions-list");
+    let allStockLocations = [];
+    let stockLocationTimeout;
+
+    if (stockLocationInput) {
+      // Disable browser autocomplete
+      stockLocationInput.setAttribute("autocomplete", "off");
+
+      // Position the suggestions container after the stock location input
+      const stockLocationFormGroup = stockLocationInput.closest(".form-group") || stockLocationInput.closest(".mb-3");
+      if (stockLocationFormGroup && stockLocationSuggestionsContainer) {
+        stockLocationFormGroup.parentNode.insertBefore(stockLocationSuggestionsContainer, stockLocationFormGroup.nextSibling);
+      }
+
+      // Load stock locations from API
+      function loadStockLocations() {
+        fetch("/api/stock-locations/autocomplete/")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.locations) {
+              allStockLocations = data.locations;
+            }
+          })
+          .catch((error) => console.log("Error loading stock locations:", error));
+      }
+
+      function renderStockLocationSuggestions(matches) {
+        stockLocationSuggestionsList.innerHTML = "";
+        if (matches.length === 0) {
+          stockLocationSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        matches.slice(0, 5).forEach((location) => {
+          // Limit to 5 suggestions
+          const li = document.createElement("li");
+          li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s;";
+          li.textContent = location;
+
+          // Add hover effect
+          li.addEventListener("mouseenter", function () {
+            this.style.backgroundColor = "#f8f9fa";
+          });
+          li.addEventListener("mouseleave", function () {
+            this.style.backgroundColor = "#fff";
+          });
+
+          // Add click handler
+          li.addEventListener("click", function () {
+            stockLocationInput.value = location;
+            stockLocationSuggestionsContainer.style.display = "none";
+            stockLocationInput.focus();
+          });
+
+          stockLocationSuggestionsList.appendChild(li);
+        });
+
+        stockLocationSuggestionsContainer.style.display = "";
+      }
+
+      function searchStockLocations(query) {
+        if (!query || query.length < 1) {
+          stockLocationSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        const matches = allStockLocations.filter((location) => location.toLowerCase().includes(query.toLowerCase()));
+
+        // Check if there's an exact match (case-insensitive)
+        const hasExactMatch = allStockLocations.some((location) => location.toLowerCase() === query.toLowerCase());
+
+        // Only hide suggestions if there's an exact match, otherwise show matches
+        if (hasExactMatch) {
+          stockLocationSuggestionsContainer.style.display = "none";
+        } else {
+          renderStockLocationSuggestions(matches);
+        }
+      }
+
+      stockLocationInput.addEventListener("input", function () {
+        const query = this.value.trim();
+
+        // Clear previous timeout
+        clearTimeout(stockLocationTimeout);
+
+        // Add delay before searching stock locations
+        stockLocationTimeout = setTimeout(() => {
+          searchStockLocations(query);
+        }, 200); // 200ms delay for stock location suggestions
+      });
+
+      // Load stock locations on page load
+      loadStockLocations();
     }
   });
 </script>

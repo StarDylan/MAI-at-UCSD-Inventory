@@ -601,4 +601,123 @@ class StockItemDeleteTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class ManufacturerTest(TestCase):
+    def setUp(self):
+        """Set up test data for manufacturer tests"""
+        self.category = Category.objects.create(name="Test Category")
+        self.subcategory = Subcategory.objects.create(
+            name="Test Subcategory",
+            category=self.category
+        )
+
+    def test_item_with_manufacturer(self):
+        """Test creating an item with manufacturer"""
+        item = Item.objects.create(
+            name="Test Item",
+            manufacturer="Samsung",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        self.assertEqual(item.manufacturer, "Samsung")
+
+    def test_item_without_manufacturer(self):
+        """Test creating an item without manufacturer (blank)"""
+        item = Item.objects.create(
+            name="Test Item",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        self.assertEqual(item.manufacturer, "")
+
+    def test_manufacturer_autocomplete_api_requires_auth(self):
+        """Test that manufacturer autocomplete API requires authentication"""
+        from django.test import Client
+        from django.urls import reverse
+        
+        client = Client()
+        url = reverse('manufacturer_autocomplete_api')
+        response = client.get(url)
+        self.assertEqual(response.status_code, 401)
+
+    def test_manufacturer_autocomplete_api_with_auth(self):
+        """Test manufacturer autocomplete API with authentication"""
+        from django.test import Client
+        from django.urls import reverse
+        from inventory.models import User
+        import json
+        
+        # Create test items with different manufacturers
+        Item.objects.create(
+            name="Item 1",
+            manufacturer="Samsung",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        Item.objects.create(
+            name="Item 2",
+            manufacturer="Apple",
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        Item.objects.create(
+            name="Item 3",
+            manufacturer="Samsung",  # Duplicate
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        Item.objects.create(
+            name="Item 4",
+            manufacturer="",  # Empty - should not appear
+            category=self.category,
+            subcategory=self.subcategory
+        )
+        
+        # Create a user and authenticate
+        user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass'
+        )
+        
+        client = Client()
+        client.force_login(user)
+        
+        url = reverse('manufacturer_autocomplete_api')
+        response = client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertIn('manufacturers', data)
+        
+        # Should have Apple and Samsung (no duplicates, no empty)
+        manufacturers = data['manufacturers']
+        self.assertEqual(len(manufacturers), 2)
+        self.assertIn('Apple', manufacturers)
+        self.assertIn('Samsung', manufacturers)
+
+    def test_item_with_stock_form_includes_manufacturer(self):
+        """Test that ItemWithStockForm includes manufacturer field"""
+        from inventory.forms import ItemWithStockForm
+        from inventory.models import Organization
+        from datetime import date
+        
+        org = Organization.objects.create(name="Test Org")
+        
+        form_data = {
+            'name': 'Test Item',
+            'manufacturer': 'Sony',
+            'subcategory': self.subcategory.id,
+            'organization': org.id,
+            'quantity': 1,
+            'stock_location': 'Test Location',
+            'date_received': date.today(),
+        }
+        
+        form = ItemWithStockForm(data=form_data)
+        self.assertTrue(form.is_valid())
+        
+        item, stock_item = form.save()
+        self.assertEqual(item.manufacturer, 'Sony')
+
+
 # Create your other tests here.

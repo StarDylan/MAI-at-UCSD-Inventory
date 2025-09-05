@@ -13,4 +13,40 @@
   </p>
 </form>
 
+<script>
+  // Manufacturer autocomplete functionality
+  document.addEventListener("DOMContentLoaded", function () {
+    const manufacturerInput = document.getElementById("id_manufacturer");
+    if (manufacturerInput) {
+      // Create datalist element for autocomplete
+      const datalist = document.createElement("datalist");
+      datalist.id = "manufacturer-list";
+      manufacturerInput.parentNode.appendChild(datalist);
+      manufacturerInput.setAttribute("list", "manufacturer-list");
+      
+      // Load manufacturers from API
+      function loadManufacturers() {
+        fetch('/api/manufacturers/autocomplete/')
+          .then(response => response.json())
+          .then(data => {
+            if (data.manufacturers) {
+              // Clear existing options
+              datalist.innerHTML = '';
+              // Add new options
+              data.manufacturers.forEach(manufacturer => {
+                const option = document.createElement("option");
+                option.value = manufacturer;
+                datalist.appendChild(option);
+              });
+            }
+          })
+          .catch(error => console.log('Error loading manufacturers:', error));
+      }
+      
+      // Load manufacturers on page load
+      loadManufacturers();
+    }
+  });
+</script>
+
 {% endblock %}

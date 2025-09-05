@@ -63,8 +63,12 @@ urlpatterns = [
     path('organizations/', organizations.OrganizationListView.as_view(), name='organization_list'),
     path('organizations/create/', organizations.OrganizationCreateView.as_view(), name='create_organization'),
     path('organizations/edit/<uuid:pk>/', organizations.OrganizationUpdateView.as_view(), name='edit_organization'),
+    # API endpoints
     path('api/organizations/create/', organizations.organization_create_ajax, name='organization_create_ajax'),
     path('api/organizations/list/', organizations.organization_list_api, name='organization_list_api'),
+    path('api/manufacturers/autocomplete/', items.manufacturer_autocomplete_api, name='manufacturer_autocomplete_api'),
+    path('api/stock-locations/autocomplete/', items.stock_location_autocomplete_api, name='stock_location_autocomplete_api'),
+    path('api/items/search/', items.items_search_api, name='items_search_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),

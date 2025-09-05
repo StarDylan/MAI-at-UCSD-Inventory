@@ -71,7 +71,9 @@ class Item(models.Model):
         db_column="subcategory_id",
     )
 
-    name = models.CharField(max_length=255)    
+    name = models.CharField(max_length=255)
+    manufacturer = models.CharField(max_length=255, blank=True, default="", help_text="Product manufacturer or brand name")
+    gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
@@ -92,7 +94,12 @@ class Item(models.Model):
             ("view_advancedpropertiesitem", "Can view advanced properties"),
         ]
         constraints = [
-            models.UniqueConstraint(Lower('name'), name='unique_item_name')
+            models.UniqueConstraint(Lower('name'), name='unique_item_name'),
+            models.UniqueConstraint(
+                fields=['gtin'], 
+                condition=models.Q(gtin__gt=''),
+                name='unique_item_gtin'
+            )
         ]
 
     def __str__(self):
@@ -108,6 +115,25 @@ class Item(models.Model):
         """Get comma-separated list of unique locations from active stock items"""
         locations = self.stock_items.filter(quantity__gt=0).exclude(location='').values_list('location', flat=True).distinct()
         return ', '.join(sorted(locations)) if locations else ""
+    
+    @property
+    def has_stock_item_gtin(self):
+        """Check if any stock items have a GTIN"""
+        return self.stock_items.filter(gtin__gt='').exists()
+    
+    def get_gtins(self):
+        """Get list of all GTINs associated with this item"""
+        gtins = []
+        
+        # Add item GTIN if it exists
+        if self.gtin:
+            gtins.append(self.gtin)
+        
+        # Add stock item GTINs
+        stock_gtins = self.stock_items.filter(gtin__gt='').values_list('gtin', flat=True).distinct()
+        gtins.extend(stock_gtins)
+        
+        return gtins
 
 
 class StockItem(models.Model):

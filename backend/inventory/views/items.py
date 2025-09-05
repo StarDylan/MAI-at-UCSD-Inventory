@@ -6,7 +6,7 @@ item creation, viewing, editing, deletion (soft delete), and restoration.
 Items are the core entities in the inventory system.
 """
 
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
 from django.urls import reverse_lazy
@@ -489,39 +489,7 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         return kwargs 
 
     def get_context_data(self, **kwargs):
-        import json
-        from django.db.models import Sum, Case, When, IntegerField
         context = super().get_context_data(**kwargs)
-        
-        # Use annotations to calculate total_stock_quantity in the database
-        # to avoid N+1 queries when the template accesses item.total_stock_quantity
-        items_qs = models.Item.active_objects.select_related('category', 'subcategory').annotate(
-            total_stock_quantity=Sum(
-                Case(
-                    When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                    default=0,
-                    output_field=IntegerField()
-                )
-            )
-        ).values('id', 'name', 'category__name', 'subcategory__name', 'total_stock_quantity')
-        
-        items_list = []
-        for item in items_qs:
-            # Get all GTINs from stock items for this item
-            stock_gtins = models.StockItem.objects.filter(
-                item_id=item['id'], 
-                gtin__gt=''
-            ).values_list('gtin', flat=True).distinct()
-            
-            items_list.append({
-                'id': str(item['id']),
-                'name': item['name'],
-                'gtins': list(stock_gtins),  # List of GTINs from stock items
-                'category__name': item['category__name'],
-                'subcategory__name': item['subcategory__name'],
-                'total_stock_quantity': item['total_stock_quantity'] or 0,
-            })
-        context['all_items_json'] = json.dumps(items_list)
         return context
 
     def get_success_url(self):
@@ -620,3 +588,238 @@ def stock_item_delete_view(request, uuid):
     stock_item.delete()
     
     return redirect('view_item', uuid=item_uuid)
+
+
+def manufacturer_autocomplete_api(request):
+    """
+    API endpoint to get list of manufacturers for autocomplete.
+    
+    Returns JSON list of distinct manufacturers from existing items
+    for use in autocomplete functionality.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        JsonResponse: JSON response with manufacturers list
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    # Get distinct manufacturers that are not empty, limited to active items
+    manufacturers = (models.Item.active_objects
+                    .exclude(manufacturer='')
+                    .values_list('manufacturer', flat=True)
+                    .distinct()
+                    .order_by('manufacturer'))
+    
+    return JsonResponse({'manufacturers': list(manufacturers)})
+
+
+def stock_location_autocomplete_api(request):
+    """
+    API endpoint to get list of stock locations for autocomplete.
+    
+    Returns JSON list of distinct stock locations from existing stock items
+    for use in autocomplete functionality.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        JsonResponse: JSON response with stock locations list
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    # Get distinct stock locations that are not empty
+    locations = (models.StockItem.objects
+                .exclude(location='')
+                .values_list('location', flat=True)
+                .distinct()
+                .order_by('location'))
+    
+    return JsonResponse({'locations': list(locations)})
+
+
+def items_search_api(request):
+    """
+    API endpoint to search items by name, manufacturer, or GTIN.
+    
+    Performs a search across item names, manufacturers, and GTINs (both item and stock item GTINs)
+    and returns matching items with their details for autocomplete functionality.
+    
+    Query Parameters:
+        q: General search query (searches all fields)
+        name: Search by item name only
+        manufacturer: Search by manufacturer only
+        gtin: Search by GTIN only
+        limit: Maximum number of results to return (default: 10)
+    
+    Args:
+        request: HTTP request object with query parameters
+        
+    Returns:
+        JsonResponse: JSON response with matching items list and total count
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    # Get individual search parameters
+    general_query = request.GET.get('q', '').strip()
+    name_query = request.GET.get('name', '').strip()
+    manufacturer_query = request.GET.get('manufacturer', '').strip()
+    gtin_query = request.GET.get('gtin', '').strip()
+    
+    # Get limit parameter with default value
+    try:
+        limit = int(request.GET.get('limit', 10))
+        limit = max(1, min(limit, 50))  # Ensure limit is between 1 and 50
+    except (ValueError, TypeError):
+        limit = 10
+    
+    # Check if any query is provided and meets minimum length
+    if not any([general_query, name_query, manufacturer_query, gtin_query]):
+        return JsonResponse({'items': [], 'total_count': 0, 'has_more': False})
+    
+    # Check minimum length for any provided query
+    queries_to_check = [q for q in [general_query, name_query, manufacturer_query, gtin_query] if q]
+    if all(len(q) < 2 for q in queries_to_check):
+        return JsonResponse({'items': [], 'total_count': 0, 'has_more': False})
+    
+    from django.db.models import Q, Sum, Case, When, IntegerField
+    
+    # Build search conditions (AND logic - all conditions must match)
+    search_conditions = Q()
+    
+    if general_query:
+        # General search across all fields (OR within this condition)
+        search_conditions &= (
+            Q(name__icontains=general_query) | 
+            Q(manufacturer__icontains=general_query) |
+            Q(gtin__exact=general_query)  # Exact match for GTIN
+        )
+    
+    if name_query:
+        search_conditions &= Q(name__icontains=name_query)
+    
+    if manufacturer_query:
+        search_conditions &= Q(manufacturer__icontains=manufacturer_query)
+    
+    if gtin_query:
+        search_conditions &= Q(gtin__exact=gtin_query)  # Exact match for GTIN
+    
+    # Search items by the built conditions
+    items_qs = (models.Item.active_objects
+                .select_related('category', 'subcategory')
+                .filter(search_conditions)
+                .annotate(
+                    total_stock_quantity=Sum(
+                        Case(
+                            When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                            default=0,
+                            output_field=IntegerField()
+                        )
+                    )
+                )
+                .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
+    
+    # Also search by stock item GTINs if GTIN queries are provided
+    # These items must also match other non-GTIN criteria
+    stock_item_matches = []
+    if general_query or gtin_query:
+        stock_gtin_conditions = Q()
+        
+        if general_query:
+            stock_gtin_conditions |= Q(gtin__exact=general_query)  # Exact match for GTIN
+        
+        if gtin_query:
+            stock_gtin_conditions |= Q(gtin__exact=gtin_query)  # Exact match for GTIN
+        
+        if stock_gtin_conditions:
+            # Build additional conditions for items found via stock GTIN
+            additional_item_conditions = Q()
+            
+            # Apply name and manufacturer filters to stock item matches too
+            if name_query:
+                additional_item_conditions &= Q(item__name__icontains=name_query)
+            
+            if manufacturer_query:
+                additional_item_conditions &= Q(item__manufacturer__icontains=manufacturer_query)
+            
+            # If general query exists, it should match name/manufacturer on the item level
+            if general_query:
+                additional_item_conditions &= (
+                    Q(item__name__icontains=general_query) |
+                    Q(item__manufacturer__icontains=general_query) |
+                    Q(item__gtin__exact=general_query)  # Exact match for GTIN
+                )
+            
+            stock_item_matches = (models.StockItem.objects
+                                 .select_related('item', 'item__category', 'item__subcategory')
+                                 .filter(stock_gtin_conditions, additional_item_conditions, item__is_deleted=False)
+                                 .values_list('item_id', flat=True)
+                                 .distinct())
+    
+    if stock_item_matches:
+        additional_items = (models.Item.active_objects
+                          .select_related('category', 'subcategory')
+                          .filter(id__in=stock_item_matches)
+                          .annotate(
+                              total_stock_quantity=Sum(
+                                  Case(
+                                      When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                                      default=0,
+                                      output_field=IntegerField()
+                                  )
+                              )
+                          )
+                          .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
+        
+        # Combine results and remove duplicates
+        items_qs = items_qs.union(additional_items)
+    
+    # Get all unique item IDs for GTIN lookup
+    item_ids = [item['id'] for item in items_qs]
+    
+    # Get all stock GTINs for these items
+    stock_gtins_by_item = {}
+    if item_ids:
+        stock_gtins = models.StockItem.objects.filter(
+            item_id__in=item_ids,
+            gtin__gt=''
+        ).values('item_id', 'gtin').distinct()
+        
+        for stock_gtin in stock_gtins:
+            item_id = stock_gtin['item_id']
+            if item_id not in stock_gtins_by_item:
+                stock_gtins_by_item[item_id] = []
+            stock_gtins_by_item[item_id].append(stock_gtin['gtin'])
+    
+    # Get total count before applying limit
+    total_count = len(items_qs)
+    
+    # Build response with GTINs
+    items_list = []
+    for item in items_qs[:limit]:  # Apply the requested limit
+        gtins = []
+        if item['gtin']:
+            gtins.append(item['gtin'])
+        gtins.extend(stock_gtins_by_item.get(item['id'], []))
+        
+        items_list.append({
+            'id': str(item['id']),
+            'name': item['name'],
+            'manufacturer': item['manufacturer'],
+            'gtins': gtins,
+            'category__name': item['category__name'],
+            'subcategory__name': item['subcategory__name'],
+            'total_stock_quantity': item['total_stock_quantity'] or 0,
+        })
+    
+    return JsonResponse({
+        'items': items_list,
+        'total_count': total_count,
+        'has_more': total_count > limit,
+        'limit': limit
+    })
