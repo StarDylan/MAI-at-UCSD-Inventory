@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.contrib.auth.models import User
 from datetime import date, timedelta
 from .models import Category, Subcategory, Item, Organization, StockItem
 
@@ -504,6 +505,100 @@ class ItemWithStockFormGTINTest(TestCase):
         
         form = ItemWithStockForm(data=form_data)
         self.assertTrue(form.is_valid())
+
+
+class StockItemDeleteTest(TestCase):
+    def setUp(self):
+        """Set up test data for delete tests"""
+        from django.contrib.auth.models import User, Permission
+        from django.contrib.contenttypes.models import ContentType
+        
+        self.category = Category.objects.create(name="Test Category")
+        self.organization = Organization.objects.create(
+            name="Test Org",
+            description="Test organization"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            category=self.category
+        )
+        self.stock_item = StockItem.objects.create(
+            item=self.item,
+            organization=self.organization,
+            quantity=10,
+            location="Test Location",
+            gtin="1234567890123",
+            detail="Test Detail",
+            date_received=date.today()
+        )
+        
+        # Create a user with permissions
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass'
+        )
+        
+        # Add the delete_stockitem permission
+        content_type = ContentType.objects.get_for_model(StockItem)
+        permission = Permission.objects.get_or_create(
+            codename='delete_stockitem',
+            name='Can delete stock items',
+            content_type=content_type,
+        )[0]
+        self.user.user_permissions.add(permission)
+
+    def test_stock_item_delete_view_requires_permission(self):
+        """Test that stock item delete view requires proper permission"""
+        from django.urls import reverse
+        
+        # Try to access delete view without login
+        url = reverse('delete_stock_item', kwargs={'uuid': self.stock_item.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)  # Redirect to login
+        
+        # Login but without permission
+        user_no_perm = User.objects.create_user(
+            username='nopermuser',
+            password='testpass'
+        )
+        self.client.login(username='nopermuser', password='testpass')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)  # Forbidden
+
+    def test_stock_item_delete_view_with_permission(self):
+        """Test that stock item delete view works with proper permission"""
+        from django.urls import reverse
+        
+        # Login with user that has permission
+        self.client.login(username='testuser', password='testpass')
+        
+        # Verify stock item exists
+        self.assertTrue(StockItem.objects.filter(id=self.stock_item.id).exists())
+        
+        # Delete the stock item
+        url = reverse('delete_stock_item', kwargs={'uuid': self.stock_item.id})
+        response = self.client.get(url)
+        
+        # Should redirect to item detail view
+        expected_redirect = reverse('view_item', kwargs={'uuid': self.item.id})
+        self.assertRedirects(response, expected_redirect)
+        
+        # Verify stock item is deleted
+        self.assertFalse(StockItem.objects.filter(id=self.stock_item.id).exists())
+
+    def test_stock_item_delete_nonexistent(self):
+        """Test that deleting non-existent stock item returns 404"""
+        from django.urls import reverse
+        import uuid
+        
+        # Login with user that has permission
+        self.client.login(username='testuser', password='testpass')
+        
+        # Try to delete non-existent stock item
+        fake_uuid = uuid.uuid4()
+        url = reverse('delete_stock_item', kwargs={'uuid': fake_uuid})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
 
 
 # Create your other tests here.

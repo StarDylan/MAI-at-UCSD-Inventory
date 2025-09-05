@@ -581,3 +581,42 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
             str: URL to the item's detail view
         """
         return reverse_lazy('view_item', kwargs={'uuid': self.object.item.pk})
+
+
+@login_required
+@permission_required('inventory.delete_stockitem', raise_exception=True)
+def stock_item_delete_view(request, uuid):
+    """
+    Delete a stock item.
+    
+    Completely removes the stock item from the database.
+    
+    Args:
+        request: HTTP request object
+        uuid: UUID of the stock item to delete
+        
+    Returns:
+        HttpResponseRedirect: Redirect to item detail view after deletion
+        
+    Raises:
+        Http404: If stock item with given UUID doesn't exist
+        PermissionDenied: If user doesn't have delete_stockitem permission
+    """
+    stock_item = get_object_or_404(StockItem, id=uuid)
+    item_uuid = stock_item.item.pk
+    
+    # Log the state before deletion
+    before_state = audit_log_state(stock_item)
+    
+    # Log the deletion event
+    audit_log_event(
+        request.user, 
+        f"Deleted stock item for \"{stock_item.item.name}\" - {stock_item.quantity} units from {stock_item.location}", 
+        before_state, 
+        audit_log_state(None)
+    )
+    
+    # Perform deletion
+    stock_item.delete()
+    
+    return redirect('view_item', uuid=item_uuid)
