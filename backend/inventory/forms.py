@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'manufacturer', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'manufacturer', 'gtin', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,6 +54,11 @@ class ItemForm(forms.ModelForm):
 
         # Set the choices for the subcategory field
         self.fields['subcategory'].choices = grouped_choices
+        
+        # Disable GTIN field if any stock items have GTIN
+        if self.instance and self.instance.pk and self.instance.has_stock_item_gtin:
+            self.fields['gtin'].disabled = True
+            self.fields['gtin'].help_text = "GTIN is disabled because one or more stock items already have GTIN values."
 
     def save(self, commit=True):
         # Call the parent save method to get the Item instance
@@ -115,6 +120,32 @@ class ItemWithStockForm(forms.Form):
         help_text="Product manufacturer or brand name",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Samsung, Apple, 3M'})
     )
+    
+    # Single GTIN field with toggle
+    gtin = forms.CharField(
+        max_length=14, 
+        required=False, 
+        label="GTIN (Global Trade Item Number)",
+        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1234567890123'})
+    )
+    gtin_applies_to = forms.ChoiceField(
+        choices=[
+            ('item', 'Entire Item (all variants share this GTIN)'),
+            ('variant', 'This Specific Variant Only'),
+        ],
+        initial='item',
+        widget=forms.RadioSelect,
+        label="GTIN applies to",
+        help_text="Choose whether this GTIN identifies the entire item or just this specific variant"
+    )
+    
+    detail = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Stock Detail (Optional)",
+        help_text="Additional details like size, color, variant, etc."
+    )
     subcategory = forms.ModelChoiceField(
         queryset=models.Subcategory.objects.all(),
         label="Category"
@@ -130,18 +161,6 @@ class ItemWithStockForm(forms.Form):
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label="Initial Quantity")
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
-    gtin = forms.CharField(
-        max_length=14, 
-        required=False, 
-        label="GTIN (Global Trade Item Number)",
-        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
-    )
-    detail = forms.CharField(
-        max_length=255,
-        required=False,
-        label="Detail",
-        help_text="Additional details like size, color, variant, etc."
-    )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
         label="Date Received"
@@ -203,15 +222,21 @@ class ItemWithStockForm(forms.Form):
         """
         gtin = self.cleaned_data.get('gtin', '').strip()
         
-        # If GTIN is provided, check for uniqueness
         if gtin:
-            existing_stock_item = models.StockItem.objects.filter(gtin=gtin).first()
-            if existing_stock_item:
-                # Raise a specific error that we can catch to redirect to check-in
+            # Check if GTIN exists on any item
+            if models.Item.objects.filter(gtin=gtin).exists():
+                existing_item = models.Item.objects.filter(gtin=gtin).first()
                 raise forms.ValidationError(
-                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock_item.item.name}'. "
-                    f"Did you mean to check in stock for this existing item instead?",
-                    code='duplicate_gtin'
+                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'.",
+                    code='duplicate_item_gtin'
+                )
+            
+            # Check if GTIN exists on any stock item
+            if models.StockItem.objects.filter(gtin=gtin).exists():
+                existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
+                raise forms.ValidationError(
+                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'.",
+                    code='duplicate_stock_gtin'
                 )
         
         return gtin
@@ -221,11 +246,19 @@ class ItemWithStockForm(forms.Form):
         # The cleaned_data from the form is used to create both objects
         data = self.cleaned_data
 
+        # Determine where to place the GTIN based on the toggle
+        gtin = data.get('gtin', '').strip()
+        gtin_applies_to = data.get('gtin_applies_to', 'item')
+        
+        item_gtin = gtin if gtin_applies_to == 'item' else ''
+        stock_gtin = gtin if gtin_applies_to == 'variant' else ''
+
         # Create Item
         selected_subcategory = data['subcategory']
         item = models.Item(
             name=data['name'],
             manufacturer=data['manufacturer'],
+            gtin=item_gtin,
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],
@@ -242,7 +275,7 @@ class ItemWithStockForm(forms.Form):
                 organization=data['organization'],
                 quantity=data['quantity'],
                 location=data['stock_location'],
-                gtin=data['gtin'],
+                gtin=stock_gtin,
                 detail=data['detail'],
                 date_received=data['date_received'],
                 expiration_date=data['expiration_date'],
@@ -274,6 +307,11 @@ class StockItemEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+        
+        # Disable GTIN field if the item has a GTIN
+        if self.instance and self.instance.pk and self.instance.item.gtin:
+            self.fields['gtin'].disabled = True
+            self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
 
 
 class Search_QuantityAdd(forms.Form):
@@ -281,6 +319,13 @@ class Search_QuantityAdd(forms.Form):
     item = ItemWithLocationChoiceField(
         queryset=models.Item.active_objects.order_by("name"),
         widget=forms.Select(attrs={"class": "form-select"})
+    )
+    detail = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Size L, Red, 16oz"}),
+        label="Detail",
+        help_text="Additional details like size, color, variant, etc."
     )
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.all().order_by('name'),
@@ -292,12 +337,6 @@ class Search_QuantityAdd(forms.Form):
         label="Quantity to add",
         widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
     )
-    location = forms.CharField(
-        max_length=100,
-        required=True,
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Box A"}),
-        label="Stock Location"
-    )
     gtin = forms.CharField(
         max_length=14, 
         required=False, 
@@ -305,12 +344,11 @@ class Search_QuantityAdd(forms.Form):
         label="GTIN (Global Trade Item Number)",
         help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
     )
-    detail = forms.CharField(
-        max_length=255,
-        required=False,
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Size L, Red, 16oz"}),
-        label="Detail",
-        help_text="Additional details like size, color, variant, etc."
+    location = forms.CharField(
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Box A"}),
+        label="Stock Location"
     )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -332,6 +370,16 @@ class Search_QuantityAdd(forms.Form):
         required=False, 
         label="Notes"
     )
+
+    def __init__(self, *args, **kwargs):
+        # Check if a specific item is pre-selected (from URL)
+        initial_item = kwargs.pop('initial_item', None)
+        super().__init__(*args, **kwargs)
+        
+        # Disable GTIN field if the selected item has a GTIN
+        if initial_item and initial_item.gtin:
+            self.fields['gtin'].disabled = True
+            self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
 
 
 class Search_QuantityRemove(forms.Form):

@@ -56,6 +56,22 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                 
         return context
 
+    def get_form_kwargs(self):
+        """
+        Add the initial_item to form kwargs if item_uuid is provided.
+        """
+        kwargs = super().get_form_kwargs()
+        
+        item_uuid = self.kwargs.get('item_uuid')
+        if item_uuid:
+            try:
+                selected_item = Item.active_objects.get(id=item_uuid)
+                kwargs['initial_item'] = selected_item
+            except Item.DoesNotExist:
+                pass
+                
+        return kwargs
+
     def get_initial(self):
         """
         Get initial form data.
@@ -94,6 +110,8 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         quantity = form.cleaned_data['quantity']
         organization = form.cleaned_data['organization']
         location = form.cleaned_data['location']
+        gtin = form.cleaned_data['gtin']
+        detail = form.cleaned_data['detail']
         date_received = form.cleaned_data['date_received']
         expiration_date = form.cleaned_data['expiration_date']
         lot_number = form.cleaned_data['lot_number']
@@ -109,6 +127,8 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             organization=organization,
             quantity=quantity,
             location=location,
+            gtin=gtin,
+            detail=detail,
             date_received=date_received,
             expiration_date=expiration_date,
             lot_number=lot_number,

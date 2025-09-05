@@ -14,10 +14,10 @@
   <ul id="existing-items-list" style="list-style: none; padding: 0; margin: 0"></ul>
 </div>
 
-{# Safely output all_items as JSON for JS #}
-<script id="all-items-json" type="application/json">
-  {{ all_items_json|safe }}
-</script>
+<div id="manufacturer-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
+  <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Suggested Manufacturers</h6>
+  <ul id="manufacturer-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
+</div>
 
 <script>
   // Wait for DOM to be fully loaded
@@ -44,7 +44,6 @@
   const gtinInput = document.getElementById("id_gtin");
   const itemsList = document.getElementById("existing-items-list");
   const searchContainer = document.getElementById("search-results-container");
-  const allItems = JSON.parse(document.getElementById("all-items-json").textContent);
 
   let searchTimeout;
 
@@ -62,8 +61,8 @@
       // Build item display with GTINs if available
       let itemInfo = `<strong>${item.name}</strong>`;
       if (item.gtins && item.gtins.length > 0) {
-        const gtinDisplay = item.gtins.slice(0, 2).join(', '); // Show first 2 GTINs
-        const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : '';
+        const gtinDisplay = item.gtins.slice(0, 2).join(", "); // Show first 2 GTINs
+        const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : "";
         itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTINs: ${gtinDisplay}${moreText}]</span>`;
       }
       if (item.category__name) {
@@ -77,19 +76,25 @@
   }
 
   function searchItems(query) {
-    if (!query) {
+    if (!query || query.length < 2) {
       searchContainer.style.display = "none";
       return;
     }
 
-    const matches = allItems.filter((item) => {
-      // Search by name or GTINs
-      const nameMatch = item.name.toLowerCase().includes(query.toLowerCase());
-      const gtinMatch = item.gtins && item.gtins.some(gtin => gtin.includes(query));
-      return nameMatch || gtinMatch;
-    });
-
-    renderList(matches);
+    // Fetch search results from API
+    fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.items) {
+          renderList(data.items);
+        } else {
+          searchContainer.style.display = "none";
+        }
+      })
+      .catch((error) => {
+        console.error("Search error:", error);
+        searchContainer.style.display = "none";
+      });
   }
 
   itemNameInput.addEventListener("input", function () {
@@ -129,32 +134,104 @@
   // Manufacturer autocomplete functionality
   document.addEventListener("DOMContentLoaded", function () {
     const manufacturerInput = document.getElementById("id_manufacturer");
+    const manufacturerSuggestionsContainer = document.getElementById("manufacturer-suggestions-container");
+    const manufacturerSuggestionsList = document.getElementById("manufacturer-suggestions-list");
+    let allManufacturers = [];
+    let manufacturerTimeout;
+
     if (manufacturerInput) {
-      // Create datalist element for autocomplete
-      const datalist = document.createElement("datalist");
-      datalist.id = "manufacturer-list";
-      manufacturerInput.parentNode.appendChild(datalist);
-      manufacturerInput.setAttribute("list", "manufacturer-list");
-      
+      // Disable browser autocomplete
+      manufacturerInput.setAttribute("autocomplete", "off");
+
+      // Position the suggestions container after the manufacturer input
+      const manufacturerFormGroup = manufacturerInput.closest(".form-group") || manufacturerInput.closest(".mb-3");
+      if (manufacturerFormGroup && manufacturerSuggestionsContainer) {
+        manufacturerFormGroup.parentNode.insertBefore(manufacturerSuggestionsContainer, manufacturerFormGroup.nextSibling);
+      }
+
       // Load manufacturers from API
       function loadManufacturers() {
-        fetch('/api/manufacturers/autocomplete/')
-          .then(response => response.json())
-          .then(data => {
+        fetch("/api/manufacturers/autocomplete/")
+          .then((response) => response.json())
+          .then((data) => {
             if (data.manufacturers) {
-              // Clear existing options
-              datalist.innerHTML = '';
-              // Add new options
-              data.manufacturers.forEach(manufacturer => {
-                const option = document.createElement("option");
-                option.value = manufacturer;
-                datalist.appendChild(option);
-              });
+              allManufacturers = data.manufacturers;
             }
           })
-          .catch(error => console.log('Error loading manufacturers:', error));
+          .catch((error) => console.log("Error loading manufacturers:", error));
       }
-      
+
+      function renderManufacturerSuggestions(matches) {
+        manufacturerSuggestionsList.innerHTML = "";
+        if (matches.length === 0) {
+          manufacturerSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        matches.slice(0, 5).forEach((manufacturer) => {
+          // Limit to 5 suggestions
+          const li = document.createElement("li");
+          li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s;";
+          li.textContent = manufacturer;
+
+          // Add hover effect
+          li.addEventListener("mouseenter", function () {
+            this.style.backgroundColor = "#f8f9fa";
+          });
+          li.addEventListener("mouseleave", function () {
+            this.style.backgroundColor = "#fff";
+          });
+
+          // Add click handler
+          li.addEventListener("click", function () {
+            manufacturerInput.value = manufacturer;
+            manufacturerSuggestionsContainer.style.display = "none";
+            manufacturerInput.focus();
+          });
+
+          manufacturerSuggestionsList.appendChild(li);
+        });
+
+        manufacturerSuggestionsContainer.style.display = "";
+      }
+
+      function searchManufacturers(query) {
+        if (!query || query.length < 1) {
+          manufacturerSuggestionsContainer.style.display = "none";
+          return;
+        }
+
+        const matches = allManufacturers.filter((manufacturer) => manufacturer.toLowerCase().includes(query.toLowerCase()));
+
+        renderManufacturerSuggestions(matches);
+      }
+
+      manufacturerInput.addEventListener("input", function () {
+        const query = this.value.trim();
+
+        // Clear previous timeout
+        clearTimeout(manufacturerTimeout);
+
+        // Add delay before searching
+        manufacturerTimeout = setTimeout(() => {
+          searchManufacturers(query);
+        }, 200); // 200ms delay
+      });
+
+      // Hide suggestions when clicking outside
+      document.addEventListener("click", function (e) {
+        if (!manufacturerInput.contains(e.target) && !manufacturerSuggestionsContainer.contains(e.target)) {
+          manufacturerSuggestionsContainer.style.display = "none";
+        }
+      });
+
+      // Hide suggestions when manufacturer input loses focus (with small delay to allow clicks)
+      manufacturerInput.addEventListener("blur", function () {
+        setTimeout(() => {
+          manufacturerSuggestionsContainer.style.display = "none";
+        }, 150);
+      });
+
       // Load manufacturers on page load
       loadManufacturers();
     }

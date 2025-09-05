@@ -1,56 +1,26 @@
-{% extends "shared/base.html" %}
-{% load crispy_forms_tags %}
-
-{% block body %}
+{% extends "shared/base.html" %} {% load crispy_forms_tags %} {% block body %}
 
 <h4>{{ action }} an item</h4>
 
 <body>
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js" defer></script>
 
-<script
-  src="https://code.jquery.com/jquery-3.4.1.min.js"
-  integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
-  crossorigin="anonymous"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js" defer></script>
-
-<form method="POST">
+  <form method="POST">
     {% csrf_token %}
-    <div class="form-group">
-        {{ form.item|as_crispy_field }}
-        {% if form.organization %}
-        {{ form.organization|as_crispy_field }}
-        {% endif %}
-        
-        {{ form.quantity|as_crispy_field }}
-        {% if form.location %}
-        {{ form.location|as_crispy_field }}
-        {% endif %}
-        {% if form.date_received %}
-        {{ form.date_received|as_crispy_field }}
-        {% endif %}
-        {% if form.expiration_date %}
-        {{ form.expiration_date|as_crispy_field }}
-        {% endif %}
-        {% if form.lot_number %}
-        {{ form.lot_number|as_crispy_field }}
-        {% endif %}
-        {% if form.notes %}
-        {{ form.notes|as_crispy_field }}
-        {% endif %}
-    </div>
+    <div class="form-group">{{ form|crispy }}</div>
 
-    <p><input type="submit" class="btn btn-primary" value="Submit"></p>
+    <p><input type="submit" class="btn btn-primary" value="Submit" /></p>
+  </form>
 
-</form>
-
-<script>
+  <script>
     $(document).ready(function() {
         $('#{{ form.item.id_for_label }}').select2({  // init Select2 on form's select field
             placeholder: "{{ form.item.label }}",
             allowClear: true,
             "box-sizing": "border-box",
-            "width": "100%" 
+            "width": "100%"
 
         });
         {% if form.organization %}
@@ -58,11 +28,12 @@
             placeholder: "{{ form.organization.label }}",
             allowClear: true,
             "box-sizing": "border-box",
-            "width": "100%" 
+            "width": "100%"
 
         });
         {% endif %}
     });
-</script>
+  </script>
 
-{% endblock %}
+  {% endblock %}
+</body>

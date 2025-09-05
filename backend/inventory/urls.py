@@ -67,6 +67,7 @@ urlpatterns = [
     path('api/organizations/create/', organizations.organization_create_ajax, name='organization_create_ajax'),
     path('api/organizations/list/', organizations.organization_list_api, name='organization_list_api'),
     path('api/manufacturers/autocomplete/', items.manufacturer_autocomplete_api, name='manufacturer_autocomplete_api'),
+    path('api/items/search/', items.items_search_api, name='items_search_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
