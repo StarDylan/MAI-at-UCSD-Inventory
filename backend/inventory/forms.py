@@ -1,4 +1,3 @@
-import datetime
 from django import forms
 from .models import Category, Subcategory, Organization, StockItem
 from inventory import models
@@ -24,7 +23,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'manufacturer', 'gtin', 'items_per_box', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'manufacturer', 'gtin', 'items_per_box', 'cost_per_item', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -165,6 +164,14 @@ class ItemWithStockForm(forms.Form):
         help_text="Number of individual items in a single box/package",
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
     )
+    cost_per_item = forms.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        required=False,
+        label="Value per Qty (Optional)",
+        help_text="Value per individual item",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
+    )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
@@ -275,6 +282,7 @@ class ItemWithStockForm(forms.Form):
             manufacturer=data['manufacturer'],
             gtin=item_gtin,
             items_per_box=data.get('items_per_box'),
+            cost_per_item=data.get('cost_per_item'),
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],
@@ -434,6 +442,215 @@ class StockItemCheckoutForm(forms.Form):
         super().__init__(*args, **kwargs)
         if item:
             self.fields['stock_items'].queryset = item.stock_items.filter(quantity__gt=0).order_by('detail', 'expiration_date', 'date_received')
+
+class CheckOutForm(forms.ModelForm):
+    """Form for creating and editing bulk checkouts"""
+    
+    class Meta:
+        model = models.CheckOut
+        fields = ['organization', 'notes']
+        widgets = {
+            'organization': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional notes for this checkout...'}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+
+
+class CheckOutItemForm(forms.ModelForm):
+    """Form for adding/editing individual items in a checkout"""
+    
+    class Meta:
+        model = models.CheckOutItem
+        fields = ['quantity', 'notes']
+        widgets = {
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Optional notes for this line item...'}),
+        }
+        
+    def __init__(self, stock_item=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if stock_item:
+            # Set max quantity based on available stock
+            self.fields['quantity'].widget.attrs['max'] = stock_item.quantity
+            self.fields['quantity'].help_text = f"Max available: {stock_item.quantity}"
+
+
+class CheckOutCompleteForm(forms.Form):
+    """Form for completing a checkout"""
+    total_weight = forms.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        required=True,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
+        label="Total Weight (lbs)",
+    )
+    notes = forms.CharField(
+        widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional completion notes...'}),
+        required=False,
+        label="Completion Notes",
+        help_text="Additional notes about the checkout completion"
+    )
+
+
+class CheckOutItemEditForm(forms.ModelForm):
+    """Form for editing quantity in a checkout item"""
+    
+    class Meta:
+        model = models.CheckOutItem
+        fields = ['quantity', 'notes']
+        widgets = {
+            'quantity': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1', 'style': 'width: 80px; display: inline;'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Optional notes for this line item...'}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.stock_item:
+            # Set max quantity based on available stock + current quantity
+            max_qty = self.instance.stock_item.quantity + self.instance.quantity
+            self.fields['quantity'].widget.attrs['max'] = max_qty
+            self.fields['quantity'].help_text = f"Max available: {max_qty}"
+
+
+class CheckOutItemDetailEditForm(forms.Form):
+    """Form for editing both checkout item quantity and item cost in a dedicated page"""
+    
+    quantity = forms.IntegerField(
+        min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'})
+    )
+    cost_per_item = forms.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        min_value=0,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': '0.00'})
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Optional notes for this checkout item'})
+    )
+    
+    def __init__(self, *args, checkout_item=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout_item = checkout_item
+        
+        if checkout_item:
+            # Set initial values
+            self.fields['quantity'].initial = checkout_item.quantity
+            self.fields['cost_per_item'].initial = checkout_item.stock_item.item.cost_per_item
+            self.fields['notes'].initial = checkout_item.notes
+            
+            # Set max quantity based on available stock + current quantity
+            max_qty = checkout_item.stock_item.quantity + checkout_item.quantity
+            self.fields['quantity'].widget.attrs['max'] = max_qty
+            self.fields['quantity'].help_text = f"Max available: {max_qty} units (includes current checkout quantity)"
+    
+    def clean_quantity(self):
+        quantity = self.cleaned_data['quantity']
+        if self.checkout_item:
+            # Check against available stock + current checkout quantity
+            max_qty = self.checkout_item.stock_item.quantity + self.checkout_item.quantity
+            if quantity > max_qty:
+                raise forms.ValidationError(f"Only {max_qty} units available")
+        return quantity
+
+
+class StockItemSelectWidget(forms.Select):
+    """Custom widget for stock item selection that includes data attributes for quantity and location"""
+    
+    def __init__(self, stock_items=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stock_items = stock_items or []
+    
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        
+        if value and str(value) != '':
+            # Find the matching stock item from our stored list
+            for stock_item in self.stock_items:
+                if str(stock_item.id) == str(value):
+                    option['attrs']['data-quantity'] = stock_item.quantity
+                    option['attrs']['data-location'] = stock_item.location or ''
+                    option['attrs']['data-detail'] = stock_item.detail or ''
+                    break
+                
+        return option
+
+
+class AddToCheckOutForm(forms.Form):
+    """Form for adding items to an existing checkout from item detail page"""
+    checkout = forms.ModelChoiceField(
+        queryset=models.CheckOut.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Add to Checkout",
+        help_text="Select an active checkout to add items to"
+    )
+    stock_item = forms.ModelChoiceField(
+        queryset=models.StockItem.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Stock Item"
+    )
+    quantity = forms.IntegerField(
+        min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+        label="Quantity",
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        label="Notes",
+        help_text="Optional notes for this checkout item"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        item = kwargs.pop('item', None)
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Store item reference for validation
+        self._item = item
+        
+        if user:
+            # Only show active checkouts
+            self.fields['checkout'].queryset = models.CheckOut.objects.filter(
+                is_completed=False
+            ).order_by('-created_at')
+        if item:
+            # Populate stock items for this item with available quantity
+            stock_items = item.stock_items.filter(
+                quantity__gt=0
+            ).order_by('detail', 'expiration_date', 'date_received')
+            
+            self.fields['stock_item'].queryset = stock_items
+            
+    def clean(self):
+        cleaned_data = super().clean()
+        stock_item = cleaned_data.get('stock_item')
+        quantity = cleaned_data.get('quantity')
+        checkout = cleaned_data.get('checkout')
+        
+        if stock_item and quantity:
+            # Check if enough quantity is available
+            if quantity > stock_item.quantity:
+                raise forms.ValidationError(
+                    f"Only {stock_item.quantity} units available for {stock_item}"
+                )
+                
+            # Check if this stock item is already in the checkout
+            if checkout and models.CheckOutItem.objects.filter(
+                checkout=checkout, 
+                stock_item=stock_item
+            ).exists():
+                raise forms.ValidationError(
+                    "This stock item is already in the selected checkout"
+                )
+        
+        return cleaned_data
+
 
 class UserCreationForm(forms.Form):
     username = forms.CharField(max_length=150, required=True)

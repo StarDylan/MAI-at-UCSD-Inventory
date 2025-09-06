@@ -38,6 +38,31 @@ def dashboard_view(request):
         HttpResponse: Rendered dashboard template
     """
     # Check if system is in DEBUG mode and Google OAuth is configured
+    
+    #{% if perms.inventory.add_user or perms.inventory.view_user or perms.inventory.view_auditevent or perms.inventory.view_deleteditem or perms.inventory.add_category or perms.inventory.add_subcategory or perms.inventory.add_organization or perms.inventory.delete_category or perms.inventory.delete_subcategory or perms.inventory.delete_image or perms.inventory.view_organization %}
+    # check if any of the above permissions exist
+
+    user = request.user
+
+    permissions = [
+        "inventory.add_user",
+        "inventory.view_user",
+        "inventory.view_auditevent",
+        "inventory.view_deleteditem",
+        "inventory.add_category",
+        "inventory.add_subcategory",
+        "inventory.add_organization",
+        "inventory.delete_category",
+        "inventory.delete_subcategory",
+        "inventory.delete_image",
+        "inventory.view_organization"
+    ]
+
+    if any(user.has_perm(perm) for perm in permissions):
+        should_show_admin = True
+    else:
+        should_show_admin = False
+
     if settings.DEBUG and settings.SOCIALACCOUNT_PROVIDERS.get('google')["APP"]["client_id"] == "":
         context = {
             "always_admin": True
@@ -46,6 +71,7 @@ def dashboard_view(request):
         context = {
             "always_admin": False
         }
+    context["should_show_admin"] = should_show_admin
     
     template = loader.get_template("dashboard/index.html")
     return HttpResponse(template.render(context, request))

@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth.models import User
 from datetime import date, timedelta
-from .models import Category, Subcategory, Item, Organization, StockItem
+from .models import Category, Subcategory, Item, Organization, StockItem, CheckOut, CheckOutItem
 
 
 class OrganizationModelTest(TestCase):
@@ -718,6 +718,214 @@ class ManufacturerTest(TestCase):
         
         item, stock_item = form.save()
         self.assertEqual(item.manufacturer, 'Sony')
+
+
+
+class BulkCheckoutModelTest(TestCase):
+    def setUp(self):
+        """Set up test data for bulk checkout tests"""
+        from inventory.models import User
+        
+        self.category = Category.objects.create(name="Test Category")
+        self.organization = Organization.objects.create(
+            name="Test Org",
+            description="Test organization"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            category=self.category
+        )
+        self.stock_item = StockItem.objects.create(
+            item=self.item,
+            organization=self.organization,
+            quantity=10,
+            location="Test Location",
+            date_received=date.today()
+        )
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass'
+        )
+
+    def test_create_checkout(self):
+        """Test creating a checkout"""
+        from inventory.models import CheckOut
+        
+        checkout = CheckOut.objects.create(
+            organization=self.organization,
+            created_by=self.user
+        )
+        self.assertEqual(str(checkout), f"Active checkout for {self.organization.name} - {checkout.created_at.strftime('%Y-%m-%d %H:%M')}")
+        self.assertFalse(checkout.is_completed)
+        self.assertEqual(checkout.total_items_count, 0)
+
+    def test_create_checkout_item(self):
+        """Test adding items to a checkout"""
+        from inventory.models import CheckOut, CheckOutItem
+        
+        checkout = CheckOut.objects.create(
+            organization=self.organization,
+            created_by=self.user
+        )
+        
+        # Add cost to the item
+        self.item.cost_per_item = 10.50
+        self.item.save()
+        
+        checkout_item = CheckOutItem.objects.create(
+            checkout=checkout,
+            stock_item=self.stock_item,
+            quantity=5
+        )
+        
+        self.assertEqual(str(checkout_item), "5x Test Item from Test Location")
+        self.assertEqual(checkout_item.total_cost, 52.50)
+        self.assertEqual(checkout.total_items_count, 5)
+        self.assertEqual(checkout.total_cost, 52.50)
+
+    def test_checkout_completion(self):
+        """Test completing a checkout"""
+        from inventory.models import CheckOut, CheckOutItem
+        from django.utils import timezone
+        
+        checkout = CheckOut.objects.create(
+            organization=self.organization,
+            created_by=self.user
+        )
+        
+        CheckOutItem.objects.create(
+            checkout=checkout,
+            stock_item=self.stock_item,
+            quantity=3
+        )
+        
+        # Complete the checkout
+        checkout.is_completed = True
+        checkout.completed_by = self.user
+        checkout.completed_at = timezone.now()
+        checkout.total_weight = 15.5
+        checkout.save()
+        
+        self.assertTrue(checkout.is_completed)
+        self.assertEqual(checkout.completed_by, self.user)
+        self.assertEqual(checkout.total_weight, 15.5)
+
+    def test_checkout_unique_constraint(self):
+        """Test that same stock item cannot be added twice to same checkout"""
+        from inventory.models import CheckOut, CheckOutItem
+        from django.db import IntegrityError
+        
+        checkout = CheckOut.objects.create(
+            organization=self.organization,
+            created_by=self.user
+        )
+        
+        # Add stock item once
+        CheckOutItem.objects.create(
+            checkout=checkout,
+            stock_item=self.stock_item,
+            quantity=3
+        )
+        
+        # Try to add same stock item again - should fail
+        with self.assertRaises(IntegrityError):
+            CheckOutItem.objects.create(
+                checkout=checkout,
+                stock_item=self.stock_item,
+                quantity=2
+            )
+
+
+class BulkCheckoutFormTest(TestCase):
+    def setUp(self):
+        """Set up test data for form tests"""
+        from inventory.models import User
+        
+        self.category = Category.objects.create(name="Test Category")
+        self.organization = Organization.objects.create(
+            name="Test Org",
+            description="Test organization"
+        )
+        self.item = Item.objects.create(
+            name="Test Item",
+            category=self.category
+        )
+        self.stock_item = StockItem.objects.create(
+            item=self.item,
+            organization=self.organization,
+            quantity=10,
+            location="Test Location",
+            date_received=date.today()
+        )
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass'
+        )
+
+    def test_checkout_form_valid(self):
+        """Test CheckOutForm with valid data"""
+        from inventory.forms import CheckOutForm
+        
+        form_data = {
+            'organization': self.organization.id,
+            'notes': 'Test checkout notes'
+        }
+        
+        form = CheckOutForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+    def test_checkout_item_form_valid(self):
+        """Test CheckOutItemForm with valid data"""
+        from inventory.forms import CheckOutItemForm
+        
+        form_data = {
+            'quantity': 5,
+            'notes': 'Test item notes'
+        }
+        
+        form = CheckOutItemForm(data=form_data, stock_item=self.stock_item)
+        self.assertTrue(form.is_valid())
+
+    def test_checkout_item_form_quantity_validation(self):
+        """Test that CheckOutItemForm validates quantity against available stock"""
+        from inventory.forms import CheckOutItemForm
+        
+        form_data = {
+            'quantity': 15,  # More than available (10)
+        }
+        
+        form = CheckOutItemForm(data=form_data, stock_item=self.stock_item)
+        # Form should still be valid at form level - validation happens in view/business logic
+        self.assertTrue(form.is_valid())
+        # But max quantity should be set correctly
+        self.assertEqual(form.fields['quantity'].widget.attrs['max'], 10)
+
+    def test_add_to_checkout_form_duplicate_prevention(self):
+        """Test AddToCheckOutForm prevents duplicate stock items"""
+        from inventory.forms import AddToCheckOutForm
+        from inventory.models import CheckOut, CheckOutItem
+        
+        # Create checkout and add stock item
+        checkout = CheckOut.objects.create(
+            organization=self.organization,
+            created_by=self.user
+        )
+        CheckOutItem.objects.create(
+            checkout=checkout,
+            stock_item=self.stock_item,
+            quantity=3
+        )
+        
+        # Try to add same stock item again
+        form_data = {
+            'checkout': checkout.id,
+            'stock_item': self.stock_item.id,
+            'quantity': 2
+        }
+        
+        form = AddToCheckOutForm(data=form_data, item=self.item, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('This stock item is already in the selected checkout', str(form.errors))
 
 
 # Create your other tests here.

@@ -662,8 +662,6 @@ def items_search_api(request):
     Returns:
         JsonResponse: JSON response with matching items list and total count
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Authentication required'}, status=401)
     
     # Get individual search parameters
     general_query = request.GET.get('q', '').strip()
@@ -722,6 +720,7 @@ def items_search_api(request):
                         )
                     )
                 )
+                .filter(total_stock_quantity__gt=0)  # Only return items with stock
                 .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
     
     # Also search by stock item GTINs if GTIN queries are provided
@@ -774,6 +773,7 @@ def items_search_api(request):
                                   )
                               )
                           )
+                          .filter(total_stock_quantity__gt=0)  # Only return items with stock
                           .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
         
         # Combine results and remove duplicates

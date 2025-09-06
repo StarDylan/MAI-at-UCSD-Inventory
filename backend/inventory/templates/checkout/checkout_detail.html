@@ -1,0 +1,626 @@
+{% extends "shared/base.html" %} {% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2>
+      {% if checkout.is_completed %}
+      <i class="material-icons text-success">check_circle</i>
+      {% else %}
+      <i class="material-icons text-primary">shopping_cart</i>
+      {% endif %} Checkout for {{ checkout.organization.name }}
+    </h2>
+    <p class="text-muted mb-0">
+      Created by {{ checkout.created_by.get_full_name|default:checkout.created_by.username }} on {{ checkout.created_at|date:"M d, Y H:i" }} {% if checkout.is_completed %}
+      <br />Completed by {{ checkout.completed_by.get_full_name|default:checkout.completed_by.username }} on {{ checkout.completed_at|date:"M d, Y H:i" }} {% endif %}
+    </p>
+  </div>
+  <div>
+    <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts </a>
+
+    {% if not checkout.is_completed and checkout_items and perms.inventory.complete_checkout %} {% if checkout.has_insufficient_stock %}
+    <button class="btn btn-secondary" disabled title="Cannot complete checkout - insufficient stock for some items">
+      <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
+    </button>
+    {% else %}
+    <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success"> <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout </a>
+    {% endif %} {% elif checkout.is_completed %} {% if perms.inventory.undo_checkout %}
+    <form
+      method="post"
+      action="{% url 'checkout_undo' checkout.id %}"
+      style="display: inline"
+      onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');"
+    >
+      {% csrf_token %}
+      <button type="submit" class="btn btn-warning"><i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout</button>
+    </form>
+    {% endif %} {% endif %} {% comment %} Delete button - only show for non-completed checkouts with delete permission {% endcomment %}
+
+    <span>
+      {% if not checkout.is_completed and perms.inventory.delete_checkout %}
+      <a href="{% url 'checkout_delete' checkout.id %}" class="btn btn-outline-danger ms-2"> <i class="material-icons" style="vertical-align: middle">delete</i> Delete </a>
+      {% endif %}
+    </span>
+  </div>
+</div>
+
+<!-- Checkout Summary -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h4 class="text-primary">{{ checkout.total_items_count }}</h4>
+        <small class="text-muted">Total Items</small>
+      </div>
+    </div>
+  </div>
+  {% if checkout.total_weight %}
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h4 class="text-info">{{ checkout.total_weight }} lbs</h4>
+        <small class="text-muted">Total Weight</small>
+      </div>
+    </div>
+  </div>
+  {% endif %} {% if checkout.total_cost %}
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h4 class="text-success">${{ checkout.total_cost|floatformat:2 }}</h4>
+        <small class="text-muted">Total Value</small>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h6 class="{% if checkout.is_completed %}text-success{% else %}text-warning{% endif %}">
+          {% if checkout.is_completed %}
+          <i class="material-icons">check_circle</i> Completed {% else %} <i class="material-icons">schedule</i> Active {% endif %}
+        </h6>
+        <small class="text-muted">Status</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Notes -->
+{% if checkout.notes %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h6 class="mb-0">Notes</h6>
+  </div>
+  <div class="card-body">
+    <p class="mb-0">{{ checkout.notes|linebreaks }}</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Warning about insufficient stock -->
+{% if not checkout.is_completed and checkout.has_insufficient_stock %}
+<div class="alert alert-warning">
+  <i class="material-icons" style="vertical-align: middle">warning</i>
+  <strong>Cannot Complete Checkout:</strong> Some items have insufficient stock. Please adjust quantities or remove items with insufficient stock before completing the checkout.
+</div>
+{% endif %}
+
+<!-- Checkout Items -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Items in Checkout</h5>
+  </div>
+  <div class="card-body">
+    {% if checkout_items %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Detail</th>
+            <th>Location</th>
+            <th>Expiration Date</th>
+            <th>Quantity</th>
+            <th>Value per Qty</th>
+            {% if not checkout.is_completed and perms.inventory.change_checkout %}
+            <th>Actions</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in checkout_items %}
+          <tr>
+            <td>
+              <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none"> {{ item.stock_item.item.name }} </a>
+              {% if item.stock_item.item.manufacturer %}
+              <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.stock_item.detail %} {{ item.stock_item.detail }} {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>{{ item.stock_item.location }}</td>
+            <td>{{ item.stock_item.expiration_date|date:"M d, Y" }}</td>
+            <td>
+              {% if not checkout.is_completed %}
+              <strong>{{ item.quantity }}</strong>
+              <span>
+                {% if item.boxes %}
+                <small class="text-muted"> {{ item.boxes }} box{{ item.boxes|pluralize:'es' }} {% if item.remaining %}(+{{ item.remaining }} unit{{ item.remaining|pluralize }}){% endif %} </small>
+                {% endif %}
+              </span>
+              {% if not checkout.is_completed %}
+              <br />
+              {% if item.remaining_after_checkout < 0 %}
+              <small class="text-danger">
+                <i class="material-icons" style="vertical-align: middle; font-size: 14px">warning</i>
+                Insufficient stock! Available: {{ item.stock_item.quantity }} units
+              </small>
+              {% else %}
+              <small class="text-info"> Available: {{ item.stock_item.quantity }} units </small>
+              {% endif %} {% endif %} {% else %}
+              <strong>{{ item.quantity }}</strong>
+
+              {% endif %}
+            </td>
+            <td>
+              {% if item.stock_item.item.cost_per_item %} {% if item.stock_item.item.cost_per_item < 0.0099 %}<{% endif %} ${{ item.stock_item.item.cost_per_item|floatformat:2 }} {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            {% if not checkout.is_completed and perms.inventory.change_checkout %}
+            <td>
+              <a href="{% url 'checkout_edit_item_detail' checkout.id item.id %}" class="btn btn-sm btn-outline-primary mt-1">
+                <i class="material-icons" style="vertical-align: middle">edit</i> Edit
+              </a>
+              <form method="post" action="{% url 'checkout_remove_item' checkout.id item.id %}" style="display: inline" onsubmit="return confirm('Remove this item from the checkout?')">
+                {% csrf_token %}
+
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                  <i class="material-icons" style="vertical-align: middle">delete</i>
+                </button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% if item.notes %}
+          <tr>
+            <td colspan="{% if checkout.is_completed %}6{% else %}7{% endif %}" class="border-top-0 pt-0">
+              <small class="text-muted">Note: {{ item.notes }} </small>
+            </td>
+          </tr>
+          {% endif %} {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4">
+      <i class="material-icons fa-3x text-muted mb-3">inventory_2</i>
+      <h5 class="text-muted">No items in checkout</h5>
+      <p class="text-muted">Add some items to get started using the panel below.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Items Panel (only show for non-completed checkouts) -->
+{% if not checkout.is_completed and perms.inventory.change_checkout %}
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="material-icons" style="vertical-align: middle">add</i> Add Items to Checkout</h5>
+  </div>
+  <div class="card-body">
+    <div class="mb-3">
+      <input type="text" id="itemSearch" class="form-control" placeholder="Search for items..." autocomplete="off" />
+    </div>
+
+    <div id="searchResults" class="d-none">
+      <h6>Search Results:</h6>
+      <div id="itemsList" class="row">
+        <!-- Search results will be populated here -->
+      </div>
+    </div>
+
+    <div id="noSearchYet" class="text-center py-4">
+      <i class="material-icons fa-2x text-muted mb-3">search</i>
+      <h5 class="text-muted">Search for Items</h5>
+      <p class="text-muted">Start typing to find items to add to the checkout.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addItemModalLabel">Add Item to Checkout</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Form-wide errors -->
+        <div id="formErrors" class="alert alert-danger d-none" role="alert">
+          <ul class="mb-0" id="formErrorsList"></ul>
+        </div>
+
+        <form id="addItemForm">
+          {% csrf_token %}
+          <input type="hidden" id="selectedStockItem" name="stock_item_id" />
+
+          <div class="mb-3">
+            <label for="stockItemSelect" class="form-label">Stock Item</label>
+            <select id="stockItemSelect" name="stock_item_id" class="form-select" required>
+              <option value="">Select stock item...</option>
+            </select>
+            <div class="form-text">Choose which specific stock to take from</div>
+            <div id="stockItemErrors" class="invalid-feedback"></div>
+          </div>
+
+          <div class="mb-3">
+            <label for="quantityInput" class="form-label">Quantity</label>
+            <input type="number" id="quantityInput" name="quantity" class="form-control" min="1" required />
+            <div class="form-text" id="quantityHelp">Available quantity will be shown here</div>
+            <div id="quantityErrors" class="invalid-feedback"></div>
+          </div>
+
+          <div class="mb-3">
+            <label for="notesInput" class="form-label">Notes (optional)</label>
+            <textarea id="notesInput" name="notes" class="form-control" rows="2" placeholder="Any additional notes for this line item..."></textarea>
+            <div id="notesErrors" class="invalid-feedback"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmAddItem">Add to Checkout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Audit Log Section -->
+{% if perms.inventory.view_auditevent %}
+<div class="card mt-4">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="material-icons" style="vertical-align: middle">fingerprint</i> Audit Log</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover" id="checkout_audit_table">
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">User</th>
+            <th scope="col">Event</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in checkout_audit %}
+          <tr onclick="viewDiff({{ event.json_data }});">
+            <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
+            <td>{{ event.user.get_full_name|default:event.user.username }}</td>
+            <td>{{ event.event }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Audit Diff Modal -->
+<div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="auditDiffModalLabel">Audit Event Details</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h6>Before</h6>
+        <pre id="audit_left"></pre>
+
+        <h6>After</h6>
+        <pre id="audit_right"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const itemSearch = document.getElementById("itemSearch");
+    const searchResults = document.getElementById("searchResults");
+    const itemsList = document.getElementById("itemsList");
+    const noSearchYet = document.getElementById("noSearchYet");
+    const addItemModal = new bootstrap.Modal(document.getElementById("addItemModal"));
+    const stockItemSelect = document.getElementById("stockItemSelect");
+    const quantityInput = document.getElementById("quantityInput");
+    const quantityHelp = document.getElementById("quantityHelp");
+
+    let searchTimeout;
+    let currentItem = null;
+
+    // Search for items
+    itemSearch.addEventListener("input", function () {
+      const query = this.value.trim();
+
+      clearTimeout(searchTimeout);
+
+      if (query.length < 2) {
+        searchResults.classList.add("d-none");
+        noSearchYet.classList.remove("d-none");
+        return;
+      }
+
+      searchTimeout = setTimeout(() => {
+        fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
+          .then((response) => response.json())
+          .then((data) => {
+            displaySearchResults(data.items || []);
+          })
+          .catch((error) => {
+            console.error("Search error:", error);
+          });
+      }, 300);
+    });
+
+    // Display search results
+    function displaySearchResults(items) {
+      noSearchYet.classList.add("d-none");
+
+      if (items.length === 0) {
+        itemsList.innerHTML = '<div class="col-12"><p class="text-muted">No items found</p></div>';
+      } else {
+        itemsList.innerHTML = items
+          .map(
+            (item) => `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">${item.name}</h6>
+                            ${item.manufacturer ? `<p class="text-muted small mb-2">${item.manufacturer}</p>` : ""}
+                            <p class="small mb-2">
+                                <strong>${item.total_stock_quantity}</strong> total available
+                            </p>
+                            <button class="btn btn-primary btn-sm" onclick="selectItem('${item.id}', '${item.name}')">
+                                Add to Checkout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `
+          )
+          .join("");
+      }
+
+      searchResults.classList.remove("d-none");
+    }
+
+    // Select an item to add
+    window.selectItem = function (itemId, itemName) {
+      currentItem = { id: itemId, name: itemName };
+
+      // Update modal title and info
+      document.getElementById("addItemModalLabel").textContent = `Add ${itemName} to Checkout`;
+
+      // Clear any previous errors when opening modal
+      clearFormErrors();
+
+      // Load stock items for this item
+      fetch(`/api/items/${itemId}/stock-items/`)
+        .then((response) => response.json())
+        .then((data) => {
+          stockItemSelect.innerHTML = '<option value="">Select stock item...</option>';
+          data.stock_items.forEach((stockItem) => {
+            stockItemSelect.innerHTML += `
+                        <option value="${stockItem.id}" 
+                                data-quantity="${stockItem.quantity}"
+                                data-location="${stockItem.location}"
+                                data-organization="${stockItem.organization}">
+                            ${stockItem.display_name}
+                        </option>
+                    `;
+          });
+        })
+        .catch((error) => {
+          console.error("Error loading stock items:", error);
+          showGeneralError("Error loading stock items for this item");
+        });
+
+      // Reset form
+      document.getElementById("addItemForm").reset();
+      quantityInput.value = "";
+      quantityHelp.textContent = "Available quantity will be shown here";
+
+      addItemModal.show();
+    };
+
+    // Clear errors when fields change
+    stockItemSelect.addEventListener("change", function () {
+      // Clear any previous errors for this field
+      this.classList.remove("is-invalid");
+      document.getElementById("stockItemErrors").textContent = "";
+
+      const selectedOption = this.options[this.selectedIndex];
+      if (selectedOption.value) {
+        const maxQuantity = selectedOption.dataset.quantity;
+        quantityInput.max = maxQuantity;
+        quantityInput.value = Math.min(1, maxQuantity);
+        quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
+      } else {
+        quantityInput.max = "";
+        quantityInput.value = "";
+        quantityHelp.textContent = "Available quantity will be shown here";
+      }
+    });
+
+    // Clear errors when quantity changes
+    quantityInput.addEventListener("input", function () {
+      this.classList.remove("is-invalid");
+      document.getElementById("quantityErrors").textContent = "";
+    });
+
+    // Clear errors when notes change
+    document.getElementById("notesInput").addEventListener("input", function () {
+      this.classList.remove("is-invalid");
+      document.getElementById("notesErrors").textContent = "";
+    });
+
+    // Add item to checkout
+    document.getElementById("confirmAddItem").addEventListener("click", function () {
+      // Clear previous errors
+      clearFormErrors();
+
+      const formData = new FormData(document.getElementById("addItemForm"));
+      formData.set("stock_item_id", stockItemSelect.value);
+
+      // Basic client-side validation
+      if (!stockItemSelect.value) {
+        showFieldError("stockItemSelect", "Please select a stock item");
+        return;
+      }
+
+      if (!quantityInput.value || quantityInput.value < 1) {
+        showFieldError("quantityInput", "Please enter a valid quantity");
+        return;
+      }
+
+      const selectedOption = stockItemSelect.options[stockItemSelect.selectedIndex];
+      const maxQuantity = parseInt(selectedOption.dataset.quantity);
+      if (quantityInput.value > maxQuantity) {
+        showFieldError("quantityInput", `Quantity cannot exceed available stock (${maxQuantity} units)`);
+        return;
+      }
+
+      // Disable the submit button to prevent double submission
+      const submitButton = this;
+      submitButton.disabled = true;
+      submitButton.textContent = "Adding...";
+
+      fetch('{% url "checkout_add_item" checkout.id %}', {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            addItemModal.hide();
+            // Reload the page to show the new item
+            window.location.reload();
+          } else {
+            // Handle server-side validation errors
+            if (data.errors) {
+              displayFormErrors(data.errors);
+            } else {
+              showGeneralError(data.error || "An error occurred while adding the item");
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("Error adding item:", error);
+          showGeneralError("An error occurred while adding the item");
+        })
+        .finally(() => {
+          // Re-enable the submit button
+          submitButton.disabled = false;
+          submitButton.textContent = "Add to Checkout";
+        });
+    });
+
+    // Helper functions for error handling
+    function clearFormErrors() {
+      // Hide general error alert
+      document.getElementById("formErrors").classList.add("d-none");
+      document.getElementById("formErrorsList").innerHTML = "";
+
+      // Clear field-specific errors
+      ["stockItemSelect", "quantityInput", "notesInput"].forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId.replace("Input", "").replace("Select", "") + "Errors");
+
+        field.classList.remove("is-invalid");
+        if (errorDiv) {
+          errorDiv.textContent = "";
+        }
+      });
+    }
+
+    function showFieldError(fieldId, message) {
+      const field = document.getElementById(fieldId);
+      const errorDiv = document.getElementById(fieldId.replace("Input", "").replace("Select", "") + "Errors");
+
+      field.classList.add("is-invalid");
+      if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = "block";
+      }
+    }
+
+    function showGeneralError(message) {
+      const formErrors = document.getElementById("formErrors");
+      const formErrorsList = document.getElementById("formErrorsList");
+
+      formErrorsList.innerHTML = `<li>${message}</li>`;
+      formErrors.classList.remove("d-none");
+    }
+
+    function displayFormErrors(errors) {
+      // Handle field-specific errors
+      Object.keys(errors).forEach((fieldName) => {
+        const messages = Array.isArray(errors[fieldName]) ? errors[fieldName] : [errors[fieldName]];
+
+        if (fieldName === "stock_item_id" || fieldName === "stock_item") {
+          showFieldError("stockItemSelect", messages.join(", "));
+        } else if (fieldName === "quantity") {
+          showFieldError("quantityInput", messages.join(", "));
+        } else if (fieldName === "notes") {
+          showFieldError("notesInput", messages.join(", "));
+        } else if (fieldName === "__all__" || fieldName === "non_field_errors") {
+          // Show general form errors
+          messages.forEach((message) => {
+            const formErrorsList = document.getElementById("formErrorsList");
+            formErrorsList.innerHTML += `<li>${message}</li>`;
+          });
+          document.getElementById("formErrors").classList.remove("d-none");
+        }
+      });
+    }
+  });
+
+  // Audit diff functionality
+  function viewDiff(event) {
+    var modal = $("#auditDiffModal").modal();
+    modal.modal("show");
+
+    $("#audit_left").text(event["before"]);
+    $("#audit_right").text(event["after"]);
+
+    leftBlockId = $("#audit_left").attr("id");
+    rightBlockId = $("#audit_right").attr("id");
+    $(document).jdd(leftBlockId, rightBlockId);
+
+    // Initialize DataTable for audit log if not already initialized
+    if (!$.fn.DataTable.isDataTable("#checkout_audit_table")) {
+      $("#checkout_audit_table").DataTable({
+        order: [[0, "desc"]],
+        pageLength: 10,
+        responsive: true,
+      });
+    }
+  }
+</script>
+{% endblock %}

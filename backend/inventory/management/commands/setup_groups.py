@@ -29,6 +29,7 @@ class Command(BaseCommand):
         image_ct = ContentType.objects.get_for_model(model=models.Image)
         organization_ct = ContentType.objects.get_for_model(model=models.Organization)
         stockitem_ct = ContentType.objects.get_for_model(model=models.StockItem)
+        checkout_ct = ContentType.objects.get_for_model(model=models.CheckOut)
 
         user_permissions = []
 
@@ -49,6 +50,9 @@ class Command(BaseCommand):
             Permission.objects.get(codename='add_stockitem', content_type=stockitem_ct),
             Permission.objects.get(codename='change_stockitem', content_type=stockitem_ct),
             Permission.objects.get(codename='delete_stockitem', content_type=stockitem_ct),
+
+            Permission.objects.get(codename='view_checkout', content_type=checkout_ct),
+            Permission.objects.get(codename='change_checkout', content_type=checkout_ct),
 
         ]
 
@@ -80,6 +84,11 @@ class Command(BaseCommand):
             Permission.objects.get(codename='change_organization', content_type=organization_ct),
             Permission.objects.get(codename='delete_organization', content_type=organization_ct),
             Permission.objects.get(codename='view_organization', content_type=organization_ct),
+
+            Permission.objects.get(codename='complete_checkout', content_type=checkout_ct),
+            Permission.objects.get(codename='undo_checkout', content_type=checkout_ct),
+            Permission.objects.get(codename='delete_checkout', content_type=checkout_ct),
+            Permission.objects.get(codename='add_checkout', content_type=checkout_ct),
         ]
 
         # Add the permissions to the Member group

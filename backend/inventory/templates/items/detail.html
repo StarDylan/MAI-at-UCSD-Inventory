@@ -9,20 +9,23 @@
         {% endif %} 
       {% else %} 
         {% if perms.inventory.change_item %}
-        <a href="{% url 'edit_item' item.id %}" class="btn"><i class="material-icons">edit</i></a>
-        {% endif %} 
+        <a href="{% url 'edit_item' item.id %}" class="btn" style="display: flex; justify-content: center; align-items: center;">
+          <i class="material-icons">edit</i>
+        </a>
+        {% endif %}
         {% if perms.inventory.delete_item %}
         <button class="btn" onclick="confirmDelete('{{ item.id }}','{{ item.name }}')"><i class="material-icons" style="color: red">delete</i></button>
         {% endif %} 
-        {% if perms.inventory.add_stockitem %}
-        <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
-        {% endif %} 
-        {% if perms.inventory.change_item %}
-        <a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i> Check Out Item</a>
-        {% endif %} 
-      {% endif %}
+        <br>
+        {% endif %}
     </div>
-  </div>
+</div>
+{% if perms.inventory.add_stockitem %}
+<a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
+{% endif %} 
+{% if perms.inventory.change_checkout %}
+<a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Bulk Checkout</a>
+{% endif %} 
 
   <style type="text/css">
     .material-icons {

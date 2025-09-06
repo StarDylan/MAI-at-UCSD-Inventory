@@ -1,0 +1,111 @@
+{% extends "shared/base.html" %} {% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Bulk Checkout System</h2>
+  {% if perms.inventory.add_checkout %}
+  <a href="{% url 'checkout_create' %}" class="btn btn-primary"> <i class="material-icons" style="vertical-align: middle">add</i> New Checkout </a>
+  {% endif %}
+</div>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-4" id="checkoutTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <a class="nav-link {% if active_tab == 'active' %}active{% endif %}" href="?tab=active" role="tab">
+      Active Checkouts {% if active_count > 0 %}
+      <span class="badge bg-primary text-white">{{ active_count }}</span>
+      {% endif %}
+    </a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link {% if active_tab == 'completed' %}active{% endif %}" href="?tab=completed" role="tab"> Completed Checkouts {% if completed_count > 0 %} {% endif %} </a>
+  </li>
+</ul>
+
+<!-- Checkouts List -->
+<div class="tab-content">
+  {% if checkouts %}
+  <div class="row">
+    {% for checkout in checkouts %}
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            {% if checkout.is_completed %}
+            <i class="material-icons text-success">check_circle</i>
+            {% else %}
+            <i class="material-icons text-primary">shopping_cart</i>
+            {% endif %} {{ checkout.organization.name }}
+          </h6>
+          {% if checkout.is_completed %}
+          <span class="badge bg-success text-white">Completed</span>
+          {% else %}
+          <span class="badge bg-primary text-white">Active</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">
+            Created by {{ checkout.created_by.get_full_name|default:checkout.created_by.username }}
+            <br />
+            {{ checkout.created_at|date:"M d, Y H:i" }}
+          </p>
+
+          {% if checkout.is_completed %}
+          <p class="text-muted small mb-2">
+            Completed by {{ checkout.completed_by.get_full_name|default:checkout.completed_by.username }}
+            <br />
+            {{ checkout.completed_at|date:"M d, Y H:i" }}
+          </p>
+          {% endif %}
+
+          <div class="mb-2">
+            <strong>{{ checkout.total_items_count }}</strong> item{{ checkout.total_items_count|pluralize }} {% if checkout.total_weight %} <br /><strong>{{ checkout.total_weight }} lbs</strong> total
+            weight {% endif %} {% if checkout.total_cost and checkout.is_completed %} <br /><strong>${{ checkout.total_cost|floatformat:2 }}</strong> total value {% endif %}
+          </div>
+
+          {% if checkout.notes %}
+          <p class="small text-muted">{{ checkout.notes|truncatechars:100 }}</p>
+          {% endif %}
+
+          <div class="mt-3">
+            <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-outline-primary btn-sm"> View Details </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <nav aria-label="Checkout pagination">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.previous_page_number }}">Previous</a>
+      </li>
+      {% endif %} {% for page_num in page_obj.paginator.page_range %} {% if page_obj.number == page_num %}
+      <li class="page-item active">
+        <span class="page-link">{{ page_num }}</span>
+      </li>
+      {% else %}
+      <li class="page-item">
+        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_num }}">{{ page_num }}</a>
+      </li>
+      {% endif %} {% endfor %} {% if page_obj.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.next_page_number }}">Next</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %} {% else %}
+  <div class="text-center py-5">
+    <i class="material-icons fa-3x text-muted mb-3">shopping_cart</i>
+    <h4 class="text-muted">{% if active_tab == 'active' %} No active checkouts {% else %} No completed checkouts {% endif %}</h4>
+    <p class="text-muted">{% if active_tab == 'active' %} Create a new checkout to get started. {% else %} Complete some active checkouts to see them here. {% endif %}</p>
+    {% if active_tab == 'active' and perms.inventory.add_checkout %}
+    <a href="{% url 'checkout_create' %}" class="btn btn-primary"> <i class="material-icons" style="vertical-align: middle">add</i> Create New Checkout </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

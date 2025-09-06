@@ -75,6 +75,13 @@ class Item(models.Model):
     manufacturer = models.CharField(max_length=255, blank=True, default="", help_text="Product manufacturer or brand name")
     gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
     items_per_box = models.PositiveIntegerField(null=True, blank=True, help_text="Number of individual items in a single box/package")
+    cost_per_item = models.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        null=True, 
+        blank=True,
+        help_text="Cost per individual item"
+    )
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
@@ -213,6 +220,121 @@ class Image(models.Model):
 
     def __str__(self):
         return self.image_url
+
+
+class CheckOut(models.Model):
+    """
+    Bulk checkout system - represents a collection of items being checked out.
+    Can be in 'active' state (being built) or 'completed' state (finalized).
+    """
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        related_name="checkouts",
+        on_delete=models.PROTECT,
+        db_column="organization_id",
+        help_text="Organization that items are being checked out to"
+    )
+    created_by = models.ForeignKey(
+        User,
+        related_name="created_checkouts",
+        on_delete=models.PROTECT,
+        db_column="created_by_id"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    completed_by = models.ForeignKey(
+        User,
+        related_name="completed_checkouts",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="completed_by_id"
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    total_weight = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Total weight of all items in the checkout (filled at completion)"
+    )
+    notes = models.TextField(blank=True, default="", help_text="Additional notes for this checkout")
+    is_completed = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+        permissions = [
+            ("complete_checkout", "Can complete checkout"),
+            ("undo_checkout", "Can undo completed checkout"),
+        ]
+        
+    def __str__(self):
+        status = "Completed" if self.is_completed else "Active"
+        return f"{status} checkout for {self.organization.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+    
+    @property
+    def total_items_count(self):
+        """Calculate total number of individual items in this checkout"""
+        return sum(item.quantity for item in self.checkout_items.all())
+    
+    @property
+    def total_cost(self):
+        """Calculate total cost of all items in checkout"""
+        total = 0
+        for checkout_item in self.checkout_items.all():
+            if checkout_item.stock_item.item.cost_per_item:
+                total += checkout_item.stock_item.item.cost_per_item * checkout_item.quantity
+        return total
+    
+    @property
+    def has_insufficient_stock(self):
+        """Check if any items in the checkout have insufficient stock"""
+        return any(item.remaining_after_checkout < 0 for item in self.checkout_items.all())
+    
+
+class CheckOutItem(models.Model):
+    """
+    Individual line item in a checkout - links specific stock items with quantities and costs.
+    """
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    checkout = models.ForeignKey(
+        CheckOut,
+        related_name="checkout_items",
+        on_delete=models.CASCADE,
+        db_column="checkout_id"
+    )
+    stock_item = models.ForeignKey(
+        StockItem,
+        related_name="checkout_items",
+        on_delete=models.PROTECT,
+        db_column="stock_item_id"
+    )
+    quantity = models.PositiveIntegerField(help_text="Quantity to check out from this stock item")
+    notes = models.TextField(blank=True, default="", help_text="Notes specific to this line item")
+    
+    class Meta:
+        ordering = ['stock_item__item__name', 'stock_item__detail']
+        constraints = [
+            # Prevent duplicate stock items in the same checkout
+            models.UniqueConstraint(fields=['checkout', 'stock_item'], name='unique_checkout_stock_item')
+        ]
+    
+    def __str__(self):
+        return f"{self.quantity}x {self.stock_item.item.name} from {self.stock_item.location}"
+    
+    @property
+    def total_cost(self):
+        """Calculate total cost for this line item"""
+        if self.stock_item.item.cost_per_item:
+            return self.stock_item.item.cost_per_item * self.quantity
+        return None
+    
+    @property 
+    def remaining_after_checkout(self):
+        """Calculate remaining stock after this checkout item"""
+        return self.stock_item.quantity - self.quantity
 
 
 class AuditEvent(models.Model):

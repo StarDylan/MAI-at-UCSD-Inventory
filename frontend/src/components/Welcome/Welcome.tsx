@@ -41,7 +41,7 @@ export function Welcome() {
   return (
     <>
       <Title className={classes.title} ta="center" mt={100}>
-        MAI Inventory
+        MAI-at-UCSD Inventory
       </Title>
       <List>
         {sampleInventory.map((item) => (

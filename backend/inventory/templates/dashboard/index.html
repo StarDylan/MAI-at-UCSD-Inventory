@@ -12,10 +12,7 @@
   Access controls are handled via template tags and user permissions.
 -->
 
-{% extends "shared/base.html" %} 
-{% load socialaccount %}
-
-{% block body %} {% if user.is_authenticated %}
+{% extends "shared/base.html" %} {% load socialaccount %} {% block body %} {% if user.is_authenticated %}
 <h4>
   <span id="greet"></span>
   {{ user.get_full_name|default:user.username }}, what would you like to do?
@@ -33,72 +30,55 @@
 {% if perms.inventory.change_item or perms.inventory.add_item %}
 <h5>Update</h5>
 <div class="list-group">
-    {% if perms.inventory.add_item %}
-    <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
-    {% endif %}
-    {% if perms.inventory.change_item %}
-    <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
-    <a href="{% url 'view_all_items' %}" class="list-group-item list-group-item-action">Search and check out an item</a>
-    {% endif %}
+  {% if perms.inventory.add_item %}
+  <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
+  {% endif %} {% if perms.inventory.change_item %}
+  <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
+  <a href="{% url 'view_all_items' %}" class="list-group-item list-group-item-action">Search and check out an item</a>
+  {% endif %}
 </div>
 {% endif %}
 
 <br />
 
-
-{% if perms.inventory.add_user or perms.inventory.view_user or perms.inventory.view_auditevent or perms.inventory.view_deleteditem  or perms.inventory.add_category or perms.inventory.add_subcategory or perms.inventory.add_organization or perms.inventory.delete_category or perms.inventory.delete_subcategory or perms.inventory.delete_image %}
+{% if should_show_admin %}
 <h5>Administrate</h5>
 <div class="list-group">
-    {# Either the user can add a new user or view users  #}
-    {% if perms.inventory.add_user or perms.inventory.view_user %}
-    <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">Manage users</a>
-    {% endif %}
-
-    {% if perms.inventory.view_auditevent %}
-    <a href="{% url 'audit' %}" class="list-group-item list-group-item-action">View audit logs</a>
-    {% endif %}
-
-    {% if perms.inventory.view_deleteditem %}
-    <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
-    {% endif %}
-
-    {% if perms.inventory.add_category %}
-    <a href="{% url 'create_category' %}" class="list-group-item list-group-item-action">Create a new category</a>
-    {% endif %}
-    {% if perms.inventory.add_subcategory %}
-    <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
-    {% endif %}
-    {% if perms.inventory.add_organization %}
-    <a href="{% url 'create_organization' %}" class="list-group-item list-group-item-action">Create a new organization</a>
-    {% endif %}
-    {% if perms.inventory.delete_category %}
-    <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>
-    {% endif %}
-    {% if perms.inventory.delete_subcategory %}
-    <a href="{% url 'delete_subcategory_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a subcategory</div></a>
-    {% endif %}
-    {% if perms.inventory.delete_image %}
-    <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
-    {% endif %}
+  {# Either the user can add a new user or view users #} {% if perms.inventory.add_user or perms.inventory.view_user %}
+  <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">Manage users</a>
+  {% endif %} {% if perms.inventory.view_auditevent %}
+  <a href="{% url 'audit' %}" class="list-group-item list-group-item-action">View audit logs</a>
+  {% endif %} {% if perms.inventory.view_deleteditem %}
+  <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
+  {% endif %} {% if perms.inventory.add_category %}
+  <a href="{% url 'create_category' %}" class="list-group-item list-group-item-action">Create a new category</a>
+  {% endif %} {% if perms.inventory.add_subcategory %}
+  <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
+  {% endif %} {% if perms.inventory.view_organization %}
+  <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
+  {% endif %} {% if perms.inventory.delete_category %}
+  <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>
+  {% endif %} {% if perms.inventory.delete_subcategory %}
+  <a href="{% url 'delete_subcategory_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a subcategory</div></a>
+  {% endif %} {% if perms.inventory.delete_image %}
+  <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
+  {% endif %}
 </div>
 <br />
 {% endif %}
-
 
 <h5>MAI Member Account</h5>
 <div class="list-group">
-    {% if user.is_authenticated %}
-        <a href="{% url 'account_logout' %}" class="list-group-item list-group-item-action">Log out</a>
-    {% else %}
-        {% if always_admin %}
-            <a href="{% url 'admin:login' %}" class="list-group-item list-group-item-action">Log in as Admin</a>
-        {% else %}
-            <form action="{% provider_login_url 'google' %}" method="post">
-            {% csrf_token %}
-                <button type="submit" class="list-group-item list-group-item-action">Log in with Google</button>
-            </form> 
-        {% endif %}
-    {% endif %}
+  {% if user.is_authenticated %}
+  <a href="{% url 'account_logout' %}" class="list-group-item list-group-item-action">Log out</a>
+  {% else %} {% if always_admin %}
+  <a href="{% url 'admin:login' %}" class="list-group-item list-group-item-action">Log in as Admin</a>
+  {% else %}
+  <form action="{% provider_login_url 'google' %}" method="post">
+    {% csrf_token %}
+    <button type="submit" class="list-group-item list-group-item-action">Log in with Google</button>
+  </form>
+  {% endif %} {% endif %}
 </div>
 
 <script>

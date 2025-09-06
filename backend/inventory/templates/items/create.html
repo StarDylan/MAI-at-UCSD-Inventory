@@ -91,14 +91,14 @@
       li.setAttribute("data-id", item.id);
 
       // Build item display with GTINs if available
-      let itemInfo = `<strong>${item.name}</strong>`;
+      let itemInfo = `<strong><a href="/view/item/${item.id}/">${item.name}</a></strong>`;
       if (item.manufacturer) {
         itemInfo += ` <span style='color: #6c757d; font-size: 0.875rem;'>[${item.manufacturer}]</span>`;
       }
       if (item.gtins && item.gtins.length > 0) {
         const gtinDisplay = item.gtins.slice(0, 2).join(", "); // Show first 2 GTINs
         const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : "";
-        itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTINs: ${gtinDisplay}${moreText}]</span>`;
+        itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTIN(s): ${gtinDisplay}${moreText}]</span>`;
       }
       if (item.category__name) {
         itemInfo += ` <span style='color: #6c757d;'>${item.category__name} > ${item.subcategory__name}</span>`;
