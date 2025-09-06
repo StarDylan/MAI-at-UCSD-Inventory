@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 import json
 
-from inventory.forms import CheckOutForm, CheckOutItemForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm
+from inventory.forms import CheckOutForm, CheckOutItemForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
 from inventory.models import CheckOut, CheckOutItem, Item, StockItem, Organization
 from .utils import audit_log_state, audit_log_event
 
@@ -250,6 +250,81 @@ def checkout_edit_item_view(request, checkout_id, item_id):
             )
     
     return redirect('checkout_detail', checkout_id=checkout.id)
+
+
+@login_required
+@permission_required('inventory.change_item', raise_exception=True)
+def checkout_edit_item_detail_view(request, checkout_id, item_id):
+    """
+    Detailed edit page for checkout item with quantity and cost editing.
+    """
+    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout_item = get_object_or_404(CheckOutItem, id=item_id, checkout=checkout)
+    
+    if checkout.is_completed:
+        messages.error(request, 'Cannot edit items in completed checkout')
+        return redirect('checkout_detail', checkout_id=checkout.id)
+    
+    if request.method == 'POST':
+        form = CheckOutItemDetailEditForm(request.POST, checkout_item=checkout_item)
+        if form.is_valid():
+            old_quantity = checkout_item.quantity
+            old_cost = checkout_item.stock_item.item.cost_per_item
+            
+            new_quantity = form.cleaned_data['quantity']
+            new_cost = form.cleaned_data['cost_per_item']
+            new_notes = form.cleaned_data['notes']
+            
+            with transaction.atomic():
+                # Update checkout item
+                checkout_item.quantity = new_quantity
+                checkout_item.notes = new_notes
+                checkout_item.save()
+                
+                # Update item cost if provided and different
+                if new_cost is not None and new_cost != old_cost:
+                    checkout_item.stock_item.item.cost_per_item = new_cost
+                    checkout_item.stock_item.item.save()
+                    
+                    # Log cost change
+                    audit_log_event(
+                        request.user,
+                        f"Updated cost per item for {checkout_item.stock_item.item.name} "
+                        f"from ${old_cost or 'None'} to ${new_cost}",
+                        audit_log_state(checkout_item.stock_item.item),
+                        audit_log_state(checkout_item.stock_item.item)
+                    )
+                
+                # Log quantity change if different
+                if new_quantity != old_quantity:
+                    audit_log_event(
+                        request.user,
+                        f"Updated quantity for {checkout_item.stock_item.item.name} "
+                        f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
+                        audit_log_state(checkout_item),
+                        audit_log_state(checkout_item)
+                    )
+            
+            messages.success(request, f'Successfully updated checkout item details')
+            return redirect('checkout_detail', checkout_id=checkout.id)
+    else:
+        form = CheckOutItemDetailEditForm(checkout_item=checkout_item)
+    
+    # Calculate additional context
+    available_stock = checkout_item.stock_item.quantity + checkout_item.quantity
+    boxes_available = None
+    if checkout_item.stock_item.item.items_per_box:
+        boxes_available = available_stock // checkout_item.stock_item.item.items_per_box
+    
+    context = {
+        'checkout': checkout,
+        'checkout_item': checkout_item,
+        'form': form,
+        'available_stock': available_stock,
+        'boxes_available': boxes_available,
+    }
+    
+    return render(request, 'checkout/checkout_edit_item.html', context)
 
 
 @login_required

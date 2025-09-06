@@ -150,14 +150,11 @@
                 </td>
                 <td>
                   {% if not checkout.is_completed %}
-                    <form method="post" action="{% url 'checkout_edit_item' checkout.id item.id %}" style="display: inline;">
-                      {% csrf_token %}
-                      <input type="number" name="quantity" value="{{ item.quantity }}" 
-                             min="1" max="{{ item.stock_item.quantity|add:item.quantity }}"
-                             class="form-control form-control-sm" style="width: 80px; display: inline;"
-                             onchange="this.form.submit()">
-                      <input type="hidden" name="notes" value="{{ item.notes }}">
-                    </form>
+                    <strong>{{ item.quantity }}</strong>
+                    <br><a href="{% url 'checkout_edit_item_detail' checkout.id item.id %}" 
+                           class="btn btn-sm btn-outline-primary mt-1">
+                      <i class="fas fa-edit"></i> Edit
+                    </a>
                   {% else %}
                     <strong>{{ item.quantity }}</strong>
                   {% endif %}
@@ -166,6 +163,11 @@
                   {% endif %}
                   {% if item.stock_item.item.items_per_box %}
                     <br><small class="text-muted">{{ item.stock_item.item.items_per_box }} per box</small>
+                  {% endif %}
+                  {% if not checkout.is_completed %}
+                    <br><small class="text-info">
+                      Available: {{ item.stock_item.quantity|add:item.quantity }} units
+                    </small>
                   {% endif %}
                 </td>
                 <td>

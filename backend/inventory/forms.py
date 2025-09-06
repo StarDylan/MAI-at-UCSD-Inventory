@@ -517,6 +517,50 @@ class CheckOutItemEditForm(forms.ModelForm):
             self.fields['quantity'].help_text = f"Max available: {max_qty}"
 
 
+class CheckOutItemDetailEditForm(forms.Form):
+    """Form for editing both checkout item quantity and item cost in a dedicated page"""
+    
+    quantity = forms.IntegerField(
+        min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'})
+    )
+    cost_per_item = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=0,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Optional notes for this checkout item'})
+    )
+    
+    def __init__(self, *args, checkout_item=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout_item = checkout_item
+        
+        if checkout_item:
+            # Set initial values
+            self.fields['quantity'].initial = checkout_item.quantity
+            self.fields['cost_per_item'].initial = checkout_item.stock_item.item.cost_per_item
+            self.fields['notes'].initial = checkout_item.notes
+            
+            # Set max quantity based on available stock + current quantity
+            max_qty = checkout_item.stock_item.quantity + checkout_item.quantity
+            self.fields['quantity'].widget.attrs['max'] = max_qty
+            self.fields['quantity'].help_text = f"Max available: {max_qty} units (includes current checkout quantity)"
+    
+    def clean_quantity(self):
+        quantity = self.cleaned_data['quantity']
+        if self.checkout_item:
+            # Check against available stock + current checkout quantity
+            max_qty = self.checkout_item.stock_item.quantity + self.checkout_item.quantity
+            if quantity > max_qty:
+                raise forms.ValidationError(f"Only {max_qty} units available")
+        return quantity
+
+
 class AddToCheckOutForm(forms.Form):
     """Form for adding items to an existing checkout from item detail page"""
     checkout = forms.ModelChoiceField(
