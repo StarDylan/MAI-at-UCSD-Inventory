@@ -311,7 +311,6 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                         audit_log_state(checkout_item)
                     )
             
-            messages.success(request, 'Successfully updated checkout item details')
             return redirect('checkout_detail', checkout_id=checkout.id)
     else:
         form = CheckOutItemDetailEditForm(checkout_item=checkout_item)
