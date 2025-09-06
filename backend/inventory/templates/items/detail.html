@@ -154,6 +154,7 @@
               <th>GTIN</th>
               {% endif %}
               <th>Lot Number</th>
+              <th>Surplus Status</th>
               {% if perms.inventory.change_stockitem and not item.is_deleted %}
               <th>Actions</th>
               {% endif %}
@@ -187,6 +188,24 @@
                 </td>
                 {% endif %}
               <td>{{ stock.lot_number|default:"-" }}</td>
+              <td>
+                {% if stock.surplus_status == 'pending' %}
+                  <span class="badge badge-warning">
+                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">access_time</i>
+                    Surplus Needs to Check
+                  </span>
+                {% elif stock.surplus_status == 'wanted' %}
+                  <span class="badge badge-success">
+                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</i>
+                    Wanted by Surplus
+                  </span>
+                {% elif stock.surplus_status == 'not_wanted' %}
+                  <span class="badge badge-secondary">
+                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">cancel</i>
+                    Not Wanted by Surplus
+                  </span>
+                {% endif %}
+              </td>
               {% if perms.inventory.change_stockitem and not item.is_deleted%}
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
@@ -198,7 +217,7 @@
             </tr>
             {% if stock.notes %}
             <tr>
-              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small" style="padding-left: 2rem; border-top: none;"><strong>Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
+              <td colspan="{% if perms.inventory.change_stockitem %}10{% else %}9{% endif %}" class="text-muted small" style="padding-left: 2rem; border-top: none;"><strong>Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
             </tr>
             {% endif %} {% endif %} {% endfor %}
           </tbody>

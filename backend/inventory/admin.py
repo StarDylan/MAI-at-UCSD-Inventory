@@ -127,8 +127,9 @@ class StockItemAdmin(admin.ModelAdmin):
         "date_received",
         "expiration_date",
         "is_expired_display",
+        "surplus_status_display",
     )
-    list_filter = ("organization", "date_received", "expiration_date")
+    list_filter = ("organization", "date_received", "expiration_date", "surplus_status")
     search_fields = (
         "id",
         "item__name",
@@ -144,6 +145,20 @@ class StockItemAdmin(admin.ModelAdmin):
     @admin.display(description="Expired", boolean=True)
     def is_expired_display(self, obj):
         return obj.is_expired
+    
+    @admin.display(description="Surplus Status")
+    def surplus_status_display(self, obj):
+        status_colors = {
+            'pending': 'orange',
+            'wanted': 'green', 
+            'not_wanted': 'red'
+        }
+        color = status_colors.get(obj.surplus_status, 'gray')
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            color,
+            obj.surplus_status_display
+        )
 
 
 @admin.register(models.User)

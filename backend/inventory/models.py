@@ -145,6 +145,12 @@ class Item(models.Model):
 
 
 class StockItem(models.Model):
+    SURPLUS_STATUS_CHOICES = [
+        ('pending', 'Surplus Needs to Check'),
+        ('wanted', 'Wanted by Surplus'),
+        ('not_wanted', 'Not Wanted by Surplus'),
+    ]
+    
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     item = models.ForeignKey(
         Item,
@@ -166,6 +172,12 @@ class StockItem(models.Model):
     expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
     lot_number = models.CharField(max_length=100, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    surplus_status = models.CharField(
+        max_length=20,
+        choices=SURPLUS_STATUS_CHOICES,
+        default='pending',
+        help_text="Surplus approval status for this stock item"
+    )
 
     class Meta:
         ordering = ['detail', 'expiration_date', 'date_received']
@@ -189,6 +201,16 @@ class StockItem(models.Model):
             return False
         from django.utils import timezone
         return self.expiration_date < timezone.now().date()
+    
+    @property
+    def surplus_status_display(self):
+        """Get human-readable surplus status"""
+        return dict(self.SURPLUS_STATUS_CHOICES)[self.surplus_status]
+    
+    @property
+    def is_surplus_approved(self):
+        """Check if this stock item is approved by surplus (not pending)"""
+        return self.surplus_status != 'pending'
 
 
 class User(AbstractUser):

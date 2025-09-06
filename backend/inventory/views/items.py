@@ -49,7 +49,8 @@ def view_all_items(request):
     Display all items in the inventory system.
     
     Shows a comprehensive list of all items with their category and
-    subcategory information.
+    subcategory information. For non-authenticated users, only shows
+    items with surplus-approved stock items.
     
     Args:
         request: HTTP request object
@@ -61,8 +62,13 @@ def view_all_items(request):
     
     # Fetch all items with related category and subcategory data
     # Use annotations to avoid N+1 queries for total_stock_quantity
-    items = (Item.active_objects
-            .select_related('category', 'subcategory')
+    items_query = Item.active_objects.select_related('category', 'subcategory')
+    
+    # Filter for non-authenticated users - only show items with surplus-approved stock
+    if not request.user.is_authenticated:
+        items_query = items_query.filter(stock_items__surplus_status__in=['wanted', 'not_wanted'])
+    
+    items = (items_query
             .annotate(
                 stock_items_quantity_annotated=Sum(
                     Case(
@@ -72,6 +78,7 @@ def view_all_items(request):
                     )
                 )
             )
+            .distinct()
             .order_by('name'))
 
     context = {
@@ -174,7 +181,8 @@ def view_item_detail(request, uuid):
     Display detailed information for a specific item.
     
     Shows item details, stock items with expiration dates, associated images, and audit history.
-    Handles permissions for viewing deleted items.
+    Handles permissions for viewing deleted items. For non-authenticated users, only shows
+    surplus-approved stock items.
     
     Args:
         request: HTTP request object
@@ -201,7 +209,14 @@ def view_item_detail(request, uuid):
 
     # Fetch related images, stock items, and audit events
     images = item.images.all().order_by('id')
-    stock_items = item.stock_items.select_related('organization').order_by('detail', 'expiration_date', 'date_received')
+    
+    # Filter stock items based on authentication status and surplus approval
+    stock_items_query = item.stock_items.select_related('organization')
+    if not request.user.is_authenticated:
+        # Non-authenticated users only see surplus-approved stock items
+        stock_items_query = stock_items_query.filter(surplus_status__in=['wanted', 'not_wanted'])
+    
+    stock_items = stock_items_query.order_by('detail', 'expiration_date', 'date_received')
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))

@@ -20,6 +20,7 @@ from inventory.views import (
     organizations,
     search,
     subcategories,
+    surplus_reports,
     users
 )
 
@@ -92,6 +93,11 @@ urlpatterns = [
     path('bulk-checkout/<uuid:checkout_id>/undo/', bulk_checkout.checkout_undo_view, name='checkout_undo'),
     path('bulk-checkout/<uuid:checkout_id>/delete/', bulk_checkout.checkout_delete_view, name='checkout_delete'),
     path('item/<uuid:item_uuid>/add-to-checkout/', bulk_checkout.add_to_checkout_from_item_view, name='add_to_checkout_from_item'),
+    
+    # Surplus Reporting
+    path('surplus/summary/', surplus_reports.surplus_summary, name='surplus_summary'),
+    path('surplus/export/', surplus_reports.export_surplus_report, name='export_surplus_report'),
+    path('surplus/upload/', surplus_reports.upload_surplus_report, name='upload_surplus_report'),
     
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),

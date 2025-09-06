@@ -1,0 +1,115 @@
+{% extends "shared/base.html" %}
+{% load static %}
+
+{% block title %}Surplus Summary{% endblock %}
+
+{% block body %}
+
+<h2>Surplus Status Summary</h2>
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <h4 class="card-title text-warning">{{ pending_count }}</h4>
+        <p class="card-text">
+          <i class="material-icons text-warning">access_time</i>
+          Needs Review
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <h4 class="card-title text-success">{{ wanted_count }}</h4>
+        <p class="card-text">
+          <i class="material-icons text-success">check_circle</i>
+          Wanted by Surplus
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-secondary">
+      <div class="card-body text-center">
+        <h4 class="card-title text-secondary">{{ not_wanted_count }}</h4>
+        <p class="card-text">
+          <i class="material-icons text-secondary">cancel</i>
+          Not Wanted
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <h4 class="card-title text-primary">{{ total_count }}</h4>
+        <p class="card-text">
+          <i class="material-icons text-primary">inventory</i>
+          Total Stock Items
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-6">
+    <a href="{% url 'export_surplus_report' %}" class="btn btn-primary">
+      <i class="material-icons">download</i>
+      Export to Excel
+    </a>
+  </div>
+  <div class="col-md-6">
+    <a href="{% url 'upload_surplus_report' %}" class="btn btn-success">
+      <i class="material-icons">upload</i>
+      Upload Excel Updates
+    </a>
+  </div>
+</div>
+
+{% if recent_pending %}
+<div class="card">
+  <div class="card-header">
+    <h5>Recent Items Needing Surplus Review</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Detail</th>
+            <th>Quantity</th>
+            <th>Organization</th>
+            <th>Date Received</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stock in recent_pending %}
+          <tr>
+            <td>
+              <a href="{% url 'view_item' stock.item.id %}">{{ stock.item.name }}</a>
+            </td>
+            <td>{{ stock.detail|default:"-" }}</td>
+            <td>{{ stock.quantity }}</td>
+            <td>{{ stock.organization.name }}</td>
+            <td>{{ stock.date_received|date:"M d, Y" }}</td>
+            <td>
+              <span class="badge badge-warning">
+                <i class="material-icons" style="font-size: 14px; vertical-align: middle;">access_time</i>
+                Needs Review
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
