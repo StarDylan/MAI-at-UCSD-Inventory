@@ -14,7 +14,7 @@ from django.utils import timezone
 import json
 
 from inventory.forms import CheckOutForm, CheckOutItemForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
-from inventory.models import CheckOut, CheckOutItem, Item, StockItem, Organization
+from inventory.models import CheckOut, CheckOutItem, Item, StockItem, Organization, AuditEvent
 from .utils import audit_log_state, audit_log_event
 
 
@@ -91,9 +91,20 @@ def checkout_detail_view(request, checkout_id):
             item.boxes = item.quantity // item.stock_item.item.items_per_box
             item.remaining = item.quantity % item.stock_item.item.items_per_box
 
+    # Get audit events for the checkout
+    checkout_audit = AuditEvent.objects.filter(entity_id=checkout.id).select_related('user').order_by('-created_at')
+    
+    # Prepare audit events for template display
+    for event in checkout_audit:
+        event.json_data = {
+            'before': event.before,
+            'after': event.after,
+        }
+
     context = {
         'checkout': checkout,
         'checkout_items': checkout_items,
+        'checkout_audit': checkout_audit,
         'can_edit': not checkout.is_completed,
     }
     
@@ -402,26 +413,21 @@ def checkout_complete_view(request, checkout_id):
                         checkout.notes = f"{checkout.notes}\n\nCompletion notes: {completion_notes}".strip()
                     
                     checkout.save()
+                    
+                    # Log checkout completion
+                    audit_log_event(
+                        request.user,
+                        f"Completed bulk checkout for {checkout.organization.name} "
+                        f"with {checkout.total_items_count} total items",
+                        audit_log_state(None),
+                        audit_log_state(checkout)
+                    )
+                    
+                    return redirect('bulk_checkout_list')
             except Exception:
                 # An error occurred, do not complete checkout
                 return redirect('checkout_detail', checkout_id=checkout.id)
-                
-                # Log checkout completion
-                audit_log_event(
-                    request.user,
-                    f"Completed bulk checkout for {checkout.organization.name} "
-                    f"with {checkout.total_items_count} total items",
-                    audit_log_state(None),
-                    audit_log_state(checkout)
-                )
-                
-                messages.success(
-                    request, 
-                    f'Checkout completed successfully! {checkout.total_items_count} items '
-                    f'checked out to {checkout.organization.name}'
-                )
-                
-                return redirect('bulk_checkout_list')
+            
     else:
         form = CheckOutCompleteForm()
     

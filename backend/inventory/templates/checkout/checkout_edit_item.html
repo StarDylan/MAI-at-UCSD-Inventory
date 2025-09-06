@@ -20,30 +20,32 @@
   <div class="card-body">
     <div class="row">
       <div class="col-md-6">
-        <h6 class="text-primary">{{ checkout_item.stock_item.item.name }}</h6>
-        {% if checkout_item.stock_item.item.manufacturer %}
+        <p class="mb-1">
+          <strong>Item:</strong> <a href="{% url 'view_item' checkout_item.stock_item.item.id %}" class="text-decoration-none">{{ checkout_item.stock_item.item.name }}</a>
+          {% if checkout_item.stock_item.item.manufacturer %}
+        </p>
+
         <p class="text-muted mb-1">{{ checkout_item.stock_item.item.manufacturer }}</p>
         {% endif %} {% if checkout_item.stock_item.detail %}
         <p class="mb-1"><strong>Detail:</strong> {{ checkout_item.stock_item.detail }}</p>
         {% endif %}
         <p class="mb-1"><strong>Location:</strong> {{ checkout_item.stock_item.location }}</p>
-        <p class="mb-1"><strong>Organization:</strong> {{ checkout_item.stock_item.organization.name }}</p>
       </div>
       <div class="col-md-6">
         <p class="mb-1">
           <strong>Available Quantity:</strong>
-          <span class="badge badge-info">{{ available_stock }} units</span>
-        </p>
-        {% if checkout_item.stock_item.item.items_per_box %}
-        <p class="mb-1">
-          <strong>Items per Box:</strong> {{ checkout_item.stock_item.item.items_per_box }} <br /><small class="text-muted">
-            {% if boxes_available_is_approx %} Approximately {% else %} Exactly {% endif %} {{ boxes_available }} box{{ boxes_available|pluralize:'es' }}
+          <span>{{ available_stock }} units</span> <br /><small class="text-muted">
+            {% if boxes_available %} {% if boxes_available_is_approx %} Approximately {% else %} Exactly {% endif %} {{ boxes_available }} box{{ boxes_available|pluralize:'es' }} {% endif %}
           </small>
         </p>
+        {% if checkout_item.stock_item.item.items_per_box %}
+        <p class="mb-1"><strong>Items per Box:</strong> {{ checkout_item.stock_item.item.items_per_box }}</p>
         {% endif %} {% if checkout_item.stock_item.expiration_date %}
         <p class="mb-1">
           <strong>Expiration Date:</strong>
-          <span class="badge badge-warning">{{ checkout_item.stock_item.expiration_date|date:"M d, Y" }}</span>
+          {% if checkout_item.stock_item.expiration_date and checkout_item.stock_item.is_expired %}
+          <span class="badge badge-danger">{{ checkout_item.stock_item.expiration_date|date:"M d, Y" }}</span>
+          {% else %} {{ checkout_item.stock_item.expiration_date|date:"M d, Y" }} {% endif %}
         </p>
         {% endif %}
       </div>
@@ -65,7 +67,7 @@
           <div class="form-group">
             <label for="id_quantity">Quantity</label>
             <input type="number" name="quantity" value="{{ checkout_item.quantity }}" min="1" max="{{ available_stock }}" class="form-control" id="id_quantity" required />
-            <small class="form-text text-muted"> Maximum: {{ available_stock }} units (includes current checkout quantity) </small>
+            <small class="form-text text-muted"> Maximum: {{ available_stock }} unit{{ available_stock|pluralize }}</small>
           </div>
         </div>
 
@@ -95,27 +97,6 @@
       <div class="form-group">
         <label for="id_notes">Notes</label>
         <textarea name="notes" class="form-control" id="id_notes" rows="3" placeholder="Optional notes for this checkout item">{{ checkout_item.notes }}</textarea>
-      </div>
-
-      <!-- Cost Calculation Display -->
-      <div class="card bg-light mb-3">
-        <div class="card-body">
-          <h6 class="card-title">Value Calculation</h6>
-          <div id="cost-calculation">
-            {% if checkout_item.stock_item.item.cost_per_item %}
-            <p class="mb-1">
-              <strong>Value per Item:</strong>
-              ${{ checkout_item.stock_item.item.cost_per_item|floatformat:2 }}
-            </p>
-            <p class="mb-0">
-              <strong>Total Value:</strong>
-              <span id="total-cost">${{ checkout_item.total_cost|floatformat:2 }}</span>
-            </p>
-            {% else %}
-            <p class="text-muted mb-0">No cost information available</p>
-            {% endif %}
-          </div>
-        </div>
       </div>
 
       <div class="d-flex justify-content-between">
