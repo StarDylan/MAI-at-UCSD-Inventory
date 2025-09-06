@@ -167,11 +167,11 @@ class ItemWithStockForm(forms.Form):
     )
     cost_per_item = forms.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=4,
         required=False,
         label="Cost per Item (Optional)",
         help_text="Cost per individual item",
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'e.g. 10.50'})
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
     )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
@@ -483,9 +483,9 @@ class CheckOutCompleteForm(forms.Form):
     """Form for completing a checkout"""
     total_weight = forms.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=4,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
         label="Total Weight",
         help_text="Optional: Total weight of all items in this checkout"
     )
@@ -526,10 +526,10 @@ class CheckOutItemDetailEditForm(forms.Form):
     )
     cost_per_item = forms.DecimalField(
         max_digits=10,
-        decimal_places=2,
+        decimal_places=4,
         min_value=0,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': '0.00'})
     )
     notes = forms.CharField(
         required=False,

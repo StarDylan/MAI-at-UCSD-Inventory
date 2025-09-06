@@ -77,7 +77,7 @@ class Item(models.Model):
     items_per_box = models.PositiveIntegerField(null=True, blank=True, help_text="Number of individual items in a single box/package")
     cost_per_item = models.DecimalField(
         max_digits=10, 
-        decimal_places=2, 
+        decimal_places=4, 
         null=True, 
         blank=True,
         help_text="Cost per individual item"

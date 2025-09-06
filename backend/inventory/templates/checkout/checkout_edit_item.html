@@ -37,7 +37,7 @@
         {% if checkout_item.stock_item.item.items_per_box %}
         <p class="mb-1">
           <strong>Items per Box:</strong> {{ checkout_item.stock_item.item.items_per_box }} <br /><small class="text-muted">
-            Approximately {{ boxes_available }} box{{ boxes_available|pluralize }}
+            {% if boxes_available_is_approx %} Approximately {% else %} Exactly {% endif %} {{ boxes_available }} box{{ boxes_available|pluralize:'es' }}
           </small>
         </p>
         {% endif %} {% if checkout_item.stock_item.expiration_date %}
@@ -80,7 +80,7 @@
                 type="number"
                 name="cost_per_item"
                 value="{{ checkout_item.stock_item.item.cost_per_item|default:'' }}"
-                step="0.01"
+                step="0.0001"
                 min="0"
                 class="form-control"
                 id="id_cost_per_item"
@@ -103,7 +103,10 @@
           <h6 class="card-title">Cost Calculation</h6>
           <div id="cost-calculation">
             {% if checkout_item.stock_item.item.cost_per_item %}
-            <p class="mb-1"><strong>Cost per Item:</strong> ${{ checkout_item.stock_item.item.cost_per_item|floatformat:2 }}</p>
+            <p class="mb-1">
+              <strong>Cost per Item:</strong>
+              ${{ checkout_item.stock_item.item.cost_per_item|floatformat:2 }}
+            </p>
             <p class="mb-0">
               <strong>Total Cost:</strong>
               <span id="total-cost">${{ checkout_item.total_cost|floatformat:2 }}</span>

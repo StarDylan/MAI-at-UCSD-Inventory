@@ -84,7 +84,13 @@ def checkout_detail_view(request, checkout_id):
     checkout_items = checkout.checkout_items.all().select_related(
         'stock_item__item', 'stock_item__organization'
     )
-    
+
+    for item in checkout_items:
+        item.boxes = None
+        if item.stock_item.item.items_per_box is not None:
+            item.boxes = item.quantity // item.stock_item.item.items_per_box
+            item.remaining = item.quantity % item.stock_item.item.items_per_box
+
     context = {
         'checkout': checkout,
         'checkout_items': checkout_items,
@@ -315,16 +321,23 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
     available_stock = checkout_item.stock_item.quantity
     boxes_available = None
     if checkout_item.stock_item.item.items_per_box:
-        boxes_available = available_stock // checkout_item.stock_item.item.items_per_box
-    
+        # Round to 1 decimal
+        is_approx = (available_stock % checkout_item.stock_item.item.items_per_box) != 0
+        if is_approx:
+            boxes_available = round((available_stock / checkout_item.stock_item.item.items_per_box), 1)
+        else:
+            boxes_available = int(available_stock / checkout_item.stock_item.item.items_per_box)
+
+
     context = {
         'checkout': checkout,
         'checkout_item': checkout_item,
         'form': form,
         'available_stock': available_stock,
         'boxes_available': boxes_available,
+        "boxes_available_is_approx": is_approx,
     }
-    
+
     return render(request, 'checkout/checkout_edit_item.html', context)
 
 
