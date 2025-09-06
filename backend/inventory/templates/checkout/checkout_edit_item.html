@@ -1,20 +1,14 @@
-{% extends "shared/base.html" %}
-
-{% block body %}
+{% extends "shared/base.html" %} {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h2>
-      <i class="fas fa-edit text-primary"></i>
+      <i class="material-icons text-primary">edit</i>
       Edit Checkout Item
     </h2>
-    <p class="text-muted mb-0">
-      Checkout for {{ checkout.organization.name }} - {{ checkout_item.stock_item.item.name }}
-    </p>
+    <p class="text-muted mb-0">Checkout for {{ checkout.organization.name }} - {{ checkout_item.stock_item.item.name }}</p>
   </div>
   <div>
-    <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary">
-      <i class="fas fa-arrow-left"></i> Back to Checkout
-    </a>
+    <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkout </a>
   </div>
 </div>
 
@@ -28,32 +22,29 @@
       <div class="col-md-6">
         <h6 class="text-primary">{{ checkout_item.stock_item.item.name }}</h6>
         {% if checkout_item.stock_item.item.manufacturer %}
-          <p class="text-muted mb-1">{{ checkout_item.stock_item.item.manufacturer }}</p>
-        {% endif %}
-        {% if checkout_item.stock_item.detail %}
-          <p class="mb-1"><strong>Detail:</strong> {{ checkout_item.stock_item.detail }}</p>
+        <p class="text-muted mb-1">{{ checkout_item.stock_item.item.manufacturer }}</p>
+        {% endif %} {% if checkout_item.stock_item.detail %}
+        <p class="mb-1"><strong>Detail:</strong> {{ checkout_item.stock_item.detail }}</p>
         {% endif %}
         <p class="mb-1"><strong>Location:</strong> {{ checkout_item.stock_item.location }}</p>
         <p class="mb-1"><strong>Organization:</strong> {{ checkout_item.stock_item.organization.name }}</p>
       </div>
       <div class="col-md-6">
         <p class="mb-1">
-          <strong>Available Quantity:</strong> 
+          <strong>Available Quantity:</strong>
           <span class="badge badge-info">{{ available_stock }} units</span>
         </p>
         {% if checkout_item.stock_item.item.items_per_box %}
-          <p class="mb-1">
-            <strong>Items per Box:</strong> {{ checkout_item.stock_item.item.items_per_box }}
-            <br><small class="text-muted">
-              Approximately {{ boxes_available }} box{{ boxes_available|pluralize }}
-            </small>
-          </p>
-        {% endif %}
-        {% if checkout_item.stock_item.expiration_date %}
-          <p class="mb-1">
-            <strong>Expiration Date:</strong> 
-            <span class="badge badge-warning">{{ checkout_item.stock_item.expiration_date|date:"M d, Y" }}</span>
-          </p>
+        <p class="mb-1">
+          <strong>Items per Box:</strong> {{ checkout_item.stock_item.item.items_per_box }} <br /><small class="text-muted">
+            Approximately {{ boxes_available }} box{{ boxes_available|pluralize }}
+          </small>
+        </p>
+        {% endif %} {% if checkout_item.stock_item.expiration_date %}
+        <p class="mb-1">
+          <strong>Expiration Date:</strong>
+          <span class="badge badge-warning">{{ checkout_item.stock_item.expiration_date|date:"M d, Y" }}</span>
+        </p>
         {% endif %}
       </div>
     </div>
@@ -68,25 +59,16 @@
   <div class="card-body">
     <form method="post">
       {% csrf_token %}
-      
+
       <div class="row">
         <div class="col-md-6">
           <div class="form-group">
             <label for="id_quantity">Quantity</label>
-            <input type="number" 
-                   name="quantity" 
-                   value="{{ checkout_item.quantity }}" 
-                   min="1" 
-                   max="{{ available_stock }}"
-                   class="form-control" 
-                   id="id_quantity"
-                   required>
-            <small class="form-text text-muted">
-              Maximum: {{ available_stock }} units (includes current checkout quantity)
-            </small>
+            <input type="number" name="quantity" value="{{ checkout_item.quantity }}" min="1" max="{{ available_stock }}" class="form-control" id="id_quantity" required />
+            <small class="form-text text-muted"> Maximum: {{ available_stock }} units (includes current checkout quantity) </small>
           </div>
         </div>
-        
+
         <div class="col-md-6">
           <div class="form-group">
             <label for="id_cost_per_item">Cost per Item</label>
@@ -94,84 +76,74 @@
               <div class="input-group-prepend">
                 <span class="input-group-text">$</span>
               </div>
-              <input type="number" 
-                     name="cost_per_item" 
-                     value="{{ checkout_item.stock_item.item.cost_per_item|default:'' }}" 
-                     step="0.01"
-                     min="0"
-                     class="form-control" 
-                     id="id_cost_per_item"
-                     placeholder="0.00">
+              <input
+                type="number"
+                name="cost_per_item"
+                value="{{ checkout_item.stock_item.item.cost_per_item|default:'' }}"
+                step="0.01"
+                min="0"
+                class="form-control"
+                id="id_cost_per_item"
+                placeholder="0.00"
+              />
             </div>
-            <small class="form-text text-muted">
-              This will update the cost for all instances of this item
-            </small>
+            <small class="form-text text-muted"> This will update the cost for all instances of this item </small>
           </div>
         </div>
       </div>
-      
+
       <div class="form-group">
         <label for="id_notes">Notes</label>
-        <textarea name="notes" 
-                  class="form-control" 
-                  id="id_notes" 
-                  rows="3"
-                  placeholder="Optional notes for this checkout item">{{ checkout_item.notes }}</textarea>
+        <textarea name="notes" class="form-control" id="id_notes" rows="3" placeholder="Optional notes for this checkout item">{{ checkout_item.notes }}</textarea>
       </div>
-      
+
       <!-- Cost Calculation Display -->
       <div class="card bg-light mb-3">
         <div class="card-body">
           <h6 class="card-title">Cost Calculation</h6>
           <div id="cost-calculation">
             {% if checkout_item.stock_item.item.cost_per_item %}
-              <p class="mb-1">
-                <strong>Cost per Item:</strong> ${{ checkout_item.stock_item.item.cost_per_item|floatformat:2 }}
-              </p>
-              <p class="mb-0">
-                <strong>Total Cost:</strong> 
-                <span id="total-cost">${{ checkout_item.total_cost|floatformat:2 }}</span>
-              </p>
+            <p class="mb-1"><strong>Cost per Item:</strong> ${{ checkout_item.stock_item.item.cost_per_item|floatformat:2 }}</p>
+            <p class="mb-0">
+              <strong>Total Cost:</strong>
+              <span id="total-cost">${{ checkout_item.total_cost|floatformat:2 }}</span>
+            </p>
             {% else %}
-              <p class="text-muted mb-0">No cost information available</p>
+            <p class="text-muted mb-0">No cost information available</p>
             {% endif %}
           </div>
         </div>
       </div>
-      
+
       <div class="d-flex justify-content-between">
-        <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary">
-          <i class="fas fa-times"></i> Cancel
-        </a>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-save"></i> Save Changes
-        </button>
+        <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">close</i> Cancel </a>
+        <button type="submit" class="btn btn-primary"><i class="material-icons" style="vertical-align: middle">save</i> Save Changes</button>
       </div>
     </form>
   </div>
 </div>
 
 <script>
-// Real-time cost calculation
-document.addEventListener('DOMContentLoaded', function() {
-    const quantityInput = document.getElementById('id_quantity');
-    const costInput = document.getElementById('id_cost_per_item');
-    const totalCostElement = document.getElementById('total-cost');
-    
+  // Real-time cost calculation
+  document.addEventListener("DOMContentLoaded", function () {
+    const quantityInput = document.getElementById("id_quantity");
+    const costInput = document.getElementById("id_cost_per_item");
+    const totalCostElement = document.getElementById("total-cost");
+
     function updateTotalCost() {
-        const quantity = parseFloat(quantityInput.value) || 0;
-        const costPerItem = parseFloat(costInput.value) || 0;
-        const totalCost = quantity * costPerItem;
-        
-        if (totalCostElement) {
-            totalCostElement.textContent = '$' + totalCost.toFixed(2);
-        }
+      const quantity = parseFloat(quantityInput.value) || 0;
+      const costPerItem = parseFloat(costInput.value) || 0;
+      const totalCost = quantity * costPerItem;
+
+      if (totalCostElement) {
+        totalCostElement.textContent = "$" + totalCost.toFixed(2);
+      }
     }
-    
+
     if (quantityInput && costInput) {
-        quantityInput.addEventListener('input', updateTotalCost);
-        costInput.addEventListener('input', updateTotalCost);
+      quantityInput.addEventListener("input", updateTotalCost);
+      costInput.addEventListener("input", updateTotalCost);
     }
-});
+  });
 </script>
 {% endblock %}

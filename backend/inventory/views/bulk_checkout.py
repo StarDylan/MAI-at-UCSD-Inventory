@@ -224,7 +224,7 @@ def checkout_edit_item_view(request, checkout_id, item_id):
             new_quantity = form.cleaned_data['quantity']
             
             # Check if there's enough stock for the new quantity
-            available_stock = checkout_item.stock_item.quantity + old_quantity
+            available_stock = checkout_item.stock_item.quantity
             if new_quantity > available_stock:
                 messages.error(
                     request, 
@@ -283,6 +283,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                 
                 # Update item cost if provided and different
                 if new_cost is not None and new_cost != old_cost:
+                    before_item_state = audit_log_state(checkout_item.stock_item.item)
                     checkout_item.stock_item.item.cost_per_item = new_cost
                     checkout_item.stock_item.item.save()
                     
@@ -291,7 +292,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                         request.user,
                         f"Updated cost per item for {checkout_item.stock_item.item.name} "
                         f"from ${old_cost or 'None'} to ${new_cost}",
-                        audit_log_state(checkout_item.stock_item.item),
+                        before_item_state,
                         audit_log_state(checkout_item.stock_item.item)
                     )
                 
@@ -305,13 +306,13 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                         audit_log_state(checkout_item)
                     )
             
-            messages.success(request, f'Successfully updated checkout item details')
+            messages.success(request, 'Successfully updated checkout item details')
             return redirect('checkout_detail', checkout_id=checkout.id)
     else:
         form = CheckOutItemDetailEditForm(checkout_item=checkout_item)
     
     # Calculate additional context
-    available_stock = checkout_item.stock_item.quantity + checkout_item.quantity
+    available_stock = checkout_item.stock_item.quantity
     boxes_available = None
     if checkout_item.stock_item.item.items_per_box:
         boxes_available = available_stock // checkout_item.stock_item.item.items_per_box

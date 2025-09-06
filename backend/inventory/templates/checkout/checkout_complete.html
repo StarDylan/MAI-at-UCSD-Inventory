@@ -1,20 +1,13 @@
-{% extends "shared/base.html" %}
-
-{% block body %}
+{% extends "shared/base.html" %} {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2>Complete Checkout</h2>
-  <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary">
-    <i class="fas fa-arrow-left"></i> Back to Checkout
-  </a>
+  <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkout </a>
 </div>
 
 <!-- Warning Alert -->
 <div class="alert alert-warning">
-  <h5><i class="fas fa-exclamation-triangle"></i> Completing Checkout</h5>
-  <p class="mb-0">
-    This will subtract all items from inventory and mark the checkout as completed. 
-    This action can be undone later if needed.
-  </p>
+  <h5><i class="material-icons">warning</i> Completing Checkout</h5>
+  <p class="mb-0">This will subtract all items from inventory and mark the checkout as completed. This action can be undone later if needed.</p>
 </div>
 
 <!-- Checkout Summary -->
@@ -30,12 +23,12 @@
         <p><strong>Created:</strong> {{ checkout.created_at|date:"M d, Y H:i" }}</p>
         <p><strong>Total Items:</strong> {{ checkout.total_items_count }}</p>
         {% if checkout.total_cost %}
-          <p><strong>Total Cost:</strong> ${{ checkout.total_cost|floatformat:2 }}</p>
+        <p><strong>Total Cost:</strong> ${{ checkout.total_cost|floatformat:2 }}</p>
         {% endif %}
       </div>
     </div>
   </div>
-  
+
   <div class="col-md-8">
     <div class="card">
       <div class="card-header">
@@ -44,41 +37,27 @@
       <div class="card-body">
         <form method="post" id="completeForm">
           {% csrf_token %}
-          
+
           <div class="mb-3">
-            <label for="{{ form.total_weight.id_for_label }}" class="form-label">
-              {{ form.total_weight.label }}
-            </label>
-            {{ form.total_weight }}
-            {% if form.total_weight.help_text %}
-              <div class="form-text">{{ form.total_weight.help_text }}</div>
-            {% endif %}
-            {% if form.total_weight.errors %}
-              <div class="invalid-feedback d-block">
-                {{ form.total_weight.errors|join:", " }}
-              </div>
+            <label for="{{ form.total_weight.id_for_label }}" class="form-label"> {{ form.total_weight.label }} </label>
+            {{ form.total_weight }} {% if form.total_weight.help_text %}
+            <div class="form-text">{{ form.total_weight.help_text }}</div>
+            {% endif %} {% if form.total_weight.errors %}
+            <div class="invalid-feedback d-block">{{ form.total_weight.errors|join:", " }}</div>
             {% endif %}
           </div>
-          
+
           <div class="mb-3">
-            <label for="{{ form.notes.id_for_label }}" class="form-label">
-              {{ form.notes.label }}
-            </label>
-            {{ form.notes }}
-            {% if form.notes.help_text %}
-              <div class="form-text">{{ form.notes.help_text }}</div>
-            {% endif %}
-            {% if form.notes.errors %}
-              <div class="invalid-feedback d-block">
-                {{ form.notes.errors|join:", " }}
-              </div>
+            <label for="{{ form.notes.id_for_label }}" class="form-label"> {{ form.notes.label }} </label>
+            {{ form.notes }} {% if form.notes.help_text %}
+            <div class="form-text">{{ form.notes.help_text }}</div>
+            {% endif %} {% if form.notes.errors %}
+            <div class="invalid-feedback d-block">{{ form.notes.errors|join:", " }}</div>
             {% endif %}
           </div>
-          
+
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-success" onclick="return confirmCompletion()">
-              <i class="fas fa-check"></i> Complete Checkout
-            </button>
+            <button type="submit" class="btn btn-success" onclick="return confirmCompletion()"><i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout</button>
             <a href="{% url 'checkout_detail' checkout.id %}" class="btn btn-outline-secondary">Cancel</a>
           </div>
         </form>
@@ -107,55 +86,45 @@
         </thead>
         <tbody>
           {% for item in checkout.checkout_items.all %}
-            <tr>
-              <td>
-                <strong>{{ item.stock_item.item.name }}</strong>
-                {% if item.stock_item.item.manufacturer %}
-                  <br><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
-                {% endif %}
-              </td>
-              <td>
-                {% if item.stock_item.detail %}
-                  {{ item.stock_item.detail }}
-                {% else %}
-                  <span class="text-muted">-</span>
-                {% endif %}
-              </td>
-              <td>
-                {{ item.stock_item.location }}
-                <br><small class="text-muted">{{ item.stock_item.organization.name }}</small>
-              </td>
-              <td>
-                <strong class="text-danger">-{{ item.quantity }}</strong>
-              </td>
-              <td>
-                <span class="{% if item.stock_item.quantity < item.quantity %}text-danger{% endif %}">
-                  {{ item.stock_item.quantity }}
-                </span>
-              </td>
-              <td>
-                {% with remaining=item.remaining_after_checkout %}
-                  <span class="{% if remaining < 0 %}text-danger{% elif remaining == 0 %}text-warning{% else %}text-success{% endif %}">
-                    {{ remaining }}
-                  </span>
-                  {% if remaining < 0 %}
-                    <br><small class="text-danger">Insufficient stock!</small>
-                  {% elif remaining == 0 %}
-                    <br><small class="text-warning">Will be empty</small>
-                  {% endif %}
-                {% endwith %}
-              </td>
-            </tr>
-            {% if item.notes %}
-              <tr>
-                <td colspan="6" class="border-top-0 pt-0">
-                  <small class="text-muted">
-                    <i class="fas fa-sticky-note"></i> {{ item.notes }}
-                  </small>
-                </td>
-              </tr>
-            {% endif %}
-          {% endfor %}
+          <tr>
+            <td>
+              <strong>{{ item.stock_item.item.name }}</strong>
+              {% if item.stock_item.item.manufacturer %}
+              <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.stock_item.detail %} {{ item.stock_item.detail }} {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {{ item.stock_item.location }}
+              <br /><small class="text-muted">{{ item.stock_item.organization.name }}</small>
+            </td>
+            <td>
+              <strong class="text-danger">-{{ item.quantity }}</strong>
+            </td>
+            <td>
+              <span class="{% if item.stock_item.quantity < item.quantity %}text-danger{% endif %}"> {{ item.stock_item.quantity }} </span>
+            </td>
+            <td>
+              {% with remaining=item.remaining_after_checkout %}
+              <span class="{% if remaining < 0 %}text-danger{% elif remaining == 0 %}text-warning{% else %}text-success{% endif %}"> {{ remaining }} </span>
+              {% if remaining < 0 %}
+              <br /><small class="text-danger">Insufficient stock!</small>
+              {% elif remaining == 0 %}
+              <br /><small class="text-warning">Will be empty</small>
+              {% endif %} {% endwith %}
+            </td>
+          </tr>
+          {% if item.notes %}
+          <tr>
+            <td colspan="6" class="border-top-0 pt-0">
+              <small class="text-muted"> <i class="material-icons">note</i> {{ item.notes }} </small>
+            </td>
+          </tr>
+          {% endif %} {% endfor %}
         </tbody>
       </table>
     </div>
@@ -163,18 +132,18 @@
 </div>
 
 <script>
-function confirmCompletion() {
-    const totalItems = {{ checkout.total_items_count }};
-    const organization = "{{ checkout.organization.name }}";
-    
-    return confirm(
-        `Are you sure you want to complete this checkout?\n\n` +
-        `This will:\n` +
-        `• Subtract ${totalItems} items from inventory\n` +
-        `• Check out items to ${organization}\n` +
-        `• Mark the checkout as completed\n\n` +
-        `This action can be undone later if needed.`
-    );
-}
+  function confirmCompletion() {
+      const totalItems = {{ checkout.total_items_count }};
+      const organization = "{{ checkout.organization.name }}";
+
+      return confirm(
+          `Are you sure you want to complete this checkout?\n\n` +
+          `This will:\n` +
+          `• Subtract ${totalItems} items from inventory\n` +
+          `• Check out items to ${organization}\n` +
+          `• Mark the checkout as completed\n\n` +
+          `This action can be undone later if needed.`
+      );
+  }
 </script>
 {% endblock %}
