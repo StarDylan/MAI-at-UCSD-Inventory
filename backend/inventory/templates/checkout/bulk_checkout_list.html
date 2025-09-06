@@ -14,11 +14,7 @@
     </a>
   </li>
   <li class="nav-item" role="presentation">
-    <a class="nav-link {% if active_tab == 'completed' %}active{% endif %}" href="?tab=completed" role="tab">
-      Completed Checkouts {% if completed_count > 0 %}
-      <span class="badge bg-success">{{ completed_count }}</span>
-      {% endif %}
-    </a>
+    <a class="nav-link {% if active_tab == 'completed' %}active{% endif %}" href="?tab=completed" role="tab"> Completed Checkouts {% if completed_count > 0 %} {% endif %} </a>
   </li>
 </ul>
 
