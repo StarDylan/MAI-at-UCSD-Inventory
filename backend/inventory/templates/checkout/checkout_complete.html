@@ -22,9 +22,7 @@
         <p><strong>Created by:</strong> {{ checkout.created_by.get_full_name|default:checkout.created_by.username }}</p>
         <p><strong>Created:</strong> {{ checkout.created_at|date:"M d, Y H:i" }}</p>
         <p><strong>Total Items:</strong> {{ checkout.total_items_count }}</p>
-        {% if checkout.total_cost %}
-        <p><strong>Total Cost:</strong> ${{ checkout.total_cost|floatformat:2 }}</p>
-        {% endif %}
+        {% if checkout.total_cost %} {% endif %}
       </div>
     </div>
   </div>
