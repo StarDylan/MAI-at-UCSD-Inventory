@@ -54,8 +54,6 @@
   <a href="{% url 'create_category' %}" class="list-group-item list-group-item-action">Create a new category</a>
   {% endif %} {% if perms.inventory.add_subcategory %}
   <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
-  {% endif %} {% if perms.inventory.add_organization %}
-  <a href="{% url 'create_organization' %}" class="list-group-item list-group-item-action">Create a new organization</a>
   {% endif %} {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
   {% endif %} {% if perms.inventory.delete_category %}
