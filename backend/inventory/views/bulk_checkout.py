@@ -558,6 +558,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
 def get_stock_items_api(request, item_uuid):
     """
     API endpoint to get stock items for a specific item (for AJAX).
+    Only returns stock items with quantity greater than 0.
     """
     item = get_object_or_404(Item, id=item_uuid)
     stock_items = item.stock_items.filter(quantity__gt=0).order_by(
