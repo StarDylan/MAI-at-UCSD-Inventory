@@ -15,9 +15,13 @@
   </div>
   <div>
     <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts </a>
-    {% if not checkout.is_completed and checkout_items %}
+    {% if not checkout.is_completed and checkout_items %} {% if checkout.has_insufficient_stock %}
+    <button class="btn btn-secondary" disabled title="Cannot complete checkout - insufficient stock for some items">
+      <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
+    </button>
+    {% else %}
     <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success"> <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout </a>
-    {% elif checkout.is_completed %}
+    {% endif %} {% elif checkout.is_completed %}
     <a href="{% url 'checkout_undo' checkout.id %}" class="btn btn-warning" onclick="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.')">
       <i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout
     </a>
@@ -79,6 +83,14 @@
 </div>
 {% endif %}
 
+<!-- Warning about insufficient stock -->
+{% if not checkout.is_completed and checkout.has_insufficient_stock %}
+<div class="alert alert-warning">
+  <i class="material-icons" style="vertical-align: middle">warning</i>
+  <strong>Cannot Complete Checkout:</strong> Some items have insufficient stock. Please adjust quantities or remove items with insufficient stock before completing the checkout.
+</div>
+{% endif %}
+
 <!-- Checkout Items -->
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -131,7 +143,16 @@
               <br /><a href="{% url 'checkout_edit_item_detail' checkout.id item.id %}" class="btn btn-sm btn-outline-primary mt-1">
                 <i class="material-icons" style="vertical-align: middle">edit</i> Edit
               </a>
-              {% if not checkout.is_completed %} <br /><small class="text-info"> Available: {{ item.stock_item.quantity }} units </small> {% endif %} {% else %}
+              {% if not checkout.is_completed %}
+              <br />
+              {% if item.remaining_after_checkout < 0 %}
+              <small class="text-danger">
+                <i class="material-icons" style="vertical-align: middle; font-size: 14px">warning</i>
+                Insufficient stock! Available: {{ item.stock_item.quantity }} units
+              </small>
+              {% else %}
+              <small class="text-info"> Available: {{ item.stock_item.quantity }} units </small>
+              {% endif %} {% endif %} {% else %}
               <strong>{{ item.quantity }}</strong>
 
               {% endif %}

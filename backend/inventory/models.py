@@ -283,6 +283,11 @@ class CheckOut(models.Model):
             if checkout_item.stock_item.item.cost_per_item:
                 total += checkout_item.stock_item.item.cost_per_item * checkout_item.quantity
         return total
+    
+    @property
+    def has_insufficient_stock(self):
+        """Check if any items in the checkout have insufficient stock"""
+        return any(item.remaining_after_checkout < 0 for item in self.checkout_items.all())
 
 
 class CheckOutItem(models.Model):

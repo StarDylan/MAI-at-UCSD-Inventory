@@ -280,7 +280,6 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
             new_quantity = form.cleaned_data['quantity']
             new_cost = form.cleaned_data['cost_per_item']
             new_notes = form.cleaned_data['notes']
-            
             with transaction.atomic():
                 # Update checkout item
                 checkout_item.quantity = new_quantity
@@ -320,6 +319,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
     # Calculate additional context
     available_stock = checkout_item.stock_item.quantity
     boxes_available = None
+    is_approx = False
     if checkout_item.stock_item.item.items_per_box:
         # Round to 1 decimal
         is_approx = (available_stock % checkout_item.stock_item.item.items_per_box) != 0
@@ -360,47 +360,52 @@ def checkout_complete_view(request, checkout_id):
     if request.method == 'POST':
         form = CheckOutCompleteForm(request.POST)
         if form.is_valid():
-            with transaction.atomic():
-                # Process each checkout item
-                for checkout_item in checkout.checkout_items.all():
-                    stock_item = checkout_item.stock_item
-                    
-                    # Check if still enough quantity available
-                    if stock_item.quantity < checkout_item.quantity:
-                        messages.error(
-                            request, 
-                            f'Insufficient stock for {stock_item.item.name} from {stock_item.location}. '
-                            f'Available: {stock_item.quantity}, Required: {checkout_item.quantity}'
+            try:
+                with transaction.atomic():
+                    # Process each checkout item
+                    for checkout_item in checkout.checkout_items.all():
+                        stock_item = checkout_item.stock_item
+                        
+                        # Check if still enough quantity available
+                        if stock_item.quantity < checkout_item.quantity:
+                            messages.error(
+                                request, 
+                                f'Insufficient stock for {stock_item.item.name} from {stock_item.location}. '
+                                f'Available: {stock_item.quantity}, Required: {checkout_item.quantity}'
+                            )
+
+                            raise Exception('Insufficient stock to complete checkout')
+                        
+                        # Log state before changes
+                        before_state = audit_log_state(stock_item)
+                        
+                        # Subtract quantity
+                        stock_item.quantity -= checkout_item.quantity
+                        stock_item.save()
+                        
+                        # Log the stock change
+                        audit_log_event(
+                            request.user,
+                            f"Bulk checkout: {checkout_item.quantity} of {stock_item.item.name} "
+                            f"checked out to {checkout.organization.name} from {stock_item.location}",
+                            before_state,
+                            audit_log_state(stock_item)
                         )
-                        return redirect('checkout_detail', checkout_id=checkout.id)
                     
-                    # Log state before changes
-                    before_state = audit_log_state(stock_item)
+                    # Mark checkout as completed
+                    checkout.is_completed = True
+                    checkout.completed_by = request.user
+                    checkout.completed_at = timezone.now()
+                    checkout.total_weight = form.cleaned_data.get('total_weight')
                     
-                    # Subtract quantity
-                    stock_item.quantity -= checkout_item.quantity
-                    stock_item.save()
+                    completion_notes = form.cleaned_data.get('notes')
+                    if completion_notes:
+                        checkout.notes = f"{checkout.notes}\n\nCompletion notes: {completion_notes}".strip()
                     
-                    # Log the stock change
-                    audit_log_event(
-                        request.user,
-                        f"Bulk checkout: {checkout_item.quantity} of {stock_item.item.name} "
-                        f"checked out to {checkout.organization.name} from {stock_item.location}",
-                        before_state,
-                        audit_log_state(stock_item)
-                    )
-                
-                # Mark checkout as completed
-                checkout.is_completed = True
-                checkout.completed_by = request.user
-                checkout.completed_at = timezone.now()
-                checkout.total_weight = form.cleaned_data.get('total_weight')
-                
-                completion_notes = form.cleaned_data.get('notes')
-                if completion_notes:
-                    checkout.notes = f"{checkout.notes}\n\nCompletion notes: {completion_notes}".strip()
-                
-                checkout.save()
+                    checkout.save()
+            except Exception:
+                # An error occurred, do not complete checkout
+                return redirect('checkout_detail', checkout_id=checkout.id)
                 
                 # Log checkout completion
                 audit_log_event(

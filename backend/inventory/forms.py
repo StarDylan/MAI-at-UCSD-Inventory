@@ -484,10 +484,9 @@ class CheckOutCompleteForm(forms.Form):
     total_weight = forms.DecimalField(
         max_digits=10,
         decimal_places=4,
-        required=False,
+        required=True,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
-        label="Total Weight",
-        help_text="Optional: Total weight of all items in this checkout"
+        label="Total Weight (lbs)",
     )
     notes = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional completion notes...'}),
