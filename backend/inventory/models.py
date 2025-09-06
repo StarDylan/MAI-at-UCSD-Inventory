@@ -265,6 +265,10 @@ class CheckOut(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        permissions = [
+            ("complete_checkout", "Can complete checkout"),
+            ("undo_checkout", "Can undo completed checkout"),
+        ]
         
     def __str__(self):
         status = "Completed" if self.is_completed else "Active"
@@ -288,7 +292,7 @@ class CheckOut(models.Model):
     def has_insufficient_stock(self):
         """Check if any items in the checkout have insufficient stock"""
         return any(item.remaining_after_checkout < 0 for item in self.checkout_items.all())
-
+    
 
 class CheckOutItem(models.Model):
     """

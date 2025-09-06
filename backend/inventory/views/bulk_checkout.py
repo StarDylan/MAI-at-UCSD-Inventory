@@ -25,7 +25,7 @@ class BulkCheckoutListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
     model = CheckOut
     template_name = 'checkout/bulk_checkout_list.html'
     context_object_name = 'checkouts'
-    permission_required = 'inventory.change_item'
+    permission_required = 'inventory.view_checkout'
     paginate_by = 20
     
     def get_queryset(self):
@@ -44,7 +44,7 @@ class BulkCheckoutListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.create_checkout', raise_exception=True)
 def checkout_create_view(request):
     """
     Create a new active checkout.
@@ -75,7 +75,7 @@ def checkout_create_view(request):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.view_checkout', raise_exception=True)
 def checkout_detail_view(request, checkout_id):
     """
     View and edit individual checkout details.
@@ -112,7 +112,7 @@ def checkout_detail_view(request, checkout_id):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.change_checkout', raise_exception=True)
 def checkout_add_item_view(request, checkout_id):
     """
     Add an item to an existing checkout.
@@ -192,7 +192,7 @@ def checkout_add_item_view(request, checkout_id):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.change_checkout', raise_exception=True)
 def checkout_remove_item_view(request, checkout_id, item_id):
     """
     Remove an item from a checkout.
@@ -222,7 +222,7 @@ def checkout_remove_item_view(request, checkout_id, item_id):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.change_checkout', raise_exception=True)
 def checkout_edit_item_view(request, checkout_id, item_id):
     """
     Edit quantity and notes for a checkout item.
@@ -270,7 +270,7 @@ def checkout_edit_item_view(request, checkout_id, item_id):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.change_checkout', raise_exception=True)
 def checkout_edit_item_detail_view(request, checkout_id, item_id):
     """
     Detailed edit page for checkout item with quantity and cost editing.
@@ -352,7 +352,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.complete_checkout', raise_exception=True)
 def checkout_complete_view(request, checkout_id):
     """
     Complete a checkout - subtract stock quantities and mark as completed.
@@ -438,7 +438,7 @@ def checkout_complete_view(request, checkout_id):
 
 
 @login_required
-@permission_required('inventory.change_item', raise_exception=True)
+@permission_required('inventory.undo_checkout', raise_exception=True)
 def checkout_undo_view(request, checkout_id):
     """
     Undo a completed checkout - restore stock quantities.

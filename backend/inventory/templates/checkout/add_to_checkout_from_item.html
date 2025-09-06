@@ -5,7 +5,6 @@
 </div>
 
 <div class="row">
-  <div class="col-md-8">
     <div class="card">
       <div class="card-header">
         <h5 class="mb-0">Add {{ item.name }} to Checkout</h5>
@@ -48,34 +47,6 @@
         </form>
       </div>
     </div>
-  </div>
-
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-header">
-        <h6 class="mb-0">Item Information</h6>
-      </div>
-      <div class="card-body">
-        <p><strong>Item:</strong> {{ item.name }}</p>
-        {% if item.manufacturer %}
-        <p><strong>Manufacturer:</strong> {{ item.manufacturer }}</p>
-        {% endif %}
-        <p><strong>Total Available:</strong> {{ item.total_stock_quantity }} units</p>
-        {% if item.aggregated_locations %}
-        <p><strong>Locations:</strong> {{ item.aggregated_locations }}</p>
-        {% endif %}
-      </div>
-    </div>
-
-    {% if not form.checkout.queryset %}
-    <div class="card mt-3">
-      <div class="card-body">
-        <h6 class="text-warning"><i class="material-icons">warning</i> No Active Checkouts</h6>
-        <p class="small mb-2">There are no active checkouts to add items to.</p>
-        <a href="{% url 'checkout_create' %}" class="btn btn-primary btn-sm"> Create New Checkout </a>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}

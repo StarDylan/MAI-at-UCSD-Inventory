@@ -576,7 +576,7 @@ class AddToCheckOutForm(forms.Form):
     quantity = forms.IntegerField(
         min_value=1,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-        label="Quantity"
+        label="Quantity",
     )
     
     def __init__(self, item=None, user=None, *args, **kwargs):

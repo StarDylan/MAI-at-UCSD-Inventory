@@ -15,13 +15,13 @@
   </div>
   <div>
     <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts </a>
-    {% if not checkout.is_completed and checkout_items %} {% if checkout.has_insufficient_stock %}
+    {% if not checkout.is_completed and checkout_items and perms.inventory.complete_checkout %} {% if checkout.has_insufficient_stock %}
     <button class="btn btn-secondary" disabled title="Cannot complete checkout - insufficient stock for some items">
       <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
     </button>
     {% else %}
     <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success"> <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout </a>
-    {% endif %} {% elif checkout.is_completed %}
+    {% endif %} {% elif checkout.is_completed %} {% if perms.inventory.undo_checkout %}
     <form
       method="post"
       action="{% url 'checkout_undo' checkout.id %}"
@@ -31,7 +31,7 @@
       {% csrf_token %}
       <button type="submit" class="btn btn-warning"><i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout</button>
     </form>
-    {% endif %}
+    {% endif %} {% endif %}
   </div>
 </div>
 
@@ -114,7 +114,7 @@
             <th>Expiration Date</th>
             <th>Quantity</th>
             <th>Value per Qty</th>
-            {% if not checkout.is_completed %}
+            {% if not checkout.is_completed and perms.inventory.change_checkout %}
             <th>Actions</th>
             {% endif %}
           </tr>
@@ -162,7 +162,7 @@
               <span class="text-muted">-</span>
               {% endif %}
             </td>
-            {% if not checkout.is_completed %}
+            {% if not checkout.is_completed and perms.inventory.change_checkout %}
             <td>
               <a href="{% url 'checkout_edit_item_detail' checkout.id item.id %}" class="btn btn-sm btn-outline-primary mt-1">
                 <i class="material-icons" style="vertical-align: middle">edit</i> Edit
@@ -198,7 +198,7 @@
 </div>
 
 <!-- Add Items Panel (only show for non-completed checkouts) -->
-{% if not checkout.is_completed %}
+{% if not checkout.is_completed and perms.inventory.change_checkout %}
 <div class="card mt-4">
   <div class="card-header">
     <h5 class="mb-0"><i class="material-icons" style="vertical-align: middle">add</i> Add Items to Checkout</h5>
@@ -481,8 +481,12 @@
     var modal = $("#auditDiffModal").modal();
     modal.modal("show");
 
-    $("#audit_left").text(JSON.stringify(event["before"], null, 2));
-    $("#audit_right").text(JSON.stringify(event["after"], null, 2));
+    $("#audit_left").text(event["before"]);
+    $("#audit_right").text(event["after"]);
+
+    leftBlockId = $("#audit_left").attr("id");
+    rightBlockId = $("#audit_right").attr("id");
+    $(document).jdd(leftBlockId, rightBlockId);
 
     // Initialize DataTable for audit log if not already initialized
     if (!$.fn.DataTable.isDataTable("#checkout_audit_table")) {
