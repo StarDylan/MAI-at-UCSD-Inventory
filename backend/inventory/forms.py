@@ -1,4 +1,3 @@
-import datetime
 from django import forms
 from .models import Category, Subcategory, Organization, StockItem
 from inventory import models
@@ -560,6 +559,28 @@ class CheckOutItemDetailEditForm(forms.Form):
         return quantity
 
 
+class StockItemSelectWidget(forms.Select):
+    """Custom widget for stock item selection that includes data attributes for quantity and location"""
+    
+    def __init__(self, stock_items=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stock_items = stock_items or []
+    
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        
+        if value and str(value) != '':
+            # Find the matching stock item from our stored list
+            for stock_item in self.stock_items:
+                if str(stock_item.id) == str(value):
+                    option['attrs']['data-quantity'] = stock_item.quantity
+                    option['attrs']['data-location'] = stock_item.location or ''
+                    option['attrs']['data-detail'] = stock_item.detail or ''
+                    break
+                
+        return option
+
+
 class AddToCheckOutForm(forms.Form):
     """Form for adding items to an existing checkout from item detail page"""
     checkout = forms.ModelChoiceField(
@@ -578,19 +599,33 @@ class AddToCheckOutForm(forms.Form):
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
         label="Quantity",
     )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        label="Notes",
+        help_text="Optional notes for this checkout item"
+    )
     
-    def __init__(self, item=None, user=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        item = kwargs.pop('item', None)
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
+        # Store item reference for validation
+        self._item = item
+        
         if user:
             # Only show active checkouts
             self.fields['checkout'].queryset = models.CheckOut.objects.filter(
                 is_completed=False
             ).order_by('-created_at')
         if item:
-            # Only show stock items for this item with available quantity
-            self.fields['stock_item'].queryset = item.stock_items.filter(
+            # Populate stock items for this item with available quantity
+            stock_items = item.stock_items.filter(
                 quantity__gt=0
             ).order_by('detail', 'expiration_date', 'date_received')
+            
+            self.fields['stock_item'].queryset = stock_items
             
     def clean(self):
         cleaned_data = super().clean()
@@ -611,7 +646,7 @@ class AddToCheckOutForm(forms.Form):
                 stock_item=stock_item
             ).exists():
                 raise forms.ValidationError(
-                    f"This stock item is already in the selected checkout"
+                    "This stock item is already in the selected checkout"
                 )
         
         return cleaned_data

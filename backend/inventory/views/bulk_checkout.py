@@ -508,12 +508,14 @@ def add_to_checkout_from_item_view(request, item_uuid):
             checkout = form.cleaned_data['checkout']
             stock_item = form.cleaned_data['stock_item']
             quantity = form.cleaned_data['quantity']
+            notes = form.cleaned_data.get('notes', '')
             
             # Create the checkout item
             checkout_item = CheckOutItem.objects.create(
                 checkout=checkout,
                 stock_item=stock_item,
-                quantity=quantity
+                quantity=quantity,
+                notes=notes
             )
             
             # Log the addition
@@ -533,9 +535,19 @@ def add_to_checkout_from_item_view(request, item_uuid):
     else:
         form = AddToCheckOutForm(item=item, user=request.user)
     
+    # Get stock items for the template
+    stock_items = item.stock_items.filter(quantity__gt=0).order_by(
+        'detail', 'expiration_date', 'date_received'
+    )
+    
+    # Get active checkouts for the template
+    checkouts = CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+    
     return render(request, 'checkout/add_to_checkout_from_item.html', {
         'form': form,
         'item': item,
+        'stock_items': stock_items,
+        'checkouts': checkouts,
     })
 
 
