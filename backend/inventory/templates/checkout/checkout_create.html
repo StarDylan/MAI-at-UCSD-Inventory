@@ -4,6 +4,11 @@
   <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts </a>
 </div>
 
+<!-- Include Select2 CSS and JS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js" defer></script>
+
 <div class="row">
   <div class="col-md-8">
     <div class="card">
@@ -69,4 +74,16 @@
     </div>
   </div>
 </div>
+
+<script>
+  $(document).ready(function () {
+    // Initialize Select2 on the organization field to make it searchable
+    $("#{{ form.organization.id_for_label }}").select2({
+      placeholder: "Search and select an organization...",
+      allowClear: true,
+      width: "100%",
+    });
+  });
+</script>
+
 {% endblock %}

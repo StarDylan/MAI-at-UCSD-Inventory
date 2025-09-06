@@ -242,6 +242,11 @@
         </button>
       </div>
       <div class="modal-body">
+        <!-- Form-wide errors -->
+        <div id="formErrors" class="alert alert-danger d-none" role="alert">
+          <ul class="mb-0" id="formErrorsList"></ul>
+        </div>
+
         <form id="addItemForm">
           {% csrf_token %}
           <input type="hidden" id="selectedStockItem" name="stock_item_id" />
@@ -252,17 +257,20 @@
               <option value="">Select stock item...</option>
             </select>
             <div class="form-text">Choose which specific stock to take from</div>
+            <div id="stockItemErrors" class="invalid-feedback"></div>
           </div>
 
           <div class="mb-3">
             <label for="quantityInput" class="form-label">Quantity</label>
             <input type="number" id="quantityInput" name="quantity" class="form-control" min="1" required />
             <div class="form-text" id="quantityHelp">Available quantity will be shown here</div>
+            <div id="quantityErrors" class="invalid-feedback"></div>
           </div>
 
           <div class="mb-3">
             <label for="notesInput" class="form-label">Notes (optional)</label>
             <textarea id="notesInput" name="notes" class="form-control" rows="2" placeholder="Any additional notes for this line item..."></textarea>
+            <div id="notesErrors" class="invalid-feedback"></div>
           </div>
         </form>
       </div>
@@ -406,6 +414,9 @@
       // Update modal title and info
       document.getElementById("addItemModalLabel").textContent = `Add ${itemName} to Checkout`;
 
+      // Clear any previous errors when opening modal
+      clearFormErrors();
+
       // Load stock items for this item
       fetch(`/api/items/${itemId}/stock-items/`)
         .then((response) => response.json())
@@ -424,6 +435,7 @@
         })
         .catch((error) => {
           console.error("Error loading stock items:", error);
+          showGeneralError("Error loading stock items for this item");
         });
 
       // Reset form
@@ -434,8 +446,12 @@
       addItemModal.show();
     };
 
-    // Update quantity limits when stock item changes
+    // Clear errors when fields change
     stockItemSelect.addEventListener("change", function () {
+      // Clear any previous errors for this field
+      this.classList.remove("is-invalid");
+      document.getElementById("stockItemErrors").textContent = "";
+
       const selectedOption = this.options[this.selectedIndex];
       if (selectedOption.value) {
         const maxQuantity = selectedOption.dataset.quantity;
@@ -449,15 +465,48 @@
       }
     });
 
+    // Clear errors when quantity changes
+    quantityInput.addEventListener("input", function () {
+      this.classList.remove("is-invalid");
+      document.getElementById("quantityErrors").textContent = "";
+    });
+
+    // Clear errors when notes change
+    document.getElementById("notesInput").addEventListener("input", function () {
+      this.classList.remove("is-invalid");
+      document.getElementById("notesErrors").textContent = "";
+    });
+
     // Add item to checkout
     document.getElementById("confirmAddItem").addEventListener("click", function () {
+      // Clear previous errors
+      clearFormErrors();
+
       const formData = new FormData(document.getElementById("addItemForm"));
       formData.set("stock_item_id", stockItemSelect.value);
 
-      if (!stockItemSelect.value || !quantityInput.value) {
-        alert("Please select a stock item and enter quantity");
+      // Basic client-side validation
+      if (!stockItemSelect.value) {
+        showFieldError("stockItemSelect", "Please select a stock item");
         return;
       }
+
+      if (!quantityInput.value || quantityInput.value < 1) {
+        showFieldError("quantityInput", "Please enter a valid quantity");
+        return;
+      }
+
+      const selectedOption = stockItemSelect.options[stockItemSelect.selectedIndex];
+      const maxQuantity = parseInt(selectedOption.dataset.quantity);
+      if (quantityInput.value > maxQuantity) {
+        showFieldError("quantityInput", `Quantity cannot exceed available stock (${maxQuantity} units)`);
+        return;
+      }
+
+      // Disable the submit button to prevent double submission
+      const submitButton = this;
+      submitButton.disabled = true;
+      submitButton.textContent = "Adding...";
 
       fetch('{% url "checkout_add_item" checkout.id %}', {
         method: "POST",
@@ -473,14 +522,83 @@
             // Reload the page to show the new item
             window.location.reload();
           } else {
-            alert("Error: " + data.error);
+            // Handle server-side validation errors
+            if (data.errors) {
+              displayFormErrors(data.errors);
+            } else {
+              showGeneralError(data.error || "An error occurred while adding the item");
+            }
           }
         })
         .catch((error) => {
           console.error("Error adding item:", error);
-          alert("An error occurred while adding the item");
+          showGeneralError("An error occurred while adding the item");
+        })
+        .finally(() => {
+          // Re-enable the submit button
+          submitButton.disabled = false;
+          submitButton.textContent = "Add to Checkout";
         });
     });
+
+    // Helper functions for error handling
+    function clearFormErrors() {
+      // Hide general error alert
+      document.getElementById("formErrors").classList.add("d-none");
+      document.getElementById("formErrorsList").innerHTML = "";
+
+      // Clear field-specific errors
+      ["stockItemSelect", "quantityInput", "notesInput"].forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId.replace("Input", "").replace("Select", "") + "Errors");
+
+        field.classList.remove("is-invalid");
+        if (errorDiv) {
+          errorDiv.textContent = "";
+        }
+      });
+    }
+
+    function showFieldError(fieldId, message) {
+      const field = document.getElementById(fieldId);
+      const errorDiv = document.getElementById(fieldId.replace("Input", "").replace("Select", "") + "Errors");
+
+      field.classList.add("is-invalid");
+      if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = "block";
+      }
+    }
+
+    function showGeneralError(message) {
+      const formErrors = document.getElementById("formErrors");
+      const formErrorsList = document.getElementById("formErrorsList");
+
+      formErrorsList.innerHTML = `<li>${message}</li>`;
+      formErrors.classList.remove("d-none");
+    }
+
+    function displayFormErrors(errors) {
+      // Handle field-specific errors
+      Object.keys(errors).forEach((fieldName) => {
+        const messages = Array.isArray(errors[fieldName]) ? errors[fieldName] : [errors[fieldName]];
+
+        if (fieldName === "stock_item_id" || fieldName === "stock_item") {
+          showFieldError("stockItemSelect", messages.join(", "));
+        } else if (fieldName === "quantity") {
+          showFieldError("quantityInput", messages.join(", "));
+        } else if (fieldName === "notes") {
+          showFieldError("notesInput", messages.join(", "));
+        } else if (fieldName === "__all__" || fieldName === "non_field_errors") {
+          // Show general form errors
+          messages.forEach((message) => {
+            const formErrorsList = document.getElementById("formErrorsList");
+            formErrorsList.innerHTML += `<li>${message}</li>`;
+          });
+          document.getElementById("formErrors").classList.remove("d-none");
+        }
+      });
+    }
   });
 
   // Audit diff functionality
