@@ -24,11 +24,6 @@
         <a class="nav-item nav-link" href="{% url 'bulk_checkout_list' %}">Bulk Checkout</a>
       </li>
       {% endif %}
-      {% if perms.inventory.view_organization %}
-      <li class="nav-item">
-        <a class="nav-item nav-link" href="{% url 'organization_list' %}">Organizations</a>
-      </li>
-      {% endif %}
     </ul>
     {% if user.is_authenticated %}
     <div class="nav-item dropdown">
