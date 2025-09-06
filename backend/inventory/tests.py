@@ -768,11 +768,14 @@ class BulkCheckoutModelTest(TestCase):
             created_by=self.user
         )
         
+        # Add cost to the item
+        self.item.cost_per_item = 10.50
+        self.item.save()
+        
         checkout_item = CheckOutItem.objects.create(
             checkout=checkout,
             stock_item=self.stock_item,
-            quantity=5,
-            cost_per_item=10.50
+            quantity=5
         )
         
         self.assertEqual(str(checkout_item), "5x Test Item from Test Location")
@@ -877,7 +880,6 @@ class BulkCheckoutFormTest(TestCase):
         
         form_data = {
             'quantity': 5,
-            'cost_per_item': 12.50,
             'notes': 'Test item notes'
         }
         
@@ -890,7 +892,6 @@ class BulkCheckoutFormTest(TestCase):
         
         form_data = {
             'quantity': 15,  # More than available (10)
-            'cost_per_item': 12.50
         }
         
         form = CheckOutItemForm(data=form_data, stock_item=self.stock_item)
