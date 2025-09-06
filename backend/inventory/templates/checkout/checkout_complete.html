@@ -73,12 +73,13 @@
   </div>
   <div class="card-body">
     <div class="table-responsive">
-      <table class="table table-sm">
+      <table class="table table-hover">
         <thead>
           <tr>
             <th>Item</th>
             <th>Detail</th>
-            <th>From Location</th>
+            <th>Location</th>
+            <th>Expiration Date</th>
             <th>Quantity</th>
             <th>Available Stock</th>
             <th>After Checkout</th>
@@ -88,7 +89,9 @@
           {% for item in checkout.checkout_items.all %}
           <tr>
             <td>
-              <strong>{{ item.stock_item.item.name }}</strong>
+              <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none">
+                <strong>{{ item.stock_item.item.name }}</strong>
+              </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
               {% endif %}
@@ -98,9 +101,11 @@
               <span class="text-muted">-</span>
               {% endif %}
             </td>
+            <td>{{ item.stock_item.location }}</td>
             <td>
-              {{ item.stock_item.location }}
-              <br /><small class="text-muted">{{ item.stock_item.organization.name }}</small>
+              {% if item.stock_item.expiration_date %} {{ item.stock_item.expiration_date|date:"M d, Y" }} {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
             </td>
             <td>
               <strong class="text-danger">-{{ item.quantity }}</strong>
