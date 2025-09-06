@@ -75,6 +75,13 @@ class Item(models.Model):
     manufacturer = models.CharField(max_length=255, blank=True, default="", help_text="Product manufacturer or brand name")
     gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
     items_per_box = models.PositiveIntegerField(null=True, blank=True, help_text="Number of individual items in a single box/package")
+    cost_per_item = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Cost per individual item"
+    )
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.URLField(blank=True)
@@ -273,8 +280,8 @@ class CheckOut(models.Model):
         """Calculate total cost of all items in checkout"""
         total = 0
         for checkout_item in self.checkout_items.all():
-            if checkout_item.cost_per_item:
-                total += checkout_item.cost_per_item * checkout_item.quantity
+            if checkout_item.stock_item.item.cost_per_item:
+                total += checkout_item.stock_item.item.cost_per_item * checkout_item.quantity
         return total
 
 
@@ -296,13 +303,6 @@ class CheckOutItem(models.Model):
         db_column="stock_item_id"
     )
     quantity = models.PositiveIntegerField(help_text="Quantity to check out from this stock item")
-    cost_per_item = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        null=True, 
-        blank=True,
-        help_text="Cost per individual item (can be filled during checkout)"
-    )
     notes = models.TextField(blank=True, default="", help_text="Notes specific to this line item")
     
     class Meta:
@@ -318,9 +318,14 @@ class CheckOutItem(models.Model):
     @property
     def total_cost(self):
         """Calculate total cost for this line item"""
-        if self.cost_per_item:
-            return self.cost_per_item * self.quantity
+        if self.stock_item.item.cost_per_item:
+            return self.stock_item.item.cost_per_item * self.quantity
         return None
+    
+    @property 
+    def remaining_after_checkout(self):
+        """Calculate remaining stock after this checkout item"""
+        return self.stock_item.quantity - self.quantity
 
 
 class AuditEvent(models.Model):

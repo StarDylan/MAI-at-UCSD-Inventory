@@ -134,7 +134,7 @@
                 </span>
               </td>
               <td>
-                {% with remaining=item.stock_item.quantity|sub:item.quantity %}
+                {% with remaining=item.remaining_after_checkout %}
                   <span class="{% if remaining < 0 %}text-danger{% elif remaining == 0 %}text-warning{% else %}text-success{% endif %}">
                     {{ remaining }}
                   </span>

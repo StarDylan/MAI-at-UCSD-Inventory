@@ -149,14 +149,28 @@
                   <br><small class="text-muted">{{ item.stock_item.organization.name }}</small>
                 </td>
                 <td>
-                  <strong>{{ item.quantity }}</strong>
+                  {% if not checkout.is_completed %}
+                    <form method="post" action="{% url 'checkout_edit_item' checkout.id item.id %}" style="display: inline;">
+                      {% csrf_token %}
+                      <input type="number" name="quantity" value="{{ item.quantity }}" 
+                             min="1" max="{{ item.stock_item.quantity|add:item.quantity }}"
+                             class="form-control form-control-sm" style="width: 80px; display: inline;"
+                             onchange="this.form.submit()">
+                      <input type="hidden" name="notes" value="{{ item.notes }}">
+                    </form>
+                  {% else %}
+                    <strong>{{ item.quantity }}</strong>
+                  {% endif %}
                   {% if item.stock_item.expiration_date %}
                     <br><small class="text-muted">Exp: {{ item.stock_item.expiration_date|date:"M d, Y" }}</small>
                   {% endif %}
+                  {% if item.stock_item.item.items_per_box %}
+                    <br><small class="text-muted">{{ item.stock_item.item.items_per_box }} per box</small>
+                  {% endif %}
                 </td>
                 <td>
-                  {% if item.cost_per_item %}
-                    ${{ item.cost_per_item|floatformat:2 }}
+                  {% if item.stock_item.item.cost_per_item %}
+                    ${{ item.stock_item.item.cost_per_item|floatformat:2 }}
                   {% else %}
                     <span class="text-muted">-</span>
                   {% endif %}

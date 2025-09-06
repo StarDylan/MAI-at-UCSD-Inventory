@@ -24,7 +24,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = models.Item
         # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'manufacturer', 'gtin', 'items_per_box', 'subcategory', "url", 'notes_public', 'notes_private']
+        fields = ['name', 'manufacturer', 'gtin', 'items_per_box', 'cost_per_item', 'subcategory', "url", 'notes_public', 'notes_private']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -165,6 +165,14 @@ class ItemWithStockForm(forms.Form):
         help_text="Number of individual items in a single box/package",
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
     )
+    cost_per_item = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        label="Cost per Item (Optional)",
+        help_text="Cost per individual item",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'e.g. 10.50'})
+    )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date'}),
@@ -275,6 +283,7 @@ class ItemWithStockForm(forms.Form):
             manufacturer=data['manufacturer'],
             gtin=item_gtin,
             items_per_box=data.get('items_per_box'),
+            cost_per_item=data.get('cost_per_item'),
             category=selected_subcategory.category,
             subcategory=selected_subcategory,
             url=data['url'],
@@ -456,10 +465,9 @@ class CheckOutItemForm(forms.ModelForm):
     
     class Meta:
         model = models.CheckOutItem
-        fields = ['quantity', 'cost_per_item', 'notes']
+        fields = ['quantity', 'notes']
         widgets = {
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'cost_per_item': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Optional notes for this line item...'}),
         }
         
@@ -489,6 +497,26 @@ class CheckOutCompleteForm(forms.Form):
     )
 
 
+class CheckOutItemEditForm(forms.ModelForm):
+    """Form for editing quantity in a checkout item"""
+    
+    class Meta:
+        model = models.CheckOutItem
+        fields = ['quantity', 'notes']
+        widgets = {
+            'quantity': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1', 'style': 'width: 80px; display: inline;'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Optional notes for this line item...'}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.stock_item:
+            # Set max quantity based on available stock + current quantity
+            max_qty = self.instance.stock_item.quantity + self.instance.quantity
+            self.fields['quantity'].widget.attrs['max'] = max_qty
+            self.fields['quantity'].help_text = f"Max available: {max_qty}"
+
+
 class AddToCheckOutForm(forms.Form):
     """Form for adding items to an existing checkout from item detail page"""
     checkout = forms.ModelChoiceField(
@@ -506,14 +534,6 @@ class AddToCheckOutForm(forms.Form):
         min_value=1,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
         label="Quantity"
-    )
-    cost_per_item = forms.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-        label="Cost per Item",
-        help_text="Optional: Cost per individual item"
     )
     
     def __init__(self, item=None, user=None, *args, **kwargs):

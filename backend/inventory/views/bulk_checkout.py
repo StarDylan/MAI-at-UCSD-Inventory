@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 import json
 
-from inventory.forms import CheckOutForm, CheckOutItemForm, CheckOutCompleteForm, AddToCheckOutForm
+from inventory.forms import CheckOutForm, CheckOutItemForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm
 from inventory.models import CheckOut, CheckOutItem, Item, StockItem, Organization
 from .utils import audit_log_state, audit_log_event
 
@@ -110,7 +110,6 @@ def checkout_add_item_view(request, checkout_id):
         # Handle AJAX request for adding item
         stock_item_id = request.POST.get('stock_item_id')
         quantity = int(request.POST.get('quantity', 1))
-        cost_per_item = request.POST.get('cost_per_item')
         notes = request.POST.get('notes', '')
         
         try:
@@ -140,7 +139,6 @@ def checkout_add_item_view(request, checkout_id):
                 checkout=checkout,
                 stock_item=stock_item,
                 quantity=quantity,
-                cost_per_item=float(cost_per_item) if cost_per_item else None,
                 notes=notes
             )
             
@@ -202,6 +200,54 @@ def checkout_remove_item_view(request, checkout_id, item_id):
         
         checkout_item.delete()
         messages.success(request, f'Removed {item_description} from checkout')
+    
+    return redirect('checkout_detail', checkout_id=checkout.id)
+
+
+@login_required
+@permission_required('inventory.change_item', raise_exception=True)
+def checkout_edit_item_view(request, checkout_id, item_id):
+    """
+    Edit quantity and notes for a checkout item.
+    """
+    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout_item = get_object_or_404(CheckOutItem, id=item_id, checkout=checkout)
+    
+    if checkout.is_completed:
+        messages.error(request, 'Cannot edit items in completed checkout')
+        return redirect('checkout_detail', checkout_id=checkout.id)
+    
+    if request.method == 'POST':
+        old_quantity = checkout_item.quantity
+        form = CheckOutItemEditForm(request.POST, instance=checkout_item)
+        if form.is_valid():
+            new_quantity = form.cleaned_data['quantity']
+            
+            # Check if there's enough stock for the new quantity
+            available_stock = checkout_item.stock_item.quantity + old_quantity
+            if new_quantity > available_stock:
+                messages.error(
+                    request, 
+                    f'Only {available_stock} units available for {checkout_item.stock_item.item.name}'
+                )
+                return redirect('checkout_detail', checkout_id=checkout.id)
+            
+            form.save()
+            
+            # Log the edit
+            audit_log_event(
+                request.user,
+                f"Updated quantity for {checkout_item.stock_item.item.name} "
+                f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
+                audit_log_state(checkout_item),
+                audit_log_state(checkout_item)
+            )
+            
+            messages.success(
+                request, 
+                f'Updated quantity for {checkout_item.stock_item.item.name} '
+                f'from {old_quantity} to {new_quantity}'
+            )
     
     return redirect('checkout_detail', checkout_id=checkout.id)
 
@@ -363,14 +409,12 @@ def add_to_checkout_from_item_view(request, item_uuid):
             checkout = form.cleaned_data['checkout']
             stock_item = form.cleaned_data['stock_item']
             quantity = form.cleaned_data['quantity']
-            cost_per_item = form.cleaned_data.get('cost_per_item')
             
             # Create the checkout item
             checkout_item = CheckOutItem.objects.create(
                 checkout=checkout,
                 stock_item=stock_item,
-                quantity=quantity,
-                cost_per_item=cost_per_item
+                quantity=quantity
             )
             
             # Log the addition

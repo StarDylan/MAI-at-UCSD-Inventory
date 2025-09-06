@@ -90,6 +90,7 @@ urlpatterns = [
     path('bulk-checkout/create/', bulk_checkout.checkout_create_view, name='checkout_create'),
     path('bulk-checkout/<uuid:checkout_id>/', bulk_checkout.checkout_detail_view, name='checkout_detail'),
     path('bulk-checkout/<uuid:checkout_id>/add-item/', bulk_checkout.checkout_add_item_view, name='checkout_add_item'),
+    path('bulk-checkout/<uuid:checkout_id>/edit-item/<uuid:item_id>/', bulk_checkout.checkout_edit_item_view, name='checkout_edit_item'),
     path('bulk-checkout/<uuid:checkout_id>/remove-item/<uuid:item_id>/', bulk_checkout.checkout_remove_item_view, name='checkout_remove_item'),
     path('bulk-checkout/<uuid:checkout_id>/complete/', bulk_checkout.checkout_complete_view, name='checkout_complete'),
     path('bulk-checkout/<uuid:checkout_id>/undo/', bulk_checkout.checkout_undo_view, name='checkout_undo'),
