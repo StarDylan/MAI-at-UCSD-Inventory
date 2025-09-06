@@ -9,7 +9,7 @@
   <li class="nav-item" role="presentation">
     <a class="nav-link {% if active_tab == 'active' %}active{% endif %}" href="?tab=active" role="tab">
       Active Checkouts {% if active_count > 0 %}
-      <span class="badge bg-primary">{{ active_count }}</span>
+      <span class="badge bg-primary text-white">{{ active_count }}</span>
       {% endif %}
     </a>
   </li>
@@ -34,9 +34,9 @@
             {% endif %} {{ checkout.organization.name }}
           </h6>
           {% if checkout.is_completed %}
-          <span class="badge bg-success">Completed</span>
+          <span class="badge bg-success text-white">Completed</span>
           {% else %}
-          <span class="badge bg-primary">Active</span>
+          <span class="badge bg-primary text-white">Active</span>
           {% endif %}
         </div>
         <div class="card-body">
@@ -70,15 +70,7 @@
             <a href="{% url 'checkout_add_item' checkout.id %}" class="btn btn-outline-secondary btn-sm"> Add Items </a>
             {% if checkout.checkout_items.exists %}
             <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success btn-sm"> Complete </a>
-            {% endif %} {% else %}
-            <a
-              href="{% url 'checkout_undo' checkout.id %}"
-              class="btn btn-outline-warning btn-sm"
-              onclick="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.')"
-            >
-              Undo
-            </a>
-            {% endif %}
+            {% endif %} {% endif %}
           </div>
         </div>
       </div>
