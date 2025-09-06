@@ -531,7 +531,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
                 f'Added {quantity}x {item.name} to checkout for {checkout.organization.name}'
             )
             
-            return redirect('view_item', uuid=item.id)
+            return redirect('checkout_detail', checkout_id=checkout.id)
     else:
         form = AddToCheckOutForm(item=item, user=request.user)
     

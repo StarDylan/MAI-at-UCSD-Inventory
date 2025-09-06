@@ -14,7 +14,6 @@ from inventory.views import (
     auth,
     bulk_checkout,
     categories,
-    checkout,
     dashboard,
     images,
     items,
@@ -80,10 +79,6 @@ urlpatterns = [
     # Search and Quantity Management
     path('search/check_in/', search.SearchCheckInView.as_view(), name='search_check_in'),
     path('search/check_in/<uuid:item_uuid>/', search.SearchCheckInView.as_view(), name='search_check_in_item'),
-    
-    # Checkout Management (single item)
-    path('checkout/<uuid:item_uuid>/', checkout.checkout_item_select, name='checkout_item_select'),
-    path('checkout/<uuid:item_uuid>/process/', checkout.checkout_item_process, name='checkout_item_process'),
     
     # Bulk Checkout System
     path('bulk-checkout/', bulk_checkout.BulkCheckoutListView.as_view(), name='bulk_checkout_list'),

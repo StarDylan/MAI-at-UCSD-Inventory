@@ -23,8 +23,7 @@
 {% if perms.inventory.add_stockitem %}
 <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
 {% endif %} 
-{% if perms.inventory.change_item %}
-<a href="{% url 'checkout_item_select' item.id %}" class="btn btn-warning"><i class="material-icons">remove_shopping_cart</i> Check Out Item</a>
+{% if perms.inventory.change_checkout %}
 <a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Bulk Checkout</a>
 {% endif %} 
 
