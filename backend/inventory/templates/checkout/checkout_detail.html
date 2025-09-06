@@ -22,9 +22,15 @@
     {% else %}
     <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success"> <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout </a>
     {% endif %} {% elif checkout.is_completed %}
-    <a href="{% url 'checkout_undo' checkout.id %}" class="btn btn-warning" onclick="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.')">
-      <i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout
-    </a>
+    <form
+      method="post"
+      action="{% url 'checkout_undo' checkout.id %}"
+      style="display: inline"
+      onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');"
+    >
+      {% csrf_token %}
+      <button type="submit" class="btn btn-warning"><i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout</button>
+    </form>
     {% endif %}
   </div>
 </div>
