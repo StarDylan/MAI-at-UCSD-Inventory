@@ -15,6 +15,7 @@
   </div>
   <div>
     <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts </a>
+
     {% if not checkout.is_completed and checkout_items and perms.inventory.complete_checkout %} {% if checkout.has_insufficient_stock %}
     <button class="btn btn-secondary" disabled title="Cannot complete checkout - insufficient stock for some items">
       <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
@@ -31,7 +32,13 @@
       {% csrf_token %}
       <button type="submit" class="btn btn-warning"><i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout</button>
     </form>
-    {% endif %} {% endif %}
+    {% endif %} {% endif %} {% comment %} Delete button - only show for non-completed checkouts with delete permission {% endcomment %}
+
+    <span>
+      {% if not checkout.is_completed and perms.inventory.delete_checkout %}
+      <a href="{% url 'checkout_delete' checkout.id %}" class="btn btn-outline-danger ms-2"> <i class="material-icons" style="vertical-align: middle">delete</i> Delete </a>
+      {% endif %}
+    </span>
   </div>
 </div>
 

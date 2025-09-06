@@ -87,6 +87,8 @@ class Command(BaseCommand):
 
             Permission.objects.get(codename='complete_checkout', content_type=checkout_ct),
             Permission.objects.get(codename='undo_checkout', content_type=checkout_ct),
+            Permission.objects.get(codename='delete_checkout', content_type=checkout_ct),
+            Permission.objects.get(codename='add_checkout', content_type=checkout_ct),
         ]
 
         # Add the permissions to the Member group

@@ -90,6 +90,7 @@ urlpatterns = [
     path('bulk-checkout/<uuid:checkout_id>/remove-item/<uuid:item_id>/', bulk_checkout.checkout_remove_item_view, name='checkout_remove_item'),
     path('bulk-checkout/<uuid:checkout_id>/complete/', bulk_checkout.checkout_complete_view, name='checkout_complete'),
     path('bulk-checkout/<uuid:checkout_id>/undo/', bulk_checkout.checkout_undo_view, name='checkout_undo'),
+    path('bulk-checkout/<uuid:checkout_id>/delete/', bulk_checkout.checkout_delete_view, name='checkout_delete'),
     path('item/<uuid:item_uuid>/add-to-checkout/', bulk_checkout.add_to_checkout_from_item_view, name='add_to_checkout_from_item'),
     
     # User Management

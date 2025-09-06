@@ -44,7 +44,7 @@ class BulkCheckoutListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
 
 
 @login_required
-@permission_required('inventory.create_checkout', raise_exception=True)
+@permission_required('inventory.add_checkout', raise_exception=True)
 def checkout_create_view(request):
     """
     Create a new active checkout.
@@ -164,7 +164,8 @@ def checkout_add_item_view(request, checkout_id):
                 request.user,
                 f"Added {quantity}x {stock_item.item.name} to checkout for {checkout.organization.name}",
                 audit_log_state(None),
-                audit_log_state(checkout_item)
+                audit_log_state(checkout_item),
+                checkout.id
             )
             
             return JsonResponse({
@@ -212,7 +213,8 @@ def checkout_remove_item_view(request, checkout_id, item_id):
             request.user,
             f"Removed {item_description} from checkout for {checkout.organization.name}",
             audit_log_state(checkout_item),
-            audit_log_state(None)
+            audit_log_state(None),
+            checkout.id
         )
         
         checkout_item.delete()
@@ -257,7 +259,8 @@ def checkout_edit_item_view(request, checkout_id, item_id):
                 f"Updated quantity for {checkout_item.stock_item.item.name} "
                 f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                 audit_log_state(checkout_item),
-                audit_log_state(checkout_item)
+                audit_log_state(checkout_item),
+                checkout.id
             )
             
             messages.success(
@@ -523,7 +526,8 @@ def add_to_checkout_from_item_view(request, item_uuid):
                 request.user,
                 f"Added {quantity}x {item.name} to checkout for {checkout.organization.name} from item detail page",
                 audit_log_state(None),
-                audit_log_state(checkout_item)
+                audit_log_state(checkout_item),
+                checkout.id
             )
             
             messages.success(
@@ -573,3 +577,35 @@ def get_stock_items_api(request, item_uuid):
         })
     
     return JsonResponse({'stock_items': data})
+
+
+@login_required
+@permission_required('inventory.delete_checkout', raise_exception=True)
+def checkout_delete_view(request, checkout_id):
+    """
+    Delete a checkout.
+    Only allows deletion of active (non-completed) checkouts.
+    """
+    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    
+    # Prevent deletion of completed checkouts
+    if checkout.is_completed:
+        messages.error(request, "Cannot delete a completed checkout. You must undo it first.")
+        return redirect('checkout_detail', checkout_id=checkout.id)
+    
+    if request.method == 'POST':
+        organization_name = checkout.organization.name
+        checkout_date = checkout.created_at.strftime('%Y-%m-%d %H:%M')
+        
+        # Delete the checkout (this will cascade to delete related CheckoutItems)
+        checkout.delete()
+        
+        messages.success(request, f"Checkout for {organization_name} ({checkout_date}) has been deleted.")
+        return redirect('bulk_checkout_list')
+    
+    # For GET requests, show confirmation page
+    context = {
+        'checkout': checkout,
+        'items_count': checkout.total_items_count,
+    }
+    return render(request, 'checkout/checkout_delete_confirm.html', context)
