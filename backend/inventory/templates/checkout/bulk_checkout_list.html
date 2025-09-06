@@ -55,8 +55,8 @@
           {% endif %}
 
           <div class="mb-2">
-            <strong>{{ checkout.total_items_count }}</strong> item{{ checkout.total_items_count|pluralize }} {% if checkout.total_weight %} <br /><strong>{{ checkout.total_weight }} kg</strong> total
-            weight {% endif %} {% if checkout.total_cost %} <br /><strong>${{ checkout.total_cost|floatformat:2 }}</strong> total cost {% endif %}
+            <strong>{{ checkout.total_items_count }}</strong> item{{ checkout.total_items_count|pluralize }} {% if checkout.total_weight %} <br /><strong>{{ checkout.total_weight }} lbs</strong> total
+            weight {% endif %} {% if checkout.total_cost %} <br /><strong>${{ checkout.total_cost|floatformat:2 }}</strong> total value {% endif %}
           </div>
 
           {% if checkout.notes %}

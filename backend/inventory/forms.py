@@ -169,8 +169,8 @@ class ItemWithStockForm(forms.Form):
         max_digits=10,
         decimal_places=4,
         required=False,
-        label="Cost per Item (Optional)",
-        help_text="Cost per individual item",
+        label="Value per Qty (Optional)",
+        help_text="Value per individual item",
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
     )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")

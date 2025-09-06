@@ -295,7 +295,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                     # Log cost change
                     audit_log_event(
                         request.user,
-                        f"Updated cost per item for {checkout_item.stock_item.item.name} "
+                        f"Updated value per item for {checkout_item.stock_item.item.name} "
                         f"from ${old_cost or 'None'} to ${new_cost}",
                         before_item_state,
                         audit_log_state(checkout_item.stock_item.item)

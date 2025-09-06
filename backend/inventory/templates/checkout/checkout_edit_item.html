@@ -71,7 +71,7 @@
 
         <div class="col-md-6">
           <div class="form-group">
-            <label for="id_cost_per_item">Cost per Item</label>
+            <label for="id_cost_per_item">Value per Item</label>
             <div class="input-group">
               <div class="input-group-prepend">
                 <span class="input-group-text">$</span>
@@ -87,7 +87,7 @@
                 placeholder="0.00"
               />
             </div>
-            <small class="form-text text-muted"> This will update the cost for all instances of this item </small>
+            <small class="form-text text-muted"> This will update the value for all instances of this item </small>
           </div>
         </div>
       </div>
@@ -100,15 +100,15 @@
       <!-- Cost Calculation Display -->
       <div class="card bg-light mb-3">
         <div class="card-body">
-          <h6 class="card-title">Cost Calculation</h6>
+          <h6 class="card-title">Value Calculation</h6>
           <div id="cost-calculation">
             {% if checkout_item.stock_item.item.cost_per_item %}
             <p class="mb-1">
-              <strong>Cost per Item:</strong>
+              <strong>Value per Item:</strong>
               ${{ checkout_item.stock_item.item.cost_per_item|floatformat:2 }}
             </p>
             <p class="mb-0">
-              <strong>Total Cost:</strong>
+              <strong>Total Value:</strong>
               <span id="total-cost">${{ checkout_item.total_cost|floatformat:2 }}</span>
             </p>
             {% else %}
