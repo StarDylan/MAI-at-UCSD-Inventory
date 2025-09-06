@@ -9,7 +9,7 @@ Before starting the deployment process, ensure you have:
 - A [Supabase](https://supabase.com) account (free tier available)
 - A [Render](https://render.com/) account (free tier available)
 - A [Cloudinary](https://cloudinary.com/) account for image storage (free tier available)
-- A [Google Cloud Console](console.cloud.google.com/) account for OAuth setup (free)
+- A [Google Cloud Console](https://console.cloud.google.com/) account for OAuth setup (free)
 
 ## Overview
 
