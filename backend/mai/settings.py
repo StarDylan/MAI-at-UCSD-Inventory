@@ -35,7 +35,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'), parse_comments=True)
 SECRET_KEY = os.getenv("SECRET_KEY") or get_random_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG', default=False)
 
 DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES', default=False)
 
