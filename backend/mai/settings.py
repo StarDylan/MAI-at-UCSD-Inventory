@@ -225,6 +225,7 @@ if env('SENTRY_DSN', default=None):
         # Add data like request headers and IP for users,
         # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
         send_default_pii=True,
+        environment=env('SENTRY_ENVIRONMENT', default='development' if DEBUG else 'production'),
 )
     
 IS_BETA = env('IS_BETA', default=False)
