@@ -2,4 +2,4 @@
 
 cd /app
 
-fdmove -c 2 1 uv run gunicorn -k uvicorn.workers.UvicornWorker -w 2 -b unix:/run/gunicorn.sock mai.asgi:application
+exec fdmove -c 2 1 uv run gunicorn -k uvicorn.workers.UvicornWorker -w 2 -b unix:/run/gunicorn.sock mai.asgi:application
