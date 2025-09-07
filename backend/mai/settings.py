@@ -226,3 +226,5 @@ if env('SENTRY_DSN', default=None):
         # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
         send_default_pii=True,
 )
+    
+IS_BETA = env('IS_BETA', default=False)

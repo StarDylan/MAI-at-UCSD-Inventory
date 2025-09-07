@@ -2,8 +2,10 @@
 <nav class="navbar navbar-light navbar-expand-lg bg-light sticky-top mb-4">
   <a class="navbar-brand" href="{% url 'home' %}">
     <img src="{% static 'inventory/logo.png' %}" alt="Avatar" style="border-radius: 50%; height: 30px; margin-right: 5px" />
-    MAI-at-UCSD Inventory</a
-  >
+    MAI-at-UCSD Inventory {% if IS_BETA %}
+    <span style="background-color: #ff4757; color: white; font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 8px; text-transform: uppercase"> BETA </span>
+    {% endif %}
+  </a>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>

@@ -308,4 +308,8 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+.env.beta
+.env.prod
+.env.local
+
 # End of https://www.toptal.com/developers/gitignore/api/python,django,windows,visualstudiocode
