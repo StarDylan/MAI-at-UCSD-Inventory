@@ -144,17 +144,20 @@
             <tr>
               <th>Detail</th>
               <th>Quantity</th>
+              
+            {% if perms.inventory.view_internalstockingdetails %}
+            <th>Location</th>
+            {% endif %}
               <th>Expiration Date</th>
             {% if perms.inventory.view_internalstockingdetails %}
-              <th>Location</th>
-              <th>Origin Org</th>
               <th>Date Received</th>
               {% endif %}
               {% if not item.gtin %}
               <th>GTIN</th>
               {% endif %}
-              <th>Lot Number</th>
+              {% if perms.inventory.view_internalstockingdetails %}
               <th>Surplus Status</th>
+              {% endif %}
               {% if perms.inventory.change_stockitem and not item.is_deleted %}
               <th>Actions</th>
               {% endif %}
@@ -165,6 +168,9 @@
             <tr {% if stock.is_expired %}class="table-danger" {% endif %}>
               <td>{{ stock.detail|default:"-" }}</td>
               <td>{{ stock.quantity }}</td>
+              {% if perms.inventory.view_internalstockingdetails %}
+                <td>{{ stock.location|default:"-" }}</td>
+                {% endif %}
               <td>
                   {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
                   <span class="badge badge-danger">Expired</span>
@@ -173,8 +179,6 @@
                   {% endif %}
             </td>
             {% if perms.inventory.view_internalstockingdetails %}
-              <td>{{ stock.location|default:"-" }}</td>
-                <td>{{ stock.organization.name }}</td>
                 <td>{{ stock.date_received|date:"M d, Y" }}</td>
                 {% endif %}
                 
@@ -187,25 +191,27 @@
                   {% endif %}
                 </td>
                 {% endif %}
-              <td>{{ stock.lot_number|default:"-" }}</td>
+              {% if perms.inventory.view_internalstockingdetails %}
               <td>
                 {% if stock.surplus_status == 'pending' %}
                   <span class="badge badge-warning">
                     <i class="material-icons" style="font-size: 14px; vertical-align: middle;">access_time</i>
-                    Surplus Needs to Check
+                    Needs to Check
                   </span>
                 {% elif stock.surplus_status == 'wanted' %}
-                  <span class="badge badge-success">
+                  <span class="badge badge-danger">
                     <i class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</i>
-                    Wanted by Surplus
+                    Wanted
                   </span>
                 {% elif stock.surplus_status == 'not_wanted' %}
                   <span class="badge badge-secondary">
                     <i class="material-icons" style="font-size: 14px; vertical-align: middle;">cancel</i>
-                    Not Wanted by Surplus
+                    Not Wanted
                   </span>
                 {% endif %}
               </td>
+              {% endif %}
+
               {% if perms.inventory.change_stockitem and not item.is_deleted%}
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>

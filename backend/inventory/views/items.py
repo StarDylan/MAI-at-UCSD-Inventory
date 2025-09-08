@@ -66,7 +66,7 @@ def view_all_items(request):
     
     # Filter for non-authenticated users - only show items with surplus-approved stock
     if not request.user.is_authenticated:
-        items_query = items_query.filter(stock_items__surplus_status__in=['wanted', 'not_wanted'])
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
     
     items = (items_query
             .annotate(
@@ -214,7 +214,7 @@ def view_item_detail(request, uuid):
     stock_items_query = item.stock_items.select_related('organization')
     if not request.user.is_authenticated:
         # Non-authenticated users only see surplus-approved stock items
-        stock_items_query = stock_items_query.filter(surplus_status__in=['wanted', 'not_wanted'])
+        stock_items_query = stock_items_query.filter(surplus_status__in=['not_wanted'])
     
     stock_items = stock_items_query.order_by('detail', 'expiration_date', 'date_received')
     
