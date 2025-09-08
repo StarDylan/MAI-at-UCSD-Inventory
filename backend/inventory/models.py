@@ -181,6 +181,11 @@ class StockItem(models.Model):
 
     class Meta:
         ordering = ['detail', 'expiration_date', 'date_received']
+        permissions = [
+            ("view_surplus_report", "Can view surplus reports"),
+            ("download_surplus_report", "Can download surplus reports"),
+            ("upload_surplus_report", "Can upload surplus reports"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['gtin'], 

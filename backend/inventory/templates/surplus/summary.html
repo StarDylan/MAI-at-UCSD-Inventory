@@ -1,9 +1,4 @@
-{% extends "shared/base.html" %}
-{% load static %}
-
-{% block title %}Surplus Summary{% endblock %}
-
-{% block body %}
+{% extends "shared/base.html" %} {% load static %} {% block title %}Surplus Summary{% endblock %} {% block body %}
 
 <h2>Surplus Status Summary</h2>
 
@@ -55,18 +50,21 @@
 </div>
 
 <div class="row mb-4">
+  {% if perms.inventory.download_surplus_report %}
   <div class="col-md-6">
     <a href="{% url 'export_surplus_report' %}" class="btn btn-primary">
       <i class="material-icons">download</i>
       Export to Excel
     </a>
   </div>
+  {% endif %} {% if perms.inventory.upload_surplus_report %}
   <div class="col-md-6">
     <a href="{% url 'upload_surplus_report' %}" class="btn btn-success">
       <i class="material-icons">upload</i>
       Upload Excel Updates
     </a>
   </div>
+  {% endif %}
 </div>
 
 {% if recent_pending %}
@@ -99,7 +97,7 @@
             <td>{{ stock.date_received|date:"M d, Y" }}</td>
             <td>
               <span class="badge badge-warning">
-                <i class="material-icons" style="font-size: 14px; vertical-align: middle;">access_time</i>
+                <i class="material-icons" style="font-size: 14px; vertical-align: middle">access_time</i>
                 Needs Review
               </span>
             </td>
@@ -110,6 +108,4 @@
     </div>
   </div>
 </div>
-{% endif %}
-
-{% endblock %}
+{% endif %} {% endblock %}

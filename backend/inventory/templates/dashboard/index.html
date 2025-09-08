@@ -56,7 +56,7 @@
   <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
   {% endif %} {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
-  {% endif %} {% if perms.inventory.view_stockitem %}
+  {% endif %} {% if perms.inventory.view_surplus_report %}
   <a href="{% url 'surplus_summary' %}" class="list-group-item list-group-item-action">Surplus Status & Reports</a>
   {% endif %} {% if perms.inventory.delete_category %}
   <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>

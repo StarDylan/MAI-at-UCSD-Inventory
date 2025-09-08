@@ -21,7 +21,7 @@ from .utils import audit_log_state, audit_log_event
 
 
 @login_required
-@permission_required('inventory.view_stockitem', raise_exception=True)
+@permission_required('inventory.download_surplus_report', raise_exception=True)
 def export_surplus_report(request):
     """
     Generate and download an Excel report of all stock items with surplus status.
@@ -108,7 +108,7 @@ def export_surplus_report(request):
 
 
 @login_required 
-@permission_required('inventory.change_stockitem', raise_exception=True)
+@permission_required('inventory.upload_surplus_report', raise_exception=True)
 def upload_surplus_report(request):
     """
     Handle Excel file upload to update surplus status of stock items.
@@ -243,7 +243,7 @@ def upload_surplus_report(request):
 
 
 @login_required
-@permission_required('inventory.view_stockitem', raise_exception=True) 
+@permission_required('inventory.view_surplus_report', raise_exception=True) 
 def surplus_summary(request):
     """
     Display a summary of surplus status for all stock items.
