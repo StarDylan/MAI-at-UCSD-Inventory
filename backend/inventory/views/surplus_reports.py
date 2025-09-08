@@ -14,6 +14,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.db.models import Q
+from django.db import transaction
 
 from inventory.models import StockItem
 from .utils import audit_log_state, audit_log_event
@@ -143,10 +144,13 @@ def upload_surplus_report(request):
                 messages.error(request, 'Invalid file format. Please use the template from the export function.')
                 return render(request, 'surplus/upload_report.html')
             
-            # Process data rows
+            # Process data rows within a transaction
             updated_count = 0
             error_count = 0
             errors = []
+            
+            # First pass: validate all data
+            updates_to_apply = []
             
             for row_num in range(2, ws.max_row + 1):
                 try:
@@ -163,29 +167,19 @@ def upload_surplus_report(request):
                         error_count += 1
                         continue
                     
-                    # Update stock item
+                    # Validate stock item exists
                     try:
                         stock_item = StockItem.objects.get(id=stock_id)
                         old_status = stock_item.surplus_status
                         
-                        # Log the state before the change for audit
-                        before_state = audit_log_state(stock_item)
-                        
-                        stock_item.surplus_status = surplus_status
-                        stock_item.save()
-                        
-                        # Log if status changed
+                        # Only add to updates if status is actually changing
                         if old_status != surplus_status:
-                            updated_count += 1
-                            
-                            # Log the audit event
-                            after_state = audit_log_state(stock_item)
-                            audit_log_event(
-                                request.user,
-                                f"Updated surplus status for \"{stock_item.item.name}\" from {old_status} to {surplus_status} via Excel upload",
-                                before_state,
-                                after_state
-                            )
+                            updates_to_apply.append({
+                                'stock_item': stock_item,
+                                'old_status': old_status,
+                                'new_status': surplus_status,
+                                'row_num': row_num
+                            })
                             
                     except StockItem.DoesNotExist:
                         errors.append(f"Row {row_num}: Stock item with ID '{stock_id}' not found.")
@@ -196,18 +190,49 @@ def upload_surplus_report(request):
                     errors.append(f"Row {row_num}: Error processing row - {str(e)}")
                     error_count += 1
             
-            # Display results
-            if updated_count > 0:
-                messages.success(request, f'Successfully updated {updated_count} stock items.')
-            
+            # If there are validation errors, don't proceed with updates
             if error_count > 0:
                 for error in errors[:10]:  # Show first 10 errors
                     messages.error(request, error)
                 if len(errors) > 10:
                     messages.warning(request, f'... and {len(errors) - 10} more errors.')
+                messages.error(request, f'Found {error_count} validation errors. No updates were applied.')
+                return redirect('upload_surplus_report')
             
-            if updated_count == 0 and error_count == 0:
-                messages.info(request, 'No changes were made. All surplus statuses were already up to date.')
+            # Apply all updates within a transaction
+            try:
+                with transaction.atomic():
+                    for update in updates_to_apply:
+                        stock_item = update['stock_item']
+                        old_status = update['old_status']
+                        new_status = update['new_status']
+                        
+                        # Log the state before the change for audit
+                        before_state = audit_log_state(stock_item)
+                        
+                        stock_item.surplus_status = new_status
+                        stock_item.save()
+                        
+                        updated_count += 1
+                        
+                        # Log the audit event
+                        after_state = audit_log_state(stock_item)
+                        audit_log_event(
+                            request.user,
+                            f"Updated surplus status for \"{stock_item.item.name}\" from {old_status} to {new_status} via Excel upload",
+                            before_state,
+                            after_state
+                        )
+                
+                # Success message
+                if updated_count > 0:
+                    messages.success(request, f'Successfully updated {updated_count} stock items.')
+                else:
+                    messages.info(request, 'No changes were made. All surplus statuses were already up to date.')
+                    
+            except Exception as e:
+                messages.error(request, f'Transaction failed: {str(e)}. No changes were applied.')
+                return redirect('upload_surplus_report')
                 
         except Exception as e:
             messages.error(request, f'Error processing file: {str(e)}')
