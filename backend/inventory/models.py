@@ -289,6 +289,10 @@ class CheckOut(models.Model):
     )
     notes = models.TextField(blank=True, default="", help_text="Additional notes for this checkout")
     is_completed = models.BooleanField(default=False)
+    is_donation = models.BooleanField(
+        default=True, 
+        help_text="Whether this checkout represents a donation (unchecked for internal transfers, sales, etc.)"
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -299,7 +303,8 @@ class CheckOut(models.Model):
         
     def __str__(self):
         status = "Completed" if self.is_completed else "Active"
-        return f"{status} checkout for {self.organization.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+        donation_type = "Donation" if self.is_donation else "Non-Donation"
+        return f"{status} {donation_type.lower()} checkout for {self.organization.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
     
     @property
     def total_items_count(self):
@@ -319,6 +324,11 @@ class CheckOut(models.Model):
     def has_insufficient_stock(self):
         """Check if any items in the checkout have insufficient stock"""
         return any(item.remaining_after_checkout < 0 for item in self.checkout_items.all())
+    
+    @property
+    def donation_type_display(self):
+        """Get human-readable donation type"""
+        return "Donation" if self.is_donation else "Non-Donation"
     
 
 class CheckOutItem(models.Model):

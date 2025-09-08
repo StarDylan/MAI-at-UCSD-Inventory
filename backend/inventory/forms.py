@@ -448,10 +448,17 @@ class CheckOutForm(forms.ModelForm):
     
     class Meta:
         model = models.CheckOut
-        fields = ['organization', 'notes']
+        fields = ['organization', 'is_donation', 'notes']
         widgets = {
             'organization': forms.Select(attrs={'class': 'form-select'}),
+            'is_donation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional notes for this checkout...'}),
+        }
+        labels = {
+            'is_donation': 'This is a donation',
+        }
+        help_texts = {
+            'is_donation': 'Uncheck this box for internal transfers, sales, or other non-donation transactions',
         }
         
     def __init__(self, *args, **kwargs):
@@ -483,7 +490,7 @@ class CheckOutCompleteForm(forms.Form):
     total_weight = forms.DecimalField(
         max_digits=10,
         decimal_places=4,
-        required=True,
+        required=False,  # Will be validated conditionally
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
         label="Total Weight (lbs)",
     )
@@ -493,6 +500,26 @@ class CheckOutCompleteForm(forms.Form):
         label="Completion Notes",
         help_text="Additional notes about the checkout completion"
     )
+    
+    def __init__(self, *args, checkout=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout = checkout
+        
+        # If this is a donation, weight is required
+        if checkout and checkout.is_donation:
+            self.fields['total_weight'].required = True
+            self.fields['total_weight'].help_text = "Weight is required for donations"
+        else:
+            self.fields['total_weight'].help_text = "Weight is optional for non-donations"
+    
+    def clean_total_weight(self):
+        total_weight = self.cleaned_data.get('total_weight')
+        
+        # If this is a donation checkout, weight is required
+        if self.checkout and self.checkout.is_donation and not total_weight:
+            raise forms.ValidationError("Total weight is required for donation checkouts")
+            
+        return total_weight
 
 
 class CheckOutItemEditForm(forms.ModelForm):

@@ -57,8 +57,13 @@
           {% endif %}
 
           <div class="mb-2">
-            <strong>{{ checkout.total_items_count }}</strong> item{{ checkout.total_items_count|pluralize }} {% if checkout.total_weight %} <br /><strong>{{ checkout.total_weight }} lbs</strong> total
-            weight {% endif %} {% if checkout.total_cost and checkout.is_completed %} <br /><strong>${{ checkout.total_cost|floatformat:2 }}</strong> total value {% endif %}
+            <strong>{{ checkout.total_items_count }}</strong> item{{ checkout.total_items_count|pluralize }}
+            <span class="badge {% if checkout.is_donation %}bg-success{% else %}bg-warning text-dark{% endif %} ms-2"> {% if checkout.is_donation %}Donation{% else %}Non-Donation{% endif %} </span>
+            {% if checkout.total_weight %}
+            <br /><strong>{{ checkout.total_weight }} lbs</strong> total weight {% endif %} {% if checkout.total_cost and checkout.is_completed %} <br /><strong
+              >${{ checkout.total_cost|floatformat:2 }}</strong
+            >
+            total value {% endif %}
           </div>
 
           {% if checkout.notes %}

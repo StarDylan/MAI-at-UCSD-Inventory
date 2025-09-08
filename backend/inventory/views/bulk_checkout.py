@@ -371,7 +371,7 @@ def checkout_complete_view(request, checkout_id):
         return redirect('checkout_detail', checkout_id=checkout.id)
     
     if request.method == 'POST':
-        form = CheckOutCompleteForm(request.POST)
+        form = CheckOutCompleteForm(request.POST, checkout=checkout)
         if form.is_valid():
             try:
                 with transaction.atomic():
@@ -432,7 +432,7 @@ def checkout_complete_view(request, checkout_id):
                 return redirect('checkout_detail', checkout_id=checkout.id)
             
     else:
-        form = CheckOutCompleteForm()
+        form = CheckOutCompleteForm(checkout=checkout)
     
     return render(request, 'checkout/checkout_complete.html', {
         'checkout': checkout,
