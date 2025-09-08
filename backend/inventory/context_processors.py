@@ -8,4 +8,5 @@ def sentry_context_processor(request):
     """
     return {
         'SENTRY_DSN': os.environ.get('SENTRY_DSN', None),
+        'IS_BETA': os.environ.get('IS_BETA', "False").lower() in ('true', '1', 't')
     }

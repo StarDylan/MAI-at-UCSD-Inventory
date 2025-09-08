@@ -9,7 +9,7 @@ Before starting the deployment process, ensure you have:
 - A [Supabase](https://supabase.com) account (free tier available)
 - A [Render](https://render.com/) account (free tier available)
 - A [Cloudinary](https://cloudinary.com/) account for image storage (free tier available)
-- A [Google Cloud Console](console.cloud.google.com/) account for OAuth setup (free)
+- A [Google Cloud Console](https://console.cloud.google.com/) account for OAuth setup (free)
 
 ## Overview
 
@@ -241,5 +241,21 @@ Then click "Save, Rebuild and Deploy"
 
 ![Google OAuth Config](images/google-oauth-config.png)
 
-## 6. You're Done!
+## 6. Admin Setup
 Try going to your website at the Render URL!
+
+Now we need to create a superuser that will be able to login and create the rest of your users.
+
+1. Back in the terminal, (if you closed it, please run the following)
+    ```
+    cd ~/Documents/MAI-at-UCSD-Inventory/backend
+    ```
+
+2. Fill out the Database:
+    ```
+    uv run manage.py createsuperuser
+    ```
+
+3. Use the interactive prompt to create a user. Do not use a username/email/password you will actually use. Create temporary credentials as this will only be used once!
+
+4. Go to your website and add `/admin`. Login with your credentials. Hit "Visit Site" at the top right. Then you can click on Manage Users and add your actual user, be sure to get it to admin! You're done!
