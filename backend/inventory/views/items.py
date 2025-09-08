@@ -68,6 +68,10 @@ def view_all_items(request):
     if not request.user.is_authenticated:
         items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
     
+    # Only show surplus-approved stock items if user lacks "view_internalstockingdetails" permission
+    if not request.user.has_perm('inventory.view_internalstockingdetails'):
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
     items = (items_query
             .annotate(
                 stock_items_quantity_annotated=Sum(
@@ -110,9 +114,11 @@ def view_category_items(request, uuid):
     
     # Fetch items in the category with related data
     # Use annotations to avoid N+1 queries for total_stock_quantity
-    items = (Item.active_objects
-            .filter(category=category)
-            .select_related('category', 'subcategory')
+    items_query = Item.active_objects.filter(category=category).select_related('category', 'subcategory')
+    if not request.user.has_perm('inventory.view_internalstockingdetails'):
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
+    items = (items_query
             .annotate(
                 stock_items_quantity_annotated=Sum(
                     Case(
@@ -153,9 +159,12 @@ def view_subcategory_items(request, uuid):
     
     # Fetch items in the subcategory with related data
     # Use annotations to avoid N+1 queries for total_stock_quantity
-    items = (Item.active_objects
-            .filter(subcategory=subcategory)
-            .select_related('category', 'subcategory')
+    # Only show surplus-approved stock items if user lacks "view_internalstockingdetails" permission
+    items_query = Item.active_objects.filter(subcategory=subcategory).select_related('category', 'subcategory')
+    if not request.user.has_perm('inventory.view_internalstockingdetails'):
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
+    items = (items_query
             .annotate(
                 stock_items_quantity_annotated=Sum(
                     Case(
@@ -722,9 +731,14 @@ def items_search_api(request):
     if gtin_query:
         search_conditions &= Q(gtin__exact=gtin_query)  # Exact match for GTIN
     
+    
+    # Build the base queryset similar to view_subcategory_items
+    items_query = models.Item.active_objects.select_related('category', 'subcategory')
+    if not request.user.has_perm('inventory.view_internalstockingdetails'):
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
     # Search items by the built conditions
-    items_qs = (models.Item.active_objects
-                .select_related('category', 'subcategory')
+    items_qs = (items_query
                 .filter(search_conditions)
                 .annotate(
                     total_stock_quantity=Sum(
@@ -737,7 +751,6 @@ def items_search_api(request):
                 )
                 .filter(total_stock_quantity__gt=0)  # Only return items with stock
                 .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
-    
     # Also search by stock item GTINs if GTIN queries are provided
     # These items must also match other non-GTIN criteria
     stock_item_matches = []
@@ -776,20 +789,32 @@ def items_search_api(request):
                                  .distinct())
     
     if stock_item_matches:
-        additional_items = (models.Item.active_objects
-                          .select_related('category', 'subcategory')
-                          .filter(id__in=stock_item_matches)
-                          .annotate(
-                              total_stock_quantity=Sum(
-                                  Case(
-                                      When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                                      default=0,
-                                      output_field=IntegerField()
-                                  )
-                              )
-                          )
-                          .filter(total_stock_quantity__gt=0)  # Only return items with stock
-                          .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
+        # Use the same filtering logic as items_query above for permission checks
+        subcategory = None
+        if manufacturer_query or name_query:
+            # Try to infer subcategory from other filters if needed (optional)
+            pass  # No-op, as subcategory is not available in this context
+
+        # Build items_query as in view_subcategory_items
+        items_query = models.Item.active_objects.select_related('category', 'subcategory')
+        if not request.user.has_perm('inventory.view_internalstockingdetails'):
+            items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
+        additional_items = (
+            items_query
+            .filter(id__in=stock_item_matches)
+            .annotate(
+            total_stock_quantity=Sum(
+                Case(
+                When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                default=0,
+                output_field=IntegerField()
+                )
+            )
+            )
+            .filter(total_stock_quantity__gt=0)
+            .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity')
+        )
         
         # Combine results and remove duplicates
         items_qs = items_qs.union(additional_items)
