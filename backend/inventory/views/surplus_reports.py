@@ -16,6 +16,7 @@ from django.shortcuts import render, redirect
 from django.db.models import Q
 
 from inventory.models import StockItem
+from .utils import audit_log_state, audit_log_event
 
 
 @login_required
@@ -166,12 +167,25 @@ def upload_surplus_report(request):
                     try:
                         stock_item = StockItem.objects.get(id=stock_id)
                         old_status = stock_item.surplus_status
+                        
+                        # Log the state before the change for audit
+                        before_state = audit_log_state(stock_item)
+                        
                         stock_item.surplus_status = surplus_status
                         stock_item.save()
                         
                         # Log if status changed
                         if old_status != surplus_status:
                             updated_count += 1
+                            
+                            # Log the audit event
+                            after_state = audit_log_state(stock_item)
+                            audit_log_event(
+                                request.user,
+                                f"Updated surplus status for \"{stock_item.item.name}\" from {old_status} to {surplus_status} via Excel upload",
+                                before_state,
+                                after_state
+                            )
                             
                     except StockItem.DoesNotExist:
                         errors.append(f"Row {row_num}: Stock item with ID '{stock_id}' not found.")
