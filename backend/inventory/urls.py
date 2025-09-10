@@ -19,6 +19,7 @@ from inventory.views import (
     items,
     organizations,
     search,
+    spreadsheet_import,
     subcategories,
     surplus_reports,
     users
@@ -98,6 +99,10 @@ urlpatterns = [
     path('surplus/summary/', surplus_reports.surplus_summary, name='surplus_summary'),
     path('surplus/export/', surplus_reports.export_surplus_report, name='export_surplus_report'),
     path('surplus/upload/', surplus_reports.upload_surplus_report, name='upload_surplus_report'),
+    
+    # Spreadsheet Import
+    path('import/spreadsheet/', spreadsheet_import.upload_spreadsheet, name='spreadsheet_import_upload'),
+    path('import/template/', spreadsheet_import.download_import_template, name='download_import_template'),
     
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),
