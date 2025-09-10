@@ -94,7 +94,8 @@ def download_import_template(request):
         "- Stock Notes: Notes specific to this stock entry",
         "",
         "Important Notes:",
-        "- Item names must be unique - duplicate names will be rejected",
+        "- If an item name already exists, new stock will be added to the existing item",
+        "- When reusing existing items, only stock details (quantity, location, etc.) are used",
         "- GTINs must be unique if provided",
         "- Categories and subcategories must already exist in the system",
         "- Organizations must already exist in the system",
@@ -279,11 +280,20 @@ def upload_spreadsheet(request):
                         error_count += 1
                         continue
                     
-                    # Validate item name uniqueness
-                    if Item.objects.filter(name__iexact=item_name).exists():
-                        errors.append(f"Row {row_num}: Item '{item_name}' already exists")
-                        error_count += 1
-                        continue
+                    # Check if item already exists
+                    existing_item = Item.objects.filter(name__iexact=item_name).first()
+                    
+                    # If item exists, we'll reuse it; validate core properties for consistency
+                    if existing_item:
+                        # Check for category/subcategory consistency
+                        if existing_item.category.name.lower() != category_name.lower():
+                            errors.append(f"Row {row_num}: Item '{item_name}' exists with category '{existing_item.category.name}', but row specifies '{category_name}'")
+                            error_count += 1
+                            continue
+                        if existing_item.subcategory and existing_item.subcategory.name.lower() != subcategory_name.lower():
+                            errors.append(f"Row {row_num}: Item '{item_name}' exists with subcategory '{existing_item.subcategory.name}', but row specifies '{subcategory_name}'")
+                            error_count += 1
+                            continue
                     
                     # Validate GTIN uniqueness if provided
                     if gtin:
@@ -291,7 +301,9 @@ def upload_spreadsheet(request):
                             errors.append(f"Row {row_num}: GTIN must be at most 14 characters")
                             error_count += 1
                             continue
-                        if Item.objects.filter(gtin=gtin).exists() or StockItem.objects.filter(gtin=gtin).exists():
+                        # Check GTIN conflicts (excluding the existing item if reusing)
+                        gtin_conflict = Item.objects.filter(gtin=gtin).exclude(id=existing_item.id if existing_item else None).exists()
+                        if gtin_conflict or StockItem.objects.filter(gtin=gtin).exists():
                             errors.append(f"Row {row_num}: GTIN '{gtin}' already exists")
                             error_count += 1
                             continue
@@ -390,6 +402,7 @@ def upload_spreadsheet(request):
                     # Store validated data for creation
                     items_to_create.append({
                         'row_num': row_num,
+                        'existing_item': existing_item,  # None if creating new item
                         'item_data': {
                             'name': item_name,
                             'manufacturer': manufacturer,
@@ -411,6 +424,7 @@ def upload_spreadsheet(request):
                             'expiration_date': expiration_date,
                             'lot_number': lot_number,
                             'notes': stock_notes,
+                            'gtin': gtin,  # GTIN can be on StockItem
                         }
                     })
                     
@@ -428,39 +442,53 @@ def upload_spreadsheet(request):
                 return redirect('spreadsheet_import_upload')
             
             # Create all items within a transaction
+            created_item_count = 0
+            added_stock_count = 0
             try:
                 with transaction.atomic():
                     for item_data in items_to_create:
-                        # Create Item
-                        item = Item(**item_data['item_data'])
-                        item.save()
+                        # Either use existing item or create new one
+                        if item_data['existing_item']:
+                            item = item_data['existing_item']
+                        else:
+                            # Create new Item
+                            item = Item(**item_data['item_data'])
+                            item.save()
+                            created_item_count += 1
+                            
+                            # Log item creation
+                            audit_log_event(
+                                request.user,
+                                f"Created item \"{item.name}\" via spreadsheet import",
+                                audit_log_state(None),
+                                audit_log_state(item)
+                            )
                         
-                        # Create StockItem
+                        # Create StockItem (always create new stock)
                         stock_item = StockItem(
                             item=item,
                             **item_data['stock_data']
                         )
                         stock_item.save()
-                        
-                        # Log item creation
-                        audit_log_event(
-                            request.user,
-                            f"Created item \"{item.name}\" via spreadsheet import",
-                            audit_log_state(None),
-                            audit_log_state(item)
-                        )
+                        added_stock_count += 1
                         
                         # Log stock item creation
+                        action_desc = "Added initial stock" if not item_data['existing_item'] else "Added stock"
                         audit_log_event(
                             request.user,
-                            f"Added initial stock for \"{item.name}\" via spreadsheet import - {stock_item.quantity} units to {stock_item.location}",
+                            f"{action_desc} for \"{item.name}\" via spreadsheet import - {stock_item.quantity} units to {stock_item.location}",
                             audit_log_state(None),
                             audit_log_state(stock_item)
                         )
-                        
-                        created_count += 1
                 
-                messages.success(request, f'Successfully created {created_count} new items from spreadsheet.')
+                # Build success message
+                if created_item_count > 0 and added_stock_count > created_item_count:
+                    messages.success(request, f'Successfully created {created_item_count} new items and added stock to {added_stock_count - created_item_count} existing items from spreadsheet.')
+                elif created_item_count > 0:
+                    messages.success(request, f'Successfully created {created_item_count} new items from spreadsheet.')
+                else:
+                    messages.success(request, f'Successfully added stock to {added_stock_count} existing items from spreadsheet.')
+                    
                 return redirect('spreadsheet_import_upload')
                 
             except Exception as e:
