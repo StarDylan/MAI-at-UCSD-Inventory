@@ -251,7 +251,7 @@ class Image(models.Model):
 
 class CheckOut(models.Model):
     """
-    Bulk checkout system - represents a collection of items being checked out.
+    Checkout system - represents a collection of items being checked out.
     Can be in 'active' state (being built) or 'completed' state (finalized).
     """
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)

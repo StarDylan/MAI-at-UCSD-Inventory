@@ -130,7 +130,7 @@ class ItemWithStockForm(forms.Form):
     )
     gtin_applies_to = forms.ChoiceField(
         choices=[
-            ('item', 'Entire Item (all variants share this GTIN)'),
+            ('item', 'Entire Item (only one size/variant)'),
             ('variant', 'This Specific Variant Only'),
         ],
         initial='item',
@@ -169,7 +169,7 @@ class ItemWithStockForm(forms.Form):
         decimal_places=4,
         required=False,
         label="Value per Qty (Optional)",
-        help_text="Value per individual item",
+        help_text="Value in dollars ($) per individual item",
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
     )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
