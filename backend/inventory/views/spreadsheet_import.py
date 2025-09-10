@@ -96,7 +96,8 @@ def download_import_template(request):
         "Important Notes:",
         "- If an item name already exists, new stock will be added to the existing item",
         "- When reusing existing items, only stock details (quantity, location, etc.) are used",
-        "- GTINs must be unique if provided",
+        "- GTIN placement: If Detail field is empty, GTIN goes on the Item; if Detail has content, GTIN goes on the Stock Item",
+        "- GTINs must be unique within their respective location (Item or Stock Item)",
         "- Categories and subcategories must already exist in the system",
         "- Organizations must already exist in the system",
         "- Dates should be in YYYY-MM-DD format",
@@ -323,12 +324,23 @@ def upload_spreadsheet(request):
                             errors.append(f"Row {row_num}: GTIN must be at most 14 characters")
                             error_count += 1
                             continue
-                        # Check GTIN conflicts (excluding the existing item if reusing)
-                        gtin_conflict = Item.objects.filter(gtin=gtin).exclude(id=existing_item.id if existing_item else None).exists()
-                        if gtin_conflict or StockItem.objects.filter(gtin=gtin).exists():
-                            errors.append(f"Row {row_num}: GTIN '{gtin}' already exists")
-                            error_count += 1
-                            continue
+                        
+                        # Determine where GTIN will be placed based on detail field
+                        gtin_on_stock_item = bool(detail.strip())
+                        
+                        if gtin_on_stock_item:
+                            # GTIN goes on StockItem - check for conflicts in StockItem table
+                            if StockItem.objects.filter(gtin=gtin).exists():
+                                errors.append(f"Row {row_num}: GTIN '{gtin}' already exists on a stock item")
+                                error_count += 1
+                                continue
+                        else:
+                            # GTIN goes on Item - check for conflicts in Item table (excluding existing item if reusing)
+                            gtin_conflict = Item.objects.filter(gtin=gtin).exclude(id=existing_item.id if existing_item else None).exists()
+                            if gtin_conflict:
+                                errors.append(f"Row {row_num}: GTIN '{gtin}' already exists on an item")
+                                error_count += 1
+                                continue
                     
                     # Validate category
                     try:
@@ -421,6 +433,11 @@ def upload_spreadsheet(request):
                     else:
                         expiration_date = None
                     
+                    # Determine where GTIN should be placed based on detail field
+                    gtin_on_stock_item = bool(detail.strip())
+                    item_gtin = '' if gtin_on_stock_item else gtin
+                    stock_gtin = gtin if gtin_on_stock_item else ''
+                    
                     # Determine if we need to create a new item or reuse existing
                     will_create_new_item = not existing_item and not item_from_current_import
                     
@@ -432,7 +449,7 @@ def upload_spreadsheet(request):
                             'item_data': {
                                 'name': item_name,
                                 'manufacturer': manufacturer,
-                                'gtin': gtin,
+                                'gtin': item_gtin,
                                 'category': category,
                                 'subcategory': subcategory,
                                 'items_per_box': items_per_box,
@@ -451,7 +468,7 @@ def upload_spreadsheet(request):
                         'item_data': {
                             'name': item_name,
                             'manufacturer': manufacturer,
-                            'gtin': gtin,
+                            'gtin': item_gtin,
                             'category': category,
                             'subcategory': subcategory,
                             'items_per_box': items_per_box,
@@ -469,7 +486,7 @@ def upload_spreadsheet(request):
                             'expiration_date': expiration_date,
                             'lot_number': lot_number,
                             'notes': stock_notes,
-                            'gtin': gtin,  # GTIN can be on StockItem
+                            'gtin': stock_gtin,
                         }
                     })
                     
