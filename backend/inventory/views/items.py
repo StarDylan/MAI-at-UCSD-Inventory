@@ -462,12 +462,10 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         if stock_item:
             audit_log_event(
                 self.request.user, 
-                f"Added initial stock for item \"{new_item.name}\" - {stock_item.quantity} units from {stock_item.organization.name}", 
+                f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{stock_item.location}\" (initial stock from {stock_item.organization.name})", 
                 audit_log_state(None), 
                 audit_log_state(stock_item)
-            )
-        
-        # The parent class handles the redirection to success_url.
+            )        # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
 
     def form_invalid(self, form):
@@ -558,7 +556,7 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
         after_state = audit_log_state(self.object)
         audit_log_event(
             self.request.user, 
-            f"Updated stock item for \"{self.object.item.name}\" from {self.object.location}", 
+            f"Updated \"{self.object.item.name}\" stock in location \"{self.object.location}\"", 
             before_state, 
             after_state
         )
@@ -603,7 +601,7 @@ def stock_item_delete_view(request, uuid):
     # Log the deletion event
     audit_log_event(
         request.user, 
-        f"Deleted stock item for \"{stock_item.item.name}\" - {stock_item.quantity} units from {stock_item.location}", 
+        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"", 
         before_state, 
         audit_log_state(None)
     )

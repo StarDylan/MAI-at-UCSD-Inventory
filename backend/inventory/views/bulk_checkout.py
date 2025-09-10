@@ -57,9 +57,10 @@ def checkout_create_view(request):
             checkout.save()
             
             # Log the creation
+            donation_type = "donation" if checkout.is_donation else "non-donation"
             audit_log_event(
                 request.user,
-                f"Created new checkout for {checkout.organization.name}",
+                f"Created new {donation_type} checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout)
             )
@@ -162,7 +163,7 @@ def checkout_add_item_view(request, checkout_id):
             # Log the addition
             audit_log_event(
                 request.user,
-                f"Added {quantity}x {stock_item.item.name} to checkout for {checkout.organization.name}",
+                f"Added {quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
                 checkout.id
@@ -211,7 +212,7 @@ def checkout_remove_item_view(request, checkout_id, item_id):
         # Log the removal
         audit_log_event(
             request.user,
-            f"Removed {item_description} from checkout for {checkout.organization.name}",
+            f"Removed {checkout_item.quantity} of \"{checkout_item.stock_item.item.name}\" from location \"{checkout_item.stock_item.location}\" from checkout for {checkout.organization.name}",
             audit_log_state(checkout_item),
             audit_log_state(None),
             checkout.id
@@ -256,7 +257,7 @@ def checkout_edit_item_view(request, checkout_id, item_id):
             # Log the edit
             audit_log_event(
                 request.user,
-                f"Updated quantity for {checkout_item.stock_item.item.name} "
+                f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location}\" "
                 f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                 audit_log_state(checkout_item),
                 audit_log_state(checkout_item),
@@ -309,7 +310,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                     # Log cost change
                     audit_log_event(
                         request.user,
-                        f"Updated value per item for {checkout_item.stock_item.item.name} "
+                        f"Updated value per item for \"{checkout_item.stock_item.item.name}\" "
                         f"from ${old_cost or 'None'} to ${new_cost}",
                         before_item_state,
                         audit_log_state(checkout_item.stock_item.item)
@@ -319,7 +320,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                 if new_quantity != old_quantity:
                     audit_log_event(
                         request.user,
-                        f"Updated quantity for {checkout_item.stock_item.item.name} "
+                        f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location}\" "
                         f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                         audit_log_state(checkout_item),
                         audit_log_state(checkout_item)
@@ -399,8 +400,7 @@ def checkout_complete_view(request, checkout_id):
                         # Log the stock change
                         audit_log_event(
                             request.user,
-                            f"Bulk checkout: {checkout_item.quantity} of {stock_item.item.name} "
-                            f"checked out to {checkout.organization.name} from {stock_item.location}",
+                            f"Checked-out {checkout_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\" to {checkout.organization.name}",
                             before_state,
                             audit_log_state(stock_item)
                         )
@@ -418,9 +418,10 @@ def checkout_complete_view(request, checkout_id):
                     checkout.save()
                     
                     # Log checkout completion
+                    donation_type = "donation" if checkout.is_donation else "non-donation"
                     audit_log_event(
                         request.user,
-                        f"Completed bulk checkout for {checkout.organization.name} "
+                        f"Completed {donation_type} checkout for {checkout.organization.name} "
                         f"with {checkout.total_items_count} total items",
                         audit_log_state(None),
                         audit_log_state(checkout)
@@ -468,8 +469,7 @@ def checkout_undo_view(request, checkout_id):
                 # Log the restoration
                 audit_log_event(
                     request.user,
-                    f"Undo bulk checkout: {checkout_item.quantity} of {stock_item.item.name} "
-                    f"restored to {stock_item.location} (was checked out to {checkout.organization.name})",
+                    f"Returned {checkout_item.quantity} of \"{stock_item.item.name}\" to location \"{stock_item.location}\" (checkout undo from {checkout.organization.name})",
                     before_state,
                     audit_log_state(stock_item)
                 )
@@ -481,9 +481,10 @@ def checkout_undo_view(request, checkout_id):
             checkout.save()
             
             # Log the undo
+            donation_type = "donation" if checkout.is_donation else "non-donation"
             audit_log_event(
                 request.user,
-                f"Undid completed checkout for {checkout.organization.name}",
+                f"Undid completed {donation_type} checkout for {checkout.organization.name}",
                 audit_log_state(checkout),
                 audit_log_state(None)
             )
@@ -524,7 +525,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
             # Log the addition
             audit_log_event(
                 request.user,
-                f"Added {quantity}x {item.name} to checkout for {checkout.organization.name} from item detail page",
+                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name} from item detail page",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
                 checkout.id
