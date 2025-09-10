@@ -1,10 +1,12 @@
 from django import forms
+from django.urls import reverse
 from .models import Category, Subcategory, Organization, StockItem
 from inventory import models
 from allauth.account.forms import LoginForm
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 from datetime import date
+from django.utils import timezone
 
 
 class CategoryForm(forms.ModelForm):
@@ -685,6 +687,46 @@ class UserCreationForm(forms.Form):
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
 
+
+class UserEditForm(forms.ModelForm):
+    """Form for editing user profile information"""
+    
+    class Meta:
+        model = models.User
+        fields = ['username', 'email', 'first_name', 'last_name']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'})
+        }
+        help_texts = {
+            'username': 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.',
+            'user_picture': 'Optional URL to a profile picture image.',
+        }
+        
+    def __init__(self, *args, **kwargs):
+        self.user_being_edited = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+        
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        
+        # Check if username already exists (but allow the current user to keep their username)
+        if models.User.objects.filter(username=username).exclude(pk=self.user_being_edited.pk if self.user_being_edited else None).exists():
+            raise forms.ValidationError('A user with that username already exists.')
+            
+        return username
+        
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        
+        # Check if email already exists (but allow the current user to keep their email)
+        if models.User.objects.filter(email=email).exclude(pk=self.user_being_edited.pk if self.user_being_edited else None).exists():
+            raise forms.ValidationError('A user with that email already exists.')
+            
+        return email
+    
 class CrispyLoginForm(LoginForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

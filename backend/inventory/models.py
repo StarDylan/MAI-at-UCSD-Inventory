@@ -388,6 +388,9 @@ class AuditEvent(models.Model):
         indexes = [
             models.Index(fields=["entity_type", "id", "created_at"]),
         ]
+        permissions = [
+            ("view_allauditevents", "Can view all audit events"),
+        ]
 
     def __str__(self):
         return f"[{self.created_at}] {self.entity_type}:{self.id} {self.event}"

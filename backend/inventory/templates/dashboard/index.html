@@ -34,7 +34,10 @@
   <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
   {% endif %} {% if perms.inventory.change_item %}
   <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
-  <a href="{% url 'view_all_items' %}" class="list-group-item list-group-item-action">Search and check out an item</a>
+  {% endif %} {% if perms.inventory.view_checkout %}
+  <a class="list-group-item list-group-item-action" href="{% url 'bulk_checkout_list' %}">View Checkouts</a>
+  {% endif %}{% if perms.inventory.view_surplus_report %}
+  <a href="{% url 'surplus_summary' %}" class="list-group-item list-group-item-action">Surplus Status & Reports</a>
   {% endif %}
 </div>
 {% endif %}
@@ -46,7 +49,7 @@
 <div class="list-group">
   {# Either the user can add a new user or view users #} {% if perms.inventory.add_user or perms.inventory.view_user %}
   <a href="{% url 'manage_users' %}" class="list-group-item list-group-item-action">Manage users</a>
-  {% endif %} {% if perms.inventory.view_auditevent %}
+  {% endif %} {% if perms.inventory.view_allauditevents %}
   <a href="{% url 'audit' %}" class="list-group-item list-group-item-action">View audit logs</a>
   {% endif %} {% if perms.inventory.view_deleteditem %}
   <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
@@ -56,10 +59,6 @@
   <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
   {% endif %} {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
-  {% endif %} {% if perms.inventory.view_checkout %}
-  <a class="list-group-item list-group-item-action" href="{% url 'bulk_checkout_list' %}">View Checkouts</a>
-  {% endif %}{% if perms.inventory.view_surplus_report %}
-  <a href="{% url 'surplus_summary' %}" class="list-group-item list-group-item-action">Surplus Status & Reports</a>
   {% endif %} {% if perms.inventory.delete_category %}
   <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>
   {% endif %} {% if perms.inventory.delete_subcategory %}

@@ -102,6 +102,7 @@ urlpatterns = [
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),
     path('edit/user/<int:pk>/', users.edit_user_role_api, name='edit_user_role'),
+    path('edit/user/profile/<int:pk>/', users.edit_user_view, name='edit_user'),
     path('view/user/<int:pk>/', users.view_user_profile_view, name='view_user'),
     path('delete/user/<int:pk>/', users.delete_user_view, name='delete_user'),
     path('restore/user/<int:pk>/', users.restore_user_view, name='restore_user'),

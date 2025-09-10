@@ -16,7 +16,7 @@ from django.contrib.auth.models import Group
 from django.views.generic import FormView
 
 from inventory import models
-from inventory.forms import UserCreationForm
+from inventory.forms import UserCreationForm, UserEditForm
 from inventory.models import User, AuditEvent
 from .utils import audit_log_state, audit_log_event
 
@@ -184,6 +184,84 @@ def view_user_profile_view(request, pk):
     }
 
     return render(request, "users/detail.html", context)
+
+
+@login_required
+@permission_required('inventory.change_user', raise_exception=True)
+def edit_user_view(request, pk):
+    """
+    Edit a user's profile information.
+    
+    Allows administrators to edit user profile details including username,
+    email, first name, last name, and profile picture URL.
+    
+    Args:
+        request: HTTP request object
+        pk: Primary key of the user to edit
+        
+    Returns:
+        HttpResponse: Rendered template with edit form or redirect after successful edit
+        
+    Raises:
+        Http404: If user with given primary key doesn't exist
+        PermissionDenied: If user doesn't have change_user permission
+    """
+    user_to_edit = get_object_or_404(User, pk=pk)
+    
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=user_to_edit)
+        if form.is_valid():
+            # Track changed fields before saving
+            changed_fields = []
+            original_values = {}
+            new_values = {}
+            
+            # Check each field for changes
+            for field_name in ['username', 'email', 'first_name', 'last_name']:
+                original_value = getattr(user_to_edit, field_name)
+                new_value = form.cleaned_data.get(field_name)
+                
+                if original_value != new_value:
+                    changed_fields.append(field_name)
+                    original_values[field_name] = original_value or ''
+                    new_values[field_name] = new_value or ''
+            
+            # Log the state before changes
+            before_state = audit_log_state(user_to_edit)
+            
+            # Save the changes
+            updated_user = form.save()
+            
+            if changed_fields:
+                # Create a summary message listing all changed fields
+                field_names = {
+                    'username': 'Username',
+                    'email': 'Email',
+                    'first_name': 'First Name', 
+                    'last_name': 'Last Name'
+                }
+                
+                changed_field_names = [field_names.get(field, field) for field in changed_fields]
+                summary_message = f"Updated user profile for \"{updated_user.username}\" - Changed: {', '.join(changed_field_names)}"
+                
+                # Log the overall update event
+                after_state = audit_log_state(updated_user)
+                audit_log_event(
+                    request.user,
+                    summary_message,
+                    before_state,
+                    after_state
+                )
+            return redirect('view_user', pk=pk)
+    else:
+        form = UserEditForm(instance=user_to_edit)
+    
+    context = {
+        'form': form,
+        'user_to_edit': user_to_edit,
+    }
+    
+    return render(request, 'users/edit.html', context)
 
 
 @login_required

@@ -79,6 +79,8 @@ class Command(BaseCommand):
 
             Permission.objects.get(codename='view_advancedpropertiesitem', content_type=item_ct),
 
+            Permission.objects.get(codename='view_allauditevents', content_type=audit_event_ct),
+
             # Organization and stock item admin permissions
             Permission.objects.get(codename='add_organization', content_type=organization_ct),
             Permission.objects.get(codename='change_organization', content_type=organization_ct),
