@@ -52,6 +52,17 @@
       </div>
     </div>
   </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h6 class="{% if checkout.is_donation %}text-success{% else %}text-warning{% endif %}">
+          {% if checkout.is_donation %}
+          <i class="material-icons">favorite</i> Donation {% else %} <i class="material-icons">business</i> Non-Donation {% endif %}
+        </h6>
+        <small class="text-muted">Type</small>
+      </div>
+    </div>
+  </div>
   {% if checkout.total_weight %}
   <div class="col-md-3">
     <div class="card text-center">

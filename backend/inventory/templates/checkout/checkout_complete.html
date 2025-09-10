@@ -19,6 +19,10 @@
       </div>
       <div class="card-body">
         <p><strong>Organization:</strong> {{ checkout.organization.name }}</p>
+        <p>
+          <strong>Type:</strong>
+          <span class="badge {% if checkout.is_donation %}bg-success{% else %}bg-warning text-dark{% endif %}"> {% if checkout.is_donation %}Donation{% else %}Non-Donation{% endif %} </span>
+        </p>
         <p><strong>Created by:</strong> {{ checkout.created_by.get_full_name|default:checkout.created_by.username }}</p>
         <p><strong>Created:</strong> {{ checkout.created_at|date:"M d, Y H:i" }}</p>
         <p><strong>Total Items:</strong> {{ checkout.total_items_count }}</p>

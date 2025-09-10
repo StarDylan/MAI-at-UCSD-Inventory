@@ -29,6 +29,18 @@
           </div>
 
           <div class="mb-3">
+            <div class="form-check">
+              {{ form.is_donation }}
+              <label class="form-check-label" for="{{ form.is_donation.id_for_label }}"> {{ form.is_donation.label }} </label>
+              {% if form.is_donation.help_text %}
+              <div class="form-text">{{ form.is_donation.help_text }}</div>
+              {% endif %} {% if form.is_donation.errors %}
+              <div class="invalid-feedback d-block">{{ form.is_donation.errors|join:", " }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-3">
             <label for="{{ form.notes.id_for_label }}" class="form-label"> {{ form.notes.label }} </label>
             {{ form.notes }} {% if form.notes.help_text %}
             <div class="form-text">{{ form.notes.help_text }}</div>

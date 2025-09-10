@@ -145,6 +145,12 @@ class Item(models.Model):
 
 
 class StockItem(models.Model):
+    SURPLUS_STATUS_CHOICES = [
+        ('pending', 'Surplus Needs to Check'),
+        ('wanted', 'Wanted by Surplus'),
+        ('not_wanted', 'Not Wanted by Surplus'),
+    ]
+    
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     item = models.ForeignKey(
         Item,
@@ -166,9 +172,20 @@ class StockItem(models.Model):
     expiration_date = models.DateField(null=True, blank=True, help_text="Leave blank for non-perishable items")
     lot_number = models.CharField(max_length=100, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    surplus_status = models.CharField(
+        max_length=20,
+        choices=SURPLUS_STATUS_CHOICES,
+        default='pending',
+        help_text="Surplus approval status for this stock item"
+    )
 
     class Meta:
         ordering = ['detail', 'expiration_date', 'date_received']
+        permissions = [
+            ("view_surplus_report", "Can view surplus reports"),
+            ("download_surplus_report", "Can download surplus reports"),
+            ("upload_surplus_report", "Can upload surplus reports"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['gtin'], 
@@ -189,6 +206,16 @@ class StockItem(models.Model):
             return False
         from django.utils import timezone
         return self.expiration_date < timezone.now().date()
+    
+    @property
+    def surplus_status_display(self):
+        """Get human-readable surplus status"""
+        return dict(self.SURPLUS_STATUS_CHOICES)[self.surplus_status]
+    
+    @property
+    def is_surplus_approved(self):
+        """Check if this stock item is approved by surplus (not pending)"""
+        return self.surplus_status != 'pending'
 
 
 class User(AbstractUser):
@@ -224,7 +251,7 @@ class Image(models.Model):
 
 class CheckOut(models.Model):
     """
-    Bulk checkout system - represents a collection of items being checked out.
+    Checkout system - represents a collection of items being checked out.
     Can be in 'active' state (being built) or 'completed' state (finalized).
     """
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
@@ -262,6 +289,10 @@ class CheckOut(models.Model):
     )
     notes = models.TextField(blank=True, default="", help_text="Additional notes for this checkout")
     is_completed = models.BooleanField(default=False)
+    is_donation = models.BooleanField(
+        default=True, 
+        help_text="Whether this checkout represents a donation (unchecked for internal transfers, sales, etc.)"
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -272,7 +303,8 @@ class CheckOut(models.Model):
         
     def __str__(self):
         status = "Completed" if self.is_completed else "Active"
-        return f"{status} checkout for {self.organization.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+        donation_type = "Donation" if self.is_donation else "Non-Donation"
+        return f"{status} {donation_type.lower()} checkout for {self.organization.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
     
     @property
     def total_items_count(self):
@@ -292,6 +324,11 @@ class CheckOut(models.Model):
     def has_insufficient_stock(self):
         """Check if any items in the checkout have insufficient stock"""
         return any(item.remaining_after_checkout < 0 for item in self.checkout_items.all())
+    
+    @property
+    def donation_type_display(self):
+        """Get human-readable donation type"""
+        return "Donation" if self.is_donation else "Non-Donation"
     
 
 class CheckOutItem(models.Model):
@@ -350,6 +387,9 @@ class AuditEvent(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["entity_type", "id", "created_at"]),
+        ]
+        permissions = [
+            ("view_allauditevents", "Can view all audit events"),
         ]
 
     def __str__(self):

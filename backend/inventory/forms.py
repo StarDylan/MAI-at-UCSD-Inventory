@@ -1,10 +1,12 @@
 from django import forms
+from django.urls import reverse
 from .models import Category, Subcategory, Organization, StockItem
 from inventory import models
 from allauth.account.forms import LoginForm
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 from datetime import date
+from django.utils import timezone
 
 
 class CategoryForm(forms.ModelForm):
@@ -130,7 +132,7 @@ class ItemWithStockForm(forms.Form):
     )
     gtin_applies_to = forms.ChoiceField(
         choices=[
-            ('item', 'Entire Item (all variants share this GTIN)'),
+            ('item', 'Entire Item (only one size/variant)'),
             ('variant', 'This Specific Variant Only'),
         ],
         initial='item',
@@ -169,7 +171,7 @@ class ItemWithStockForm(forms.Form):
         decimal_places=4,
         required=False,
         label="Value per Qty (Optional)",
-        help_text="Value per individual item",
+        help_text="Value in dollars ($) per individual item",
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
     )
     stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
@@ -448,10 +450,17 @@ class CheckOutForm(forms.ModelForm):
     
     class Meta:
         model = models.CheckOut
-        fields = ['organization', 'notes']
+        fields = ['organization', 'is_donation', 'notes']
         widgets = {
             'organization': forms.Select(attrs={'class': 'form-select'}),
+            'is_donation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional notes for this checkout...'}),
+        }
+        labels = {
+            'is_donation': 'This is a donation',
+        }
+        help_texts = {
+            'is_donation': 'Uncheck this box for internal transfers, sales, or other non-donation transactions',
         }
         
     def __init__(self, *args, **kwargs):
@@ -483,7 +492,7 @@ class CheckOutCompleteForm(forms.Form):
     total_weight = forms.DecimalField(
         max_digits=10,
         decimal_places=4,
-        required=True,
+        required=False,  # Will be validated conditionally
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
         label="Total Weight (lbs)",
     )
@@ -493,6 +502,26 @@ class CheckOutCompleteForm(forms.Form):
         label="Completion Notes",
         help_text="Additional notes about the checkout completion"
     )
+    
+    def __init__(self, *args, checkout=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout = checkout
+        
+        # If this is a donation, weight is required
+        if checkout and checkout.is_donation:
+            self.fields['total_weight'].required = True
+            self.fields['total_weight'].help_text = "Weight is required for donations"
+        else:
+            self.fields['total_weight'].help_text = "Weight is optional for non-donations"
+    
+    def clean_total_weight(self):
+        total_weight = self.cleaned_data.get('total_weight')
+        
+        # If this is a donation checkout, weight is required
+        if self.checkout and self.checkout.is_donation and not total_weight:
+            raise forms.ValidationError("Total weight is required for donation checkouts")
+            
+        return total_weight
 
 
 class CheckOutItemEditForm(forms.ModelForm):
@@ -658,6 +687,46 @@ class UserCreationForm(forms.Form):
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
 
+
+class UserEditForm(forms.ModelForm):
+    """Form for editing user profile information"""
+    
+    class Meta:
+        model = models.User
+        fields = ['username', 'email', 'first_name', 'last_name']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'})
+        }
+        help_texts = {
+            'username': 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.',
+            'user_picture': 'Optional URL to a profile picture image.',
+        }
+        
+    def __init__(self, *args, **kwargs):
+        self.user_being_edited = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+        
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        
+        # Check if username already exists (but allow the current user to keep their username)
+        if models.User.objects.filter(username=username).exclude(pk=self.user_being_edited.pk if self.user_being_edited else None).exists():
+            raise forms.ValidationError('A user with that username already exists.')
+            
+        return username
+        
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        
+        # Check if email already exists (but allow the current user to keep their email)
+        if models.User.objects.filter(email=email).exclude(pk=self.user_being_edited.pk if self.user_being_edited else None).exists():
+            raise forms.ValidationError('A user with that email already exists.')
+            
+        return email
+    
 class CrispyLoginForm(LoginForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

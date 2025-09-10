@@ -50,7 +50,7 @@ class Command(BaseCommand):
             Permission.objects.get(codename='add_stockitem', content_type=stockitem_ct),
             Permission.objects.get(codename='change_stockitem', content_type=stockitem_ct),
             Permission.objects.get(codename='delete_stockitem', content_type=stockitem_ct),
-
+            
             Permission.objects.get(codename='view_checkout', content_type=checkout_ct),
             Permission.objects.get(codename='change_checkout', content_type=checkout_ct),
 
@@ -79,12 +79,19 @@ class Command(BaseCommand):
 
             Permission.objects.get(codename='view_advancedpropertiesitem', content_type=item_ct),
 
+            Permission.objects.get(codename='view_allauditevents', content_type=audit_event_ct),
+
             # Organization and stock item admin permissions
             Permission.objects.get(codename='add_organization', content_type=organization_ct),
             Permission.objects.get(codename='change_organization', content_type=organization_ct),
             Permission.objects.get(codename='delete_organization', content_type=organization_ct),
             Permission.objects.get(codename='view_organization', content_type=organization_ct),
 
+            # Surplus report permissions for members
+            Permission.objects.get(codename='view_surplus_report', content_type=stockitem_ct),
+            Permission.objects.get(codename='download_surplus_report', content_type=stockitem_ct),
+            Permission.objects.get(codename='upload_surplus_report', content_type=stockitem_ct),
+            
             Permission.objects.get(codename='complete_checkout', content_type=checkout_ct),
             Permission.objects.get(codename='undo_checkout', content_type=checkout_ct),
             Permission.objects.get(codename='delete_checkout', content_type=checkout_ct),

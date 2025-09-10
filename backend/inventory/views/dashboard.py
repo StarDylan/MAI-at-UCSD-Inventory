@@ -47,7 +47,7 @@ def dashboard_view(request):
     permissions = [
         "inventory.add_user",
         "inventory.view_user",
-        "inventory.view_auditevent",
+        "inventory.view_allauditevent",
         "inventory.view_deleteditem",
         "inventory.add_category",
         "inventory.add_subcategory",

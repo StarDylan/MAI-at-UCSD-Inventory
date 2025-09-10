@@ -1,8 +1,12 @@
 {% extends "shared/base.html" %} {% load static %} {% block body %}
 <div id="page">
   <h4 style="text-align: left; float: left">{{ user_data.user_name }}</h4>
-  <a style="text-align: right; float: right">
-    {% if user_data.user_active == False and perms.inventory.restore_user %}
+  <div style="text-align: right; float: right">
+    {% if perms.inventory.change_user %}
+    <a href="{% url 'edit_user' user_data.user_id %}" class="btn btn-primary">
+      <i class="material-icons">edit</i>
+    </a>
+    {% endif %} {% if user_data.user_active == False and perms.inventory.restore_user %}
     <button class="btn" onclick="confirmRestore('{{ user_data.user_id }}','{{ user_data.user_name }}')">
       <i class="material-icons">restore</i>
     </button>
@@ -11,7 +15,7 @@
       <i class="material-icons" style="color: red">delete</i>
     </button>
     {% endif %}
-  </a>
+  </div>
   <br />
 
   <!-- Used to align the material icon to the text -->
