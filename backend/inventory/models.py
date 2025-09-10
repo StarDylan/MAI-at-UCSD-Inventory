@@ -122,8 +122,9 @@ class Item(models.Model):
     def aggregated_locations(self):
         """Get comma-separated list of unique locations from active stock items"""
         locations = self.stock_items.filter(quantity__gt=0).exclude(location='').values_list('location', flat=True).distinct()
-        return ', '.join(sorted(locations)) if locations else ""
-    
+        deduplicated_locations = sorted(set(locations))
+        return ', '.join(deduplicated_locations) if deduplicated_locations else ""
+
     @property
     def has_stock_item_gtin(self):
         """Check if any stock items have a GTIN"""
