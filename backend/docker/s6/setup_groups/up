@@ -1,0 +1,5 @@
+#!/command/with-contenv sh
+
+cd /app
+
+uv run manage.py setup_groups
