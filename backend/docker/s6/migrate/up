@@ -2,5 +2,6 @@
 
 cd /app
 
-exec uv run manage.py migrate --noinput
-exec uv run manage.py setup_groups --noinput
+uv run manage.py migrate --noinput
+
+uv run manage.py setup_groups --noinput
