@@ -27,11 +27,12 @@
 
 <br />
 
-{% if perms.inventory.change_item or perms.inventory.add_item %}
+{% if perms.inventory.change_item or perms.inventory.add_item or perms.inventory.add_viaspreadsheet_item or perms.inventory.view_checkout %}
 <h5>Update</h5>
 <div class="list-group">
   {% if perms.inventory.add_item %}
   <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
+  {% endif %} {% if perms.inventory.add_viaspreadsheet_item %}
   <a href="{% url 'spreadsheet_import_upload' %}" class="list-group-item list-group-item-action">Import items from spreadsheet</a>
   {% endif %} {% if perms.inventory.change_item %}
   <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>

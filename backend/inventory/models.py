@@ -100,6 +100,7 @@ class Item(models.Model):
             ("restore_deleteditem", "Can restore deleted items"),
             ("view_internalstockingdetails", "Can view internal stocking"),
             ("view_advancedpropertiesitem", "Can view advanced properties"),
+            ("add_viaspreadsheet_item", "Can add items via spreadsheet"),
         ]
         constraints = [
             models.UniqueConstraint(Lower('name'), name='unique_item_name'),

@@ -21,7 +21,7 @@ from .utils import audit_log_state, audit_log_event
 
 
 @login_required
-@permission_required('inventory.add_item', raise_exception=True)
+@permission_required('inventory.add_viaspreadsheet_item', raise_exception=True)
 def download_import_template(request):
     """
     Generate and download an Excel template for importing new items.
@@ -143,7 +143,7 @@ def download_import_template(request):
 
 
 @login_required
-@permission_required('inventory.add_item', raise_exception=True)
+@permission_required('inventory.add_viaspreadsheet_item', raise_exception=True)
 def upload_spreadsheet(request):
     """
     Handle Excel file upload to create new items and stock items.
