@@ -32,6 +32,7 @@
 <div class="list-group">
   {% if perms.inventory.add_item %}
   <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
+  <a href="{% url 'spreadsheet_import_upload' %}" class="list-group-item list-group-item-action">Import items from spreadsheet</a>
   {% endif %} {% if perms.inventory.change_item %}
   <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
   {% endif %} {% if perms.inventory.view_checkout %}
