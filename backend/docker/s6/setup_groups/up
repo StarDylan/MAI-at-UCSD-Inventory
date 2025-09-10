@@ -2,4 +2,4 @@
 
 cd /app
 
-uv run manage.py setup_groups
+exec uv run manage.py setup_groups
