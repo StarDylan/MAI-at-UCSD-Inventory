@@ -222,6 +222,8 @@ def upload_spreadsheet(request):
             
             # First pass: validate all data
             items_to_create = []
+            # Track items being created in this import to handle duplicates within the same file
+            items_in_current_import = {}  # name_lower -> item_data
             
             for row_num in range(2, ws.max_row + 1):
                 try:
@@ -280,18 +282,38 @@ def upload_spreadsheet(request):
                         error_count += 1
                         continue
                     
-                    # Check if item already exists
+                    item_name_lower = item_name.lower()
+                    
+                    # Check if item already exists in database
                     existing_item = Item.objects.filter(name__iexact=item_name).first()
                     
-                    # If item exists, we'll reuse it; validate core properties for consistency
+                    # Check if item is being created in this import
+                    item_from_current_import = items_in_current_import.get(item_name_lower)
+                    
+                    # Determine which item to use (existing in DB, or from current import)
+                    reference_item_data = None
                     if existing_item:
+                        reference_item_data = {
+                            'category_name': existing_item.category.name,
+                            'subcategory_name': existing_item.subcategory.name if existing_item.subcategory else ''
+                        }
+                    elif item_from_current_import:
+                        reference_item_data = {
+                            'category_name': item_from_current_import['category_name'],
+                            'subcategory_name': item_from_current_import['subcategory_name']
+                        }
+                    
+                    # If we have a reference (existing or from current import), validate consistency
+                    if reference_item_data:
                         # Check for category/subcategory consistency
-                        if existing_item.category.name.lower() != category_name.lower():
-                            errors.append(f"Row {row_num}: Item '{item_name}' exists with category '{existing_item.category.name}', but row specifies '{category_name}'")
+                        if reference_item_data['category_name'].lower() != category_name.lower():
+                            existing_source = "database" if existing_item else "earlier in this import"
+                            errors.append(f"Row {row_num}: Item '{item_name}' exists in {existing_source} with category '{reference_item_data['category_name']}', but row specifies '{category_name}'")
                             error_count += 1
                             continue
-                        if existing_item.subcategory and existing_item.subcategory.name.lower() != subcategory_name.lower():
-                            errors.append(f"Row {row_num}: Item '{item_name}' exists with subcategory '{existing_item.subcategory.name}', but row specifies '{subcategory_name}'")
+                        if reference_item_data['subcategory_name'] and reference_item_data['subcategory_name'].lower() != subcategory_name.lower():
+                            existing_source = "database" if existing_item else "earlier in this import"
+                            errors.append(f"Row {row_num}: Item '{item_name}' exists in {existing_source} with subcategory '{reference_item_data['subcategory_name']}', but row specifies '{subcategory_name}'")
                             error_count += 1
                             continue
                     
@@ -399,10 +421,33 @@ def upload_spreadsheet(request):
                     else:
                         expiration_date = None
                     
+                    # Determine if we need to create a new item or reuse existing
+                    will_create_new_item = not existing_item and not item_from_current_import
+                    
+                    # If creating new item, track it for subsequent rows
+                    if will_create_new_item:
+                        items_in_current_import[item_name_lower] = {
+                            'category_name': category_name,
+                            'subcategory_name': subcategory_name,
+                            'item_data': {
+                                'name': item_name,
+                                'manufacturer': manufacturer,
+                                'gtin': gtin,
+                                'category': category,
+                                'subcategory': subcategory,
+                                'items_per_box': items_per_box,
+                                'cost_per_item': cost_per_item,
+                                'url': url,
+                                'notes_public': public_notes,
+                                'notes_private': private_notes,
+                            }
+                        }
+                    
                     # Store validated data for creation
                     items_to_create.append({
                         'row_num': row_num,
                         'existing_item': existing_item,  # None if creating new item
+                        'item_name_lower': item_name_lower,  # For tracking within import
                         'item_data': {
                             'name': item_name,
                             'manufacturer': manufacturer,
@@ -444,17 +489,27 @@ def upload_spreadsheet(request):
             # Create all items within a transaction
             created_item_count = 0
             added_stock_count = 0
+            # Track items created in this transaction
+            created_items_map = {}  # name_lower -> Item instance
+            
             try:
                 with transaction.atomic():
                     for item_data in items_to_create:
-                        # Either use existing item or create new one
+                        item_name_lower = item_data['item_name_lower']
+                        
+                        # Determine which item to use
                         if item_data['existing_item']:
+                            # Use existing item from database
                             item = item_data['existing_item']
+                        elif item_name_lower in created_items_map:
+                            # Use item created earlier in this transaction
+                            item = created_items_map[item_name_lower]
                         else:
                             # Create new Item
                             item = Item(**item_data['item_data'])
                             item.save()
                             created_item_count += 1
+                            created_items_map[item_name_lower] = item
                             
                             # Log item creation
                             audit_log_event(
@@ -473,7 +528,7 @@ def upload_spreadsheet(request):
                         added_stock_count += 1
                         
                         # Log stock item creation
-                        action_desc = "Added initial stock" if not item_data['existing_item'] else "Added stock"
+                        action_desc = "Added initial stock" if item_name_lower in created_items_map else "Added stock"
                         audit_log_event(
                             request.user,
                             f"{action_desc} for \"{item.name}\" via spreadsheet import - {stock_item.quantity} units to {stock_item.location}",
