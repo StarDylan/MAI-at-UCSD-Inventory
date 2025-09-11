@@ -839,12 +839,16 @@ def items_search_api(request):
     
     # Build response with GTINs
     items_list = []
+    # Fetch Item objects for location aggregation
+    item_objs_by_id = {obj.id: obj for obj in models.Item.objects.filter(id__in=[item['id'] for item in items_qs[:limit]])}
     for item in items_qs[:limit]:  # Apply the requested limit
         gtins = []
         if item['gtin']:
             gtins.append(item['gtin'])
         gtins.extend(stock_gtins_by_item.get(item['id'], []))
-        
+        # Get aggregated locations from the Item object
+        item_obj = item_objs_by_id.get(item['id'])
+        location = item_obj.aggregated_locations if item_obj else ""
         items_list.append({
             'id': str(item['id']),
             'name': item['name'],
@@ -853,6 +857,7 @@ def items_search_api(request):
             'category__name': item['category__name'],
             'subcategory__name': item['subcategory__name'],
             'total_stock_quantity': item['total_stock_quantity'] or 0,
+            'location': location,
         })
     
     return JsonResponse({

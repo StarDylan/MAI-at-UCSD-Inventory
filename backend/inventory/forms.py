@@ -404,15 +404,27 @@ class Search_QuantityAdd(forms.Form):
         # Check if a specific item is pre-selected (from URL)
         initial_item = kwargs.pop('initial_item', None)
         super().__init__(*args, **kwargs)
-        
-        # Set up the item queryset - if a specific item is pre-selected, include only that item
-        # Otherwise, start with an empty queryset to be populated via AJAX
-        if initial_item:
-            self.fields['item'].queryset = models.Item.active_objects.filter(id=initial_item.id)
+
+        # If POST, ensure the selected item is in the queryset so validation passes
+        data = self.data or getattr(self, 'data', None)
+        item_id = None
+        if data and 'item' in data:
+            item_id = data.get('item')
+        elif self.initial.get('item'):
+            item_id = self.initial['item']
+        elif initial_item:
+            item_id = initial_item.id
+
+        if item_id:
+            self.fields['item'].queryset = models.Item.active_objects.filter(id=item_id)
             # Disable GTIN field if the selected item has a GTIN
-            if initial_item.gtin:
-                self.fields['gtin'].disabled = True
-                self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+            try:
+                item_obj = models.Item.active_objects.get(id=item_id)
+                if item_obj.gtin:
+                    self.fields['gtin'].disabled = True
+                    self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+            except models.Item.DoesNotExist:
+                pass
         else:
             # For the search interface, we'll populate this via AJAX
             self.fields['item'].queryset = models.Item.active_objects.none()
