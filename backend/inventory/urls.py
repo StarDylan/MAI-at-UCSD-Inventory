@@ -40,7 +40,7 @@ urlpatterns = [
     path('view/deleted_items', items.view_deleted_items, name='view_deleted_items'),
     
     # Audit Logging
-    path("view/audit/", audit.audit_log_list_view, name="audit"),
+    path("view/audit/", audit.AuditLogListView.as_view(), name="audit"),
     
     # Category Management
     path('delete/category/', categories.category_delete_list_view, name='delete_category_list_view'),
