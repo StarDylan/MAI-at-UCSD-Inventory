@@ -343,9 +343,10 @@ class StockItemEditForm(forms.ModelForm):
 
 class Search_QuantityAdd(forms.Form):
     """Form for adding new stock (check-in) - creates new StockItem"""
-    item = ItemWithLocationChoiceField(
-        queryset=models.Item.active_objects.order_by("name"),
-        widget=forms.Select(attrs={"class": "form-select"})
+    item = forms.ModelChoiceField(
+        queryset=models.Item.active_objects.none(),  # Start with empty queryset for performance
+        widget=forms.Select(attrs={"class": "form-select"}),
+        empty_label="Search and select an item..."
     )
     detail = forms.CharField(
         max_length=255,
@@ -404,10 +405,17 @@ class Search_QuantityAdd(forms.Form):
         initial_item = kwargs.pop('initial_item', None)
         super().__init__(*args, **kwargs)
         
-        # Disable GTIN field if the selected item has a GTIN
-        if initial_item and initial_item.gtin:
-            self.fields['gtin'].disabled = True
-            self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+        # Set up the item queryset - if a specific item is pre-selected, include only that item
+        # Otherwise, start with an empty queryset to be populated via AJAX
+        if initial_item:
+            self.fields['item'].queryset = models.Item.active_objects.filter(id=initial_item.id)
+            # Disable GTIN field if the selected item has a GTIN
+            if initial_item.gtin:
+                self.fields['gtin'].disabled = True
+                self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+        else:
+            # For the search interface, we'll populate this via AJAX
+            self.fields['item'].queryset = models.Item.active_objects.none()
 
 
 class Search_QuantityRemove(forms.Form):

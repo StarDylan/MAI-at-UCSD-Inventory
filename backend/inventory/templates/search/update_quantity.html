@@ -21,13 +21,49 @@
 
   <script>
     $(document).ready(function() {
-        $('#{{ form.item.id_for_label }}').select2({  // init Select2 on form's select field
-            placeholder: "{{ form.item.label }}",
-            allowClear: true,
-            "box-sizing": "border-box",
-            "width": "100%"
-
+        // Check if we have a pre-selected item
+        {% if selected_item %}
+        // If item is pre-selected from URL, just use a simple select dropdown
+        $('#{{ form.item.id_for_label }}').select2({
+            placeholder: "Item: {{ selected_item.name }}",
+            allowClear: false,
+            width: "100%"
         });
+        {% else %}
+        // For normal search interface, use AJAX search
+        $('#{{ form.item.id_for_label }}').select2({  // init Select2 on form's select field for item search
+            placeholder: "Search for an item to check in...",
+            allowClear: true,
+            width: "100%",
+            ajax: {
+                url: '/api/items/search/',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.items.map(function(item) {
+                            return {
+                                id: item.id,
+                                text: item.name + (item.manufacturer ? ' - ' + item.manufacturer : '')
+                            };
+                        }),
+                        pagination: {
+                            more: data.has_more
+                        }
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2
+        });
+        {% endif %}
         {% if form.organization %}
         $('#{{ form.organization.id_for_label }}').select2({  // init Select2 on organization field
             placeholder: "{{ form.organization.label }}",
