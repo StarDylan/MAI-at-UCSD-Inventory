@@ -20,6 +20,20 @@
   </li>
 </ul>
 
+<!-- Search Form -->
+<div class="row mb-3">
+  <div class="col-md-6">
+    <form method="get" class="d-flex">
+      <input type="hidden" name="tab" value="{{ active_tab }}">
+      <input type="text" name="search" class="form-control me-2" placeholder="Search by organization, notes, or user..." value="{{ search_query }}">
+      <button type="submit" class="btn btn-outline-primary">Search</button>
+      {% if search_query %}
+      <a href="?tab={{ active_tab }}" class="btn btn-outline-secondary ms-2">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
 <!-- Checkouts List -->
 <div class="tab-content">
   {% if checkouts %}
@@ -85,19 +99,61 @@
     <ul class="pagination justify-content-center">
       {% if page_obj.has_previous %}
       <li class="page-item">
-        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.previous_page_number }}">Previous</a>
+        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
       </li>
-      {% endif %} {% for page_num in page_obj.paginator.page_range %} {% if page_obj.number == page_num %}
-      <li class="page-item active">
-        <span class="page-link">{{ page_num }}</span>
-      </li>
-      {% else %}
+      {% endif %}
+      
+      {% comment %}
+      Smart pagination: Show first page, current page range, and last page with ellipsis as needed
+      {% endcomment %}
+      {% with page_obj.paginator.num_pages as total_pages %}
+      {% with page_obj.number as current_page %}
+      
+      {% comment %} Always show first page {% endcomment %}
+      {% if current_page > 3 %}
       <li class="page-item">
-        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_num }}">{{ page_num }}</a>
+        <a class="page-link" href="?tab={{ active_tab }}&page=1{% if search_query %}&search={{ search_query }}{% endif %}">1</a>
       </li>
-      {% endif %} {% endfor %} {% if page_obj.has_next %}
+      {% if current_page > 4 %}
+      <li class="page-item disabled">
+        <span class="page-link">...</span>
+      </li>
+      {% endif %}
+      {% endif %}
+      
+      {% comment %} Show pages around current page {% endcomment %}
+      {% for page_num in page_obj.paginator.page_range %}
+        {% if page_num >= current_page|add:"-2" and page_num <= current_page|add:"2" %}
+          {% if page_obj.number == page_num %}
+          <li class="page-item active">
+            <span class="page-link">{{ page_num }}</span>
+          </li>
+          {% else %}
+          <li class="page-item">
+            <a class="page-link" href="?tab={{ active_tab }}&page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ page_num }}</a>
+          </li>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      
+      {% comment %} Always show last page {% endcomment %}
+      {% if current_page < total_pages|add:"-2" %}
+      {% if current_page < total_pages|add:"-3" %}
+      <li class="page-item disabled">
+        <span class="page-link">...</span>
+      </li>
+      {% endif %}
       <li class="page-item">
-        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.next_page_number }}">Next</a>
+        <a class="page-link" href="?tab={{ active_tab }}&page={{ total_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ total_pages }}</a>
+      </li>
+      {% endif %}
+      
+      {% endwith %}
+      {% endwith %}
+      
+      {% if page_obj.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
       </li>
       {% endif %}
     </ul>

@@ -29,15 +29,35 @@ class BulkCheckoutListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
     paginate_by = 20
     
     def get_queryset(self):
+        from django.db.models import Q
+        
         tab = self.request.GET.get('tab', 'active')
+        search_query = self.request.GET.get('search', '').strip()
+        
+        # Base queryset depending on tab
         if tab == 'completed':
-            return CheckOut.objects.filter(is_completed=True).order_by('-completed_at')
+            queryset = CheckOut.objects.filter(is_completed=True).order_by('-completed_at')
         else:
-            return CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+            queryset = CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+        
+        # Add search filtering if provided
+        if search_query:
+            queryset = queryset.filter(
+                Q(organization__name__icontains=search_query) |
+                Q(notes__icontains=search_query) |
+                Q(created_by__username__icontains=search_query) |
+                Q(created_by__first_name__icontains=search_query) |
+                Q(created_by__last_name__icontains=search_query)
+            ).select_related('organization', 'created_by')
+        else:
+            queryset = queryset.select_related('organization', 'created_by')
+        
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['active_tab'] = self.request.GET.get('tab', 'active')
+        context['search_query'] = self.request.GET.get('search', '')
         context['active_count'] = CheckOut.objects.filter(is_completed=False).count()
         context['completed_count'] = CheckOut.objects.filter(is_completed=True).count()
         return context
