@@ -229,7 +229,7 @@ def view_item_detail(request, uuid):
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))
-    all_events = AuditEvent.objects.filter(entity_id__in=entity_ids).order_by('created_at')
+    all_events = AuditEvent.objects.filter(entity_id__in=entity_ids).order_by('-created_at')
 
     # Prepare audit events for template display
     for event in all_events:
