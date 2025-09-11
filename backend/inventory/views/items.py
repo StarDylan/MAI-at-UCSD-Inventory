@@ -12,6 +12,7 @@ from django.template import loader
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
 from django.views.generic import UpdateView, CreateView
 
 from inventory import models
@@ -287,6 +288,7 @@ def item_soft_delete_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Item "{item.name}" was successfully deleted.')
     return redirect('dashboard')
 
 
@@ -327,6 +329,7 @@ def item_restore_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Item "{item.name}" was successfully restored.')
     return redirect('view_item', uuid=uuid)
 
 
@@ -406,6 +409,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
             after_state
         )
         
+        messages.success(self.request, f'Item "{self.object.name}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -465,7 +469,12 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
                 f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{stock_item.location}\" (initial stock from {stock_item.organization.name})", 
                 audit_log_state(None), 
                 audit_log_state(stock_item)
-            )        # The parent class handles the redirection to success_url.
+            )
+            messages.success(self.request, f'Item "{new_item.name}" was successfully created and checked in with {stock_item.quantity} units.')
+        else:
+            messages.success(self.request, f'Item "{new_item.name}" was successfully created.')
+        
+        # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
 
     def form_invalid(self, form):
@@ -561,6 +570,7 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
             after_state
         )
         
+        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{self.object.location}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -595,6 +605,11 @@ def stock_item_delete_view(request, uuid):
     stock_item = get_object_or_404(StockItem, id=uuid)
     item_uuid = stock_item.item.pk
     
+    # Store info for success message before deletion
+    quantity = stock_item.quantity
+    item_name = stock_item.item.name
+    location = stock_item.location
+    
     # Log the state before deletion
     before_state = audit_log_state(stock_item)
     
@@ -609,6 +624,7 @@ def stock_item_delete_view(request, uuid):
     # Perform deletion
     stock_item.delete()
     
+    messages.success(request, f'Removed {quantity} of "{item_name}" from location "{location}".')
     return redirect('view_item', uuid=item_uuid)
 
 
