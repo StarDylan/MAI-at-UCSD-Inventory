@@ -221,6 +221,17 @@ def upload_spreadsheet(request):
             error_count = 0
             errors = []
             
+            # Prefetch all data to avoid N+1 queries in the loop
+            organizations_dict = {org.name.lower(): org for org in Organization.objects.all()}
+            categories_dict = {cat.name.lower(): cat for cat in Category.objects.all()}
+            # For subcategories, create a nested dict: {category_name_lower: {subcat_name_lower: subcat_obj}}
+            subcategories_dict = {}
+            for subcat in Subcategory.objects.select_related('category').all():
+                cat_name_lower = subcat.category.name.lower()
+                if cat_name_lower not in subcategories_dict:
+                    subcategories_dict[cat_name_lower] = {}
+                subcategories_dict[cat_name_lower][subcat.name.lower()] = subcat
+            
             # First pass: validate all data
             items_to_create = []
             # Track items being created in this import to handle duplicates within the same file
@@ -342,26 +353,24 @@ def upload_spreadsheet(request):
                                 error_count += 1
                                 continue
                     
-                    # Validate category
-                    try:
-                        category = Category.objects.get(name__iexact=category_name)
-                    except Category.DoesNotExist:
+                    # Validate category using pre-fetched dictionary
+                    category = categories_dict.get(category_name.lower())
+                    if not category:
                         errors.append(f"Row {row_num}: Category '{category_name}' not found")
                         error_count += 1
                         continue
                     
-                    # Validate subcategory
-                    try:
-                        subcategory = Subcategory.objects.get(name__iexact=subcategory_name, category=category)
-                    except Subcategory.DoesNotExist:
+                    # Validate subcategory using pre-fetched dictionary
+                    category_subcats = subcategories_dict.get(category_name.lower(), {})
+                    subcategory = category_subcats.get(subcategory_name.lower())
+                    if not subcategory:
                         errors.append(f"Row {row_num}: Subcategory '{subcategory_name}' not found in category '{category_name}'")
                         error_count += 1
                         continue
                     
-                    # Validate organization
-                    try:
-                        organization = Organization.objects.get(name__iexact=organization_name)
-                    except Organization.DoesNotExist:
+                    # Validate organization using pre-fetched dictionary
+                    organization = organizations_dict.get(organization_name.lower())
+                    if not organization:
                         errors.append(f"Row {row_num}: Organization '{organization_name}' not found")
                         error_count += 1
                         continue
