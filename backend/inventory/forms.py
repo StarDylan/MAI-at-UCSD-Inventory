@@ -178,7 +178,8 @@ class ItemWithStockForm(forms.Form):
     # StockItem fields
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.all(),
-        label="Received From Organization"
+        label="Received From Organization",
+        empty_label="Select an organization"
     )
     quantity = forms.IntegerField(min_value=1, initial=1, label=" Quantity")
     items_per_box = forms.IntegerField(
