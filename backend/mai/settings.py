@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from typing import cast
 from pathlib import Path
 import environ
 import os
@@ -21,7 +22,6 @@ from django.contrib import messages
 env = environ.Env(
     DEBUG=(bool, False),
     DELETE_CLOUDINARY_IMAGES=(bool, False),
-    ENABLE_SILK=(bool, False),
     ALLOWED_HOSTS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
     DATABASE_URL=(str, None),
@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'silk',
 ]
 
 MIDDLEWARE = [
@@ -89,6 +90,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    'silk.middleware.SilkyMiddleware',
 ]
 
 ROOT_URLCONF = "mai.urls"
@@ -261,3 +263,9 @@ IS_BETA = env('IS_BETA')
 
 SILKY_AUTHENTICATION = True  # User must login
 SILKY_AUTHORISATION = True  # User must have permissions
+
+if not DEBUG:
+    SILKY_MAX_RESPONSE_BODY_SIZE = 1024
+    SILKY_MAX_RECORDED_REQUESTS = 10**4
+    SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
+    SILKY_ANALYZE_QUERIES = False
