@@ -839,38 +839,37 @@ def items_search_api(request):
         # Combine results and remove duplicates
         items_qs = items_qs.union(additional_items)
     
-    # Get all unique item IDs for GTIN lookup
-    item_ids = [item['id'] for item in items_qs]
-    
-    # Get all stock GTINs for these items
+    # Only get GTINs for the items we intend to show (apply limit first)
+    limited_item_ids = [item['id'] for item in items_qs[:limit]]
+    # Prefetch all stock items for the limited set of items in one query
+    stock_items = list(models.StockItem.objects.filter(item_id__in=limited_item_ids))
+    # Build lookup tables for GTINs and locations
     stock_gtins_by_item = {}
-    if item_ids:
-        stock_gtins = models.StockItem.objects.filter(
-            item_id__in=item_ids,
-            gtin__gt=''
-        ).values('item_id', 'gtin').distinct()
-        
-        for stock_gtin in stock_gtins:
-            item_id = stock_gtin['item_id']
-            if item_id not in stock_gtins_by_item:
-                stock_gtins_by_item[item_id] = []
-            stock_gtins_by_item[item_id].append(stock_gtin['gtin'])
-    
+    locations_by_item = {}
+    for stock_item in stock_items:
+        item_id = getattr(stock_item, 'item_id', None)
+        # GTINs
+        if stock_item.gtin:
+            stock_gtins_by_item.setdefault(item_id, []).append(stock_item.gtin)
+        # Locations (for aggregated_locations logic, if needed)
+        if item_id not in locations_by_item:
+            locations_by_item[item_id] = set()
+        if stock_item.location:
+            locations_by_item[item_id].add(stock_item.location)
+
     # Get total count before applying limit
     total_count = len(items_qs)
-    
-    # Build response with GTINs
+
+    # Build response with GTINs and locations
     items_list = []
-    # Fetch Item objects for location aggregation
-    item_objs_by_id = {obj.id: obj for obj in models.Item.objects.filter(id__in=[item['id'] for item in items_qs[:limit]])}
     for item in items_qs[:limit]:  # Apply the requested limit
         gtins = []
         if item['gtin']:
             gtins.append(item['gtin'])
         gtins.extend(stock_gtins_by_item.get(item['id'], []))
-        # Get aggregated locations from the Item object
-        item_obj = item_objs_by_id.get(item['id'])
-        location = item_obj.aggregated_locations if item_obj else ""
+        # Aggregate locations for this item
+        locations = locations_by_item.get(item['id'], set())
+        location_str = ", ".join(sorted(locations)) if locations else ""
         items_list.append({
             'id': str(item['id']),
             'name': item['name'],
@@ -879,7 +878,7 @@ def items_search_api(request):
             'category__name': item['category__name'],
             'subcategory__name': item['subcategory__name'],
             'total_stock_quantity': item['total_stock_quantity'] or 0,
-            'location': location,
+            'location': location_str,
         })
     
     return JsonResponse({
