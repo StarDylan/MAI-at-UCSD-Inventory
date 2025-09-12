@@ -95,6 +95,17 @@ class OrganizationForm(forms.ModelForm):
 
 
 class StockItemForm(forms.ModelForm):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
     class Meta:
         model = StockItem
         fields = ['organization', 'quantity', 'location', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
@@ -112,6 +123,17 @@ class StockItemForm(forms.ModelForm):
 
 
 class ItemWithStockForm(forms.Form):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
     """Combined form for creating both Item and initial StockItem"""
     # Item fields
     name = forms.CharField(max_length=255, label="Item Name")
@@ -320,6 +342,17 @@ class ItemWithLocationChoiceField(forms.ModelChoiceField):
 
 
 class StockItemEditForm(forms.ModelForm):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
     """Form for editing individual stock items"""
     class Meta:
         model = StockItem
@@ -342,6 +375,17 @@ class StockItemEditForm(forms.ModelForm):
 
 
 class Search_QuantityAdd(forms.Form):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
     """Form for adding new stock (check-in) - creates new StockItem"""
     item = forms.ModelChoiceField(
         queryset=models.Item.active_objects.none(),  # Start with empty queryset for performance
