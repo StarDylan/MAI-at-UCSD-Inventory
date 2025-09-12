@@ -40,27 +40,7 @@
       border-radius: 50%;
       border-top: 16px solid #3498db;
       -webkit-animation: spin 2s linear infinite;
-      animation: spin 2s linear infinite;
-    }
-
-    @-webkit-keyframes spin {
-      0% {
-        -webkit-transform: rotate(0deg);
-      }
-
-      100% {
-        -webkit-transform: rotate(360deg);
-      }
-    }
-
-    @keyframes spin {
-      0% {
-        transform: rotate(0deg);
-      }
-
-      100% {
-        transform: rotate(360deg);
-      }
+      transform: rotate(360deg);
     }
   </style>
 
@@ -180,10 +160,7 @@
 
   <!-- Scripts are included after the HTML elements for correct loading -->
   <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
-  <script src="https://cdn.datatables.net/plug-ins/1.10.20/sorting/moment.js"></script>
 
   <script>
     function confirmDelete(id, name) {
@@ -223,8 +200,6 @@
         var searchBy = '';
         var searchOn = '';
 
-  // Do NOT initialize DataTables for audit tables; we use custom AJAX pagination/search
-
         function renderAuditRow(event) {
           var safeJson = JSON.stringify(event.json_data || {before: event.before, after: event.after});
           return `<tr onclick='viewDiff(${safeJson})' style="cursor:pointer;">
@@ -253,8 +228,28 @@
             if (page > 1) {
               html += `<li class='page-item'><a class='page-link' href='#' data-page='${page-1}'>Previous</a></li>`;
             }
-            for (var i = 1; i <= totalPages; i++) {
-              html += `<li class='page-item${i===page?' active':''}'><a class='page-link' href='#' data-page='${i}'>${i}</a></li>`;
+            // Smart pagination: first 3, ellipsis, last
+            var pageLinks = [];
+            if (totalPages <= 5) {
+              for (var i = 1; i <= totalPages; i++) {
+                pageLinks.push(i);
+              }
+            } else {
+              if (page <= 3) {
+                pageLinks = [1, 2, 3, 4, '...', totalPages];
+              } else if (page >= totalPages - 2) {
+                pageLinks = [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+              } else {
+                pageLinks = [1, '...', page - 1, page, page + 1, '...', totalPages];
+              }
+            }
+            for (var idx = 0; idx < pageLinks.length; idx++) {
+              var i = pageLinks[idx];
+              if (i === '...') {
+                html += `<li class='page-item disabled'><span class='page-link'>...</span></li>`;
+              } else {
+                html += `<li class='page-item${i===page?' active':''}'><a class='page-link' href='#' data-page='${i}'>${i}</a></li>`;
+              }
             }
             if (page < totalPages) {
               html += `<li class='page-item'><a class='page-link' href='#' data-page='${page+1}'>Next</a></li>`;
@@ -298,15 +293,15 @@
           });
         }
 
-        // Add containers for info and pagination
-        $("#audit_table_by").before("<div id='audit_by_user_info'></div>");
-        $("#audit_table_by").after("<div id='audit_by_user_pagination'></div>");
-        $("#audit_table_on").before("<div id='audit_on_user_info'></div>");
-        $("#audit_table_on").after("<div id='audit_on_user_pagination'></div>");
+  // Add containers for info and pagination
+  $("#audit_table_by").before("<div id='audit_by_user_info'></div>");
+  $("#audit_table_by").after("<div id='audit_by_user_pagination'></div>");
+  $("#audit_table_on").before("<div id='audit_on_user_info'></div>");
+  $("#audit_table_on").after("<div id='audit_on_user_pagination'></div>");
 
-        // Add AJAX search boxes
-        $("#audit_table_by").before("<input id='audit_by_user_search' class='form-control form-control-sm mb-2' placeholder='Search actions by user...'>");
-        $("#audit_table_on").before("<input id='audit_on_user_search' class='form-control form-control-sm mb-2' placeholder='Search actions on user...'>");
+  // Add AJAX search boxes (no DataTables length dropdown)
+  $("#audit_table_by").before("<input id='audit_by_user_search' class='form-control form-control-sm mb-2' placeholder='Search actions by user...'>");
+  $("#audit_table_on").before("<input id='audit_on_user_search' class='form-control form-control-sm mb-2' placeholder='Search actions on user...'>");
 
         // Search handlers
         $("#audit_by_user_search").on('input', function() {
@@ -324,27 +319,5 @@
         loadAuditOnUser(offsetOn, searchOn);
       });
     </script>
-
-
-  <script>
-    window.onload = function () {
-      $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
-      $("#audit_table_by").DataTable({
-        lengthMenu: [
-          [10, 25, 50, 100, -1],
-          [10, 25, 50, 100, "All"],
-        ],
-        order: [[0, "desc"]],
-      });
-      $("#audit_table_on").DataTable({
-        lengthMenu: [
-          [10, 25, 50, 100, -1],
-          [10, 25, 50, 100, "All"],
-        ],
-        order: [[0, "desc"]],
-      });
-    };
-  </script>
-
   {% endblock %}
 </div>

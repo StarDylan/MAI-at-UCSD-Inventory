@@ -34,17 +34,31 @@
   </div>
 
   <script>
-    $(document).ready(function() {
-        // Check if we have a pre-selected item
-        {% if selected_item %}
-        // If item is pre-selected from URL, just use a simple select dropdown
-        $('#{{ form.item.id_for_label }}').select2({
-            placeholder: "Item: {{ selected_item.name }}",
-            allowClear: false,
-            width: "100%"
-        });
-        {% else %}
-        // For normal search interface, use AJAX search
+  $(document).ready(function() {
+    // Check if we have a pre-selected item
+    {% if selected_item %}
+    // If item is pre-selected from URL, just use a simple select dropdown
+    $('#{{ form.item.id_for_label }}').select2({
+      placeholder: "Item: {{ selected_item.name }}",
+      allowClear: false,
+      width: "100%"
+    });
+    // Show the item details card on page load
+    $('#item-details-name').text("{{ selected_item.name|escapejs }}");
+    {% if selected_item.manufacturer %}
+    $('#item-details-manufacturer').text('Manufacturer: {{ selected_item.manufacturer|escapejs }}');
+    {% else %}
+    $('#item-details-manufacturer').text('');
+    {% endif %}
+    {% if selected_item.aggregated_locations %}
+    $('#item-details-location').text('Location(s): {{ selected_item.aggregated_locations|escapejs }}');
+    {% else %}
+    $('#item-details-location').text('');
+    {% endif %}
+    $('#item-details-quantity').text('In stock: {{ selected_item.total_stock_quantity|default:0 }}');
+    $('#item-details-card').show();
+    {% else %}
+    // For normal search interface, use AJAX search
     var itemDataCache = {};
     $('#{{ form.item.id_for_label }}').select2({
       placeholder: "Search for an item to check in...",

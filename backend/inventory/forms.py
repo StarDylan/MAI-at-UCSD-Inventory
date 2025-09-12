@@ -411,7 +411,7 @@ class Search_QuantityAdd(forms.Form):
         if data and 'item' in data:
             item_id = data.get('item')
         elif self.initial.get('item'):
-            item_id = self.initial['item']
+            item_id = self.initial['item'].id
         elif initial_item:
             item_id = initial_item.id
 
