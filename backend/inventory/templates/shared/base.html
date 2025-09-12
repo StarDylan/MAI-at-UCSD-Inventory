@@ -111,12 +111,6 @@
                 showName: {% if user.is_authenticated %}false{% else %}true{% endif %},
                 showEmail: {% if user.is_authenticated %}false{% else %}true{% endif %},
                 messagePlaceholder: "Please describe the feature you'd like to see or the issue you encountered.",
-                {% if user.is_authenticated%}
-                useSentryUser: {
-                    name: "{{ user.get_full_name|default:user.username }}",
-                    email: "{{ user.email }}",
-                },
-                {% endif %}
               })
             );
           })
@@ -124,6 +118,14 @@
             // This can happen if, e.g., a network error occurs,
             // in which case User Feedback will not be enabled.
           });
+
+        {% if user.is_authenticated %}
+        Sentry.setUser({
+            id: "{{ user.id }}",
+            username: "{{ user.get_full_name|default:user.username }}",
+            email: "{{ user.email }}",
+        })
+        {% endif %}
       </script>
       {% endif %}
 
