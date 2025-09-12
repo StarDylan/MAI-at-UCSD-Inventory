@@ -108,8 +108,8 @@
                 submitButtonLabel: "Send Feedback",
                 triggerLabel: "Feedback",
                 formTitle: "Feature or Bug Report",
-                showName: {% if user.is_authenticated %}true{% else %}false{% endif %},
-                showEmail: {% if user.is_authenticated %}true{% else %}false{% endif %},
+                showName: {% if user.is_authenticated %}false{% else %}true{% endif %},
+                showEmail: {% if user.is_authenticated %}false{% else %}true{% endif %},
                 messagePlaceholder: "Please describe the feature you'd like to see or the issue you encountered.",
                 {% if user.is_authenticated%}
                 useSentryUser: {
