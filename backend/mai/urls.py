@@ -5,4 +5,5 @@ urlpatterns = [
     path("", include("inventory.urls")),
     path("admin/", admin.site.urls),
     path('accounts/', include('allauth.urls')),
+    path('silk/', include('silk.urls', namespace='silk')),
 ]

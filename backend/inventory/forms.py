@@ -343,9 +343,10 @@ class StockItemEditForm(forms.ModelForm):
 
 class Search_QuantityAdd(forms.Form):
     """Form for adding new stock (check-in) - creates new StockItem"""
-    item = ItemWithLocationChoiceField(
-        queryset=models.Item.active_objects.order_by("name"),
-        widget=forms.Select(attrs={"class": "form-select"})
+    item = forms.ModelChoiceField(
+        queryset=models.Item.active_objects.none(),  # Start with empty queryset for performance
+        widget=forms.Select(attrs={"class": "form-select"}),
+        empty_label="Search and select an item..."
     )
     detail = forms.CharField(
         max_length=255,
@@ -403,11 +404,30 @@ class Search_QuantityAdd(forms.Form):
         # Check if a specific item is pre-selected (from URL)
         initial_item = kwargs.pop('initial_item', None)
         super().__init__(*args, **kwargs)
-        
-        # Disable GTIN field if the selected item has a GTIN
-        if initial_item and initial_item.gtin:
-            self.fields['gtin'].disabled = True
-            self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+
+        # If POST, ensure the selected item is in the queryset so validation passes
+        data = self.data or getattr(self, 'data', None)
+        item_id = None
+        if data and 'item' in data:
+            item_id = data.get('item')
+        elif self.initial.get('item'):
+            item_id = self.initial['item'].id
+        elif initial_item:
+            item_id = initial_item.id
+
+        if item_id:
+            self.fields['item'].queryset = models.Item.active_objects.filter(id=item_id)
+            # Disable GTIN field if the selected item has a GTIN
+            try:
+                item_obj = models.Item.active_objects.get(id=item_id)
+                if item_obj.gtin:
+                    self.fields['gtin'].disabled = True
+                    self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+            except models.Item.DoesNotExist:
+                pass
+        else:
+            # For the search interface, we'll populate this via AJAX
+            self.fields['item'].queryset = models.Item.active_objects.none()
 
 
 class Search_QuantityRemove(forms.Form):

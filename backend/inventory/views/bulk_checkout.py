@@ -29,15 +29,39 @@ class BulkCheckoutListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
     paginate_by = 20
     
     def get_queryset(self):
+        from django.db.models import Q
+
         tab = self.request.GET.get('tab', 'active')
+        search_query = self.request.GET.get('search', '').strip()
+
+        # Base queryset depending on tab
         if tab == 'completed':
-            return CheckOut.objects.filter(is_completed=True).order_by('-completed_at')
+            queryset = CheckOut.objects.filter(is_completed=True).order_by('-completed_at')
         else:
-            return CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+            queryset = CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+
+        # Add search filtering if provided
+        if search_query:
+            queryset = queryset.filter(
+                Q(organization__name__icontains=search_query) |
+                Q(notes__icontains=search_query) |
+                Q(created_by__username__icontains=search_query) |
+                Q(created_by__first_name__icontains=search_query) |
+                Q(created_by__last_name__icontains=search_query)
+            )
+
+        # Always select related org/user and prefetch checkout_items and their stock/item
+        queryset = queryset.select_related('organization', 'created_by').prefetch_related(
+            'checkout_items__stock_item__item',
+            'checkout_items__stock_item__organization',
+        )
+
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['active_tab'] = self.request.GET.get('tab', 'active')
+        context['search_query'] = self.request.GET.get('search', '')
         context['active_count'] = CheckOut.objects.filter(is_completed=False).count()
         context['completed_count'] = CheckOut.objects.filter(is_completed=True).count()
         return context
@@ -81,9 +105,9 @@ def checkout_detail_view(request, checkout_id):
     """
     View and edit individual checkout details.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     checkout_items = checkout.checkout_items.all().select_related(
-        'stock_item__item', 'stock_item__organization'
+        'stock_item__item', 'stock_item__organization'  # type: ignore
     )
 
     for item in checkout_items:
@@ -94,21 +118,25 @@ def checkout_detail_view(request, checkout_id):
 
     # Get audit events for the checkout
     checkout_audit = AuditEvent.objects.filter(entity_id=checkout.id).select_related('user').order_by('-created_at')
-    
+
     # Prepare audit events for template display
+    audit_events = []
     for event in checkout_audit:
-        event.json_data = {
-            'before': event.before,
-            'after': event.after,
-        }
+        audit_events.append({
+            'event': event,
+            'json_data': {
+                'before': event.before,
+                'after': event.after,
+            }
+        })
 
     context = {
         'checkout': checkout,
         'checkout_items': checkout_items,
-        'checkout_audit': checkout_audit,
+        'checkout_audit': audit_events,
         'can_edit': not checkout.is_completed,
     }
-    
+
     return render(request, 'checkout/checkout_detail.html', context)
 
 
@@ -118,7 +146,7 @@ def checkout_add_item_view(request, checkout_id):
     """
     Add an item to an existing checkout.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     
     if checkout.is_completed:
         messages.error(request, 'Cannot add items to completed checkout')
@@ -166,7 +194,7 @@ def checkout_add_item_view(request, checkout_id):
                 f"Added {quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
-                checkout.id
+                str(checkout.id)
             )
             
             return JsonResponse({
@@ -199,7 +227,7 @@ def checkout_remove_item_view(request, checkout_id, item_id):
     """
     Remove an item from a checkout.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     checkout_item = get_object_or_404(CheckOutItem, id=item_id, checkout=checkout)
     
     if checkout.is_completed:
@@ -215,7 +243,7 @@ def checkout_remove_item_view(request, checkout_id, item_id):
             f"Removed {checkout_item.quantity} of \"{checkout_item.stock_item.item.name}\" from location \"{checkout_item.stock_item.location}\" from checkout for {checkout.organization.name}",
             audit_log_state(checkout_item),
             audit_log_state(None),
-            checkout.id
+            str(checkout.id)
         )
         
         checkout_item.delete()
@@ -230,7 +258,7 @@ def checkout_edit_item_view(request, checkout_id, item_id):
     """
     Edit quantity and notes for a checkout item.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     checkout_item = get_object_or_404(CheckOutItem, id=item_id, checkout=checkout)
     
     if checkout.is_completed:
@@ -261,7 +289,7 @@ def checkout_edit_item_view(request, checkout_id, item_id):
                 f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                 audit_log_state(checkout_item),
                 audit_log_state(checkout_item),
-                checkout.id
+                entity_id=str(checkout.id)
             )
             
             messages.success(
@@ -279,7 +307,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
     """
     Detailed edit page for checkout item with quantity and cost editing.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     checkout_item = get_object_or_404(CheckOutItem, id=item_id, checkout=checkout)
     
     if checkout.is_completed:
@@ -323,7 +351,8 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                         f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location}\" "
                         f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                         audit_log_state(checkout_item),
-                        audit_log_state(checkout_item)
+                        audit_log_state(checkout_item),
+                        entity_id=str(checkout.id)
                     )
             
             return redirect('checkout_detail', checkout_id=checkout.id)
@@ -361,13 +390,13 @@ def checkout_complete_view(request, checkout_id):
     """
     Complete a checkout - subtract stock quantities and mark as completed.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     
     if checkout.is_completed:
         messages.error(request, 'Checkout is already completed')
         return redirect('checkout_detail', checkout_id=checkout.id)
     
-    if not checkout.checkout_items.exists():
+    if not checkout.checkout_items.exists():  # type: ignore
         messages.error(request, 'Cannot complete checkout with no items')
         return redirect('checkout_detail', checkout_id=checkout.id)
     
@@ -376,8 +405,8 @@ def checkout_complete_view(request, checkout_id):
         if form.is_valid():
             try:
                 with transaction.atomic():
-                    # Process each checkout item
-                    for checkout_item in checkout.checkout_items.all():
+                    # Process each checkout item with prefetched relations to avoid N+1 queries
+                    for checkout_item in checkout.checkout_items.select_related('stock_item__item').all():  # type: ignore
                         stock_item = checkout_item.stock_item
                         
                         # Check if still enough quantity available
@@ -447,7 +476,7 @@ def checkout_undo_view(request, checkout_id):
     """
     Undo a completed checkout - restore stock quantities.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     
     if not checkout.is_completed:
         messages.error(request, 'Cannot undo checkout that is not completed')
@@ -455,8 +484,8 @@ def checkout_undo_view(request, checkout_id):
     
     if request.method == 'POST':
         with transaction.atomic():
-            # Restore stock quantities
-            for checkout_item in checkout.checkout_items.all():
+            # Restore stock quantities with prefetched relations to avoid N+1 queries  
+            for checkout_item in checkout.checkout_items.select_related('stock_item__item').all():  # type: ignore
                 stock_item = checkout_item.stock_item
                 
                 # Log state before changes
@@ -525,7 +554,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
             # Log the addition
             audit_log_event(
                 request.user,
-                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name} from item detail page",
+                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
                 checkout.id
@@ -542,11 +571,11 @@ def add_to_checkout_from_item_view(request, item_uuid):
     
     # Get stock items for the template
     stock_items = item.stock_items.filter(quantity__gt=0).order_by(
-        'detail', 'expiration_date', 'date_received'
+        'detail', 'expiration_date', 'date_received'  # type: ignore
     )
     
     # Get active checkouts for the template
-    checkouts = CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+    checkouts = CheckOut.objects.filter(is_completed=False).select_related('organization').order_by('-created_at')
     
     return render(request, 'checkout/add_to_checkout_from_item.html', {
         'form': form,
@@ -563,7 +592,7 @@ def get_stock_items_api(request, item_uuid):
     """
     item = get_object_or_404(Item, id=item_uuid)
     stock_items = item.stock_items.filter(quantity__gt=0).order_by(
-        'detail', 'expiration_date', 'date_received'
+        'detail', 'expiration_date', 'date_received'  # type: ignore
     )
     
     data = []
@@ -588,7 +617,7 @@ def checkout_delete_view(request, checkout_id):
     Delete a checkout.
     Only allows deletion of active (non-completed) checkouts.
     """
-    checkout = get_object_or_404(CheckOut, id=checkout_id)
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
     
     # Prevent deletion of completed checkouts
     if checkout.is_completed:
