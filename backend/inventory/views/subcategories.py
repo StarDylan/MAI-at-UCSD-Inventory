@@ -12,6 +12,7 @@ from django.template import loader
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
 from django.views.generic import CreateView
 
 from inventory import models
@@ -89,6 +90,7 @@ def subcategory_delete_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Subcategory "{subcategory_name}" was successfully deleted.')
     return redirect('dashboard')
 
 
@@ -127,4 +129,6 @@ class SubcategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
             after_state
         )
         
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        messages.success(self.request, f'Subcategory "{self.object.name}" was successfully created.')
+        return response

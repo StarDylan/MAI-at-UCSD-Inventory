@@ -378,7 +378,7 @@ class CheckOutItem(models.Model):
 
 class AuditEvent(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    created_at = models.DateTimeField(auto_now_add=True, blank=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, editable=False, db_index=True)
     entity_type = models.CharField(max_length=50, db_column="type", editable=False)
     entity_id = models.UUIDField(editable=False)
     user = models.ForeignKey(User, on_delete=models.PROTECT, editable=False)

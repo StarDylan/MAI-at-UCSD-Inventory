@@ -12,13 +12,13 @@ from django.template import loader
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
 from django.views.generic import UpdateView, CreateView
 
 from inventory import models
 from inventory.forms import ItemForm, ItemWithStockForm, StockItemEditForm
-from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem
+from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem, CheckOutItem
 from .utils import audit_log_state, audit_log_event
-
 
 def view_database(request):
     """
@@ -229,7 +229,7 @@ def view_item_detail(request, uuid):
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))
-    all_events = AuditEvent.objects.filter(entity_id__in=entity_ids).order_by('created_at')
+    all_events = AuditEvent.objects.filter(entity_id__in=entity_ids).select_related("user").order_by('-created_at')
 
     # Prepare audit events for template display
     for event in all_events:
@@ -287,6 +287,7 @@ def item_soft_delete_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Item "{item.name}" was successfully deleted.')
     return redirect('dashboard')
 
 
@@ -327,6 +328,7 @@ def item_restore_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Item "{item.name}" was successfully restored.')
     return redirect('view_item', uuid=uuid)
 
 
@@ -406,6 +408,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
             after_state
         )
         
+        messages.success(self.request, f'Item "{self.object.name}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -465,7 +468,12 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
                 f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{stock_item.location}\" (initial stock from {stock_item.organization.name})", 
                 audit_log_state(None), 
                 audit_log_state(stock_item)
-            )        # The parent class handles the redirection to success_url.
+            )
+            messages.success(self.request, f'Item "{new_item.name}" was successfully created and checked in with {stock_item.quantity} units.')
+        else:
+            messages.success(self.request, f'Item "{new_item.name}" was successfully created.')
+        
+        # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
 
     def form_invalid(self, form):
@@ -561,6 +569,7 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
             after_state
         )
         
+        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{self.object.location}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -594,21 +603,34 @@ def stock_item_delete_view(request, uuid):
     """
     stock_item = get_object_or_404(StockItem, id=uuid)
     item_uuid = stock_item.item.pk
-    
+
+    # Check if this stock item is referenced by any checkout
+    if CheckOutItem.objects.filter(stock_item=stock_item).exists():
+        # Use extra_tags to set Bootstrap alert-danger for red error
+        messages.error(request, "This stock entry is referenced by a checkout and cannot be deleted. Set its quantity to 0 instead.")
+        return redirect('view_item', uuid=item_uuid)
+
+    # Store info for success message before deletion
+    quantity = stock_item.quantity
+    item_name = stock_item.item.name
+    location = stock_item.location
+
     # Log the state before deletion
     before_state = audit_log_state(stock_item)
-    
+
     # Log the deletion event
     audit_log_event(
-        request.user, 
-        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"", 
-        before_state, 
-        audit_log_state(None)
+        request.user,
+        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"",
+        before_state,
+        audit_log_state(None),
+        entity_id=str(stock_item.item.id)
     )
-    
+
     # Perform deletion
     stock_item.delete()
-    
+
+    messages.success(request, f'Removed {quantity} of "{item_name}" from location "{location}".')
     return redirect('view_item', uuid=item_uuid)
 
 
@@ -817,34 +839,37 @@ def items_search_api(request):
         # Combine results and remove duplicates
         items_qs = items_qs.union(additional_items)
     
-    # Get all unique item IDs for GTIN lookup
-    item_ids = [item['id'] for item in items_qs]
-    
-    # Get all stock GTINs for these items
+    # Only get GTINs for the items we intend to show (apply limit first)
+    limited_item_ids = [item['id'] for item in items_qs[:limit]]
+    # Prefetch all stock items for the limited set of items in one query
+    stock_items = list(models.StockItem.objects.filter(item_id__in=limited_item_ids))
+    # Build lookup tables for GTINs and locations
     stock_gtins_by_item = {}
-    if item_ids:
-        stock_gtins = models.StockItem.objects.filter(
-            item_id__in=item_ids,
-            gtin__gt=''
-        ).values('item_id', 'gtin').distinct()
-        
-        for stock_gtin in stock_gtins:
-            item_id = stock_gtin['item_id']
-            if item_id not in stock_gtins_by_item:
-                stock_gtins_by_item[item_id] = []
-            stock_gtins_by_item[item_id].append(stock_gtin['gtin'])
-    
+    locations_by_item = {}
+    for stock_item in stock_items:
+        item_id = getattr(stock_item, 'item_id', None)
+        # GTINs
+        if stock_item.gtin:
+            stock_gtins_by_item.setdefault(item_id, []).append(stock_item.gtin)
+        # Locations (for aggregated_locations logic, if needed)
+        if item_id not in locations_by_item:
+            locations_by_item[item_id] = set()
+        if stock_item.location:
+            locations_by_item[item_id].add(stock_item.location)
+
     # Get total count before applying limit
     total_count = len(items_qs)
-    
-    # Build response with GTINs
+
+    # Build response with GTINs and locations
     items_list = []
     for item in items_qs[:limit]:  # Apply the requested limit
         gtins = []
         if item['gtin']:
             gtins.append(item['gtin'])
         gtins.extend(stock_gtins_by_item.get(item['id'], []))
-        
+        # Aggregate locations for this item
+        locations = locations_by_item.get(item['id'], set())
+        location_str = ", ".join(sorted(locations)) if locations else ""
         items_list.append({
             'id': str(item['id']),
             'name': item['name'],
@@ -853,6 +878,7 @@ def items_search_api(request):
             'category__name': item['category__name'],
             'subcategory__name': item['subcategory__name'],
             'total_stock_quantity': item['total_stock_quantity'] or 0,
+            'location': location_str,
         })
     
     return JsonResponse({

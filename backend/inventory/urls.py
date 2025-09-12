@@ -11,6 +11,7 @@ from django.conf.urls.static import static
 
 from inventory.views import (
     audit,
+    audit_api,
     auth,
     bulk_checkout,
     categories,
@@ -40,7 +41,7 @@ urlpatterns = [
     path('view/deleted_items', items.view_deleted_items, name='view_deleted_items'),
     
     # Audit Logging
-    path("view/audit/", audit.audit_log_list_view, name="audit"),
+    path("view/audit/", audit.AuditLogListView.as_view(), name="audit"),
     
     # Category Management
     path('delete/category/', categories.category_delete_list_view, name='delete_category_list_view'),
@@ -66,6 +67,8 @@ urlpatterns = [
     path('organizations/create/', organizations.OrganizationCreateView.as_view(), name='create_organization'),
     path('organizations/edit/<uuid:pk>/', organizations.OrganizationUpdateView.as_view(), name='edit_organization'),
     # API endpoints
+    path('api/audit/by_user/<int:user_id>/', audit_api.audit_by_user_api, name='audit_by_user_api'),
+    path('api/audit/on_user/<int:user_id>/', audit_api.audit_on_user_api, name='audit_on_user_api'),
     path('api/organizations/create/', organizations.organization_create_ajax, name='organization_create_ajax'),
     path('api/organizations/list/', organizations.organization_list_api, name='organization_list_api'),
     path('api/manufacturers/autocomplete/', items.manufacturer_autocomplete_api, name='manufacturer_autocomplete_api'),

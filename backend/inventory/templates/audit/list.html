@@ -1,7 +1,29 @@
 {% extends "shared/base.html" %} {% block body %}
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
 
-<h1>Audit</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>Audit Log</h1>
+</div>
+
+<!-- Search Form -->
+<div class="row mb-3">
+  <div class="col-md-6">
+    <form method="get" class="d-flex">
+      <input type="text" name="search" class="form-control me-2" placeholder="Search by user, event, or entity type..." value="{{ search_query }}">
+      <button type="submit" class="btn btn-outline-primary">Search</button>
+      {% if search_query %}
+      <a href="{% url 'audit' %}" class="btn btn-outline-secondary ms-2">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+  <div class="col-md-6 text-end">
+    {% if is_paginated %}
+    <span class="text-muted">
+      Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} events
+    </span>
+    {% endif %}
+  </div>
+</div>
 
 <div class="table-responsive">
   <table class="table table-hover" id="audit_table">
@@ -12,25 +34,102 @@
         <th scope="col">User</th>
         <th scope="col">Event</th>
         <th scope="col">Entity ID</th>
-        <th scope="col">Before JSON</th>
-        <th scope="col">After JSON</th>
+        <th scope="col" class="d-none">Before JSON</th>
+        <th scope="col" class="d-none">After JSON</th>
       </tr>
     </thead>
     <tbody id="table">
       {% for event in events %}
-      <tr onclick="viewDiff({{ event.json_data }});">
-        <td>{{ event.created_at }}</td>
+      <tr onclick="viewDiff({{ event.json_data }});" style="cursor: pointer;">
+        <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
         <td>{{ event.entity_type }}</td>
-        <td>{{ event.user }}</td>
+        <td>{{ event.user.get_full_name|default:event.user.username }}</td>
         <td>{{ event.event }}</td>
         <td>{{ event.entity_id }}</td>
-        <td>{{ event.before }}</td>
-        <td>{{ event.after }}</td>
+        <td class="d-none">{{ event.before }}</td>
+        <td class="d-none">{{ event.after }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">
+          {% if search_query %}
+            No audit events found matching "{{ search_query }}"
+          {% else %}
+            No audit events found
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<nav aria-label="Audit pagination">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
+    </li>
+    {% endif %}
+    
+    {% comment %}
+    Smart pagination: Show first page, current page range, and last page with ellipsis as needed
+    {% endcomment %}
+    {% with page_obj.paginator.num_pages as total_pages %}
+    {% with page_obj.number as current_page %}
+    
+    {% comment %} Always show first page {% endcomment %}
+    {% if current_page > 3 %}
+    <li class="page-item">
+      <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">1</a>
+    </li>
+    {% if current_page > 4 %}
+    <li class="page-item disabled">
+      <span class="page-link">...</span>
+    </li>
+    {% endif %}
+    {% endif %}
+    
+    {% comment %} Show pages around current page {% endcomment %}
+    {% for page_num in page_obj.paginator.page_range %}
+      {% if page_num >= current_page|add:"-2" and page_num <= current_page|add:"2" %}
+        {% if page_obj.number == page_num %}
+        <li class="page-item active">
+          <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% else %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ page_num }}</a>
+        </li>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+    
+    {% comment %} Always show last page {% endcomment %}
+    {% if current_page < total_pages|add:"-2" %}
+    {% if current_page < total_pages|add:"-3" %}
+    <li class="page-item disabled">
+      <span class="page-link">...</span>
+    </li>
+    {% endif %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ total_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ total_pages }}</a>
+    </li>
+    {% endif %}
+    
+    {% endwith %}
+    {% endwith %}
+    
+    {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
 
 <div class="modal fade" id="auditDiffModal" tabindex="-1" role="dialog" aria-labelledby="auditDiffModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg" role="document">
@@ -64,27 +163,6 @@
     rightBlockId = $("#audit_right").attr("id");
     $(document).jdd(leftBlockId, rightBlockId);
   }
-</script>
-
-<script>
-  window.onload = function () {
-    $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
-    $("#audit_table").DataTable({
-      lengthMenu: [
-        [10, 25, 50, 100, -1],
-        [10, 25, 50, 100, "All"],
-      ],
-      order: [[0, "desc"]],
-      columnDefs: [
-        {
-          // Hide ID, and JSON but allow it to be searchable.
-          targets: [4, 5, 6],
-          visible: false,
-          searchable: true,
-        },
-      ],
-    });
-  };
 </script>
 
 {% endblock %}

@@ -61,14 +61,15 @@ def manage_users_view(request):
 
     users_data = []
     for user_obj in all_users:
+        prefetched_groups = [group.name for group in user_obj.groups.all()]
         users_data.append({
             'id': user_obj.pk,
             'user': user_obj,
             'is_active': user_obj.is_active,
             # Check for group membership and store as booleans
-            'is_user': user_obj.groups.filter(name='User').exists(),
-            'is_member': user_obj.groups.filter(name='Member').exists(),
-            'is_admin': user_obj.groups.filter(name='Admin').exists(),
+            'is_user': 'User' in prefetched_groups,
+            'is_member': 'Member' in prefetched_groups,
+            'is_admin': 'Admin' in prefetched_groups,
             'is_superuser': user_obj.is_superuser
         })
 
@@ -165,11 +166,23 @@ def view_user_profile_view(request, pk):
     # Fetch audit logs related to this user
     audit_by_user = (AuditEvent.objects
                     .filter(user_id=pk)
+                    .select_related('user')
                     .order_by('-created_at'))
     audit_on_user = (AuditEvent.objects
                     .filter(entity_id=pk)
+                    .select_related('user')
                     .order_by('-created_at'))
 
+    for event in audit_by_user:
+        event.json_data = {
+            'before': event.before,
+            'after': event.after,
+        }
+    for event in audit_on_user:
+        event.json_data = {
+            'before': event.before,
+            'after': event.after,
+        }
     context = {
         'user_data': {
             'user_id': viewed_user.pk,
