@@ -11,6 +11,7 @@ from django.template import loader
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
 from django.views.generic import UpdateView, CreateView, ListView
 from django.views.decorators.http import require_http_methods
 import json
@@ -55,6 +56,7 @@ class OrganizationCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
         )
         
         self.object = new_org
+        messages.success(self.request, f'Organization "{new_org.name}" was successfully created.')
         return redirect(self.get_success_url())
 
 
@@ -81,6 +83,7 @@ class OrganizationUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Update
             after_state
         )
         
+        messages.success(self.request, f'Organization "{self.object.name}" was successfully updated.')
         return response
 
 
