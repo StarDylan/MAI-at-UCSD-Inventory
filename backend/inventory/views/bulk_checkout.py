@@ -566,7 +566,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
     )
     
     # Get active checkouts for the template
-    checkouts = CheckOut.objects.filter(is_completed=False).order_by('-created_at')
+    checkouts = CheckOut.objects.filter(is_completed=False).select_related('organization').order_by('-created_at')
     
     return render(request, 'checkout/add_to_checkout_from_item.html', {
         'form': form,
