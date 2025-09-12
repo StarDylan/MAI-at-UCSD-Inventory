@@ -122,7 +122,7 @@
         {% if user.is_authenticated %}
         Sentry.setUser({
             id: "{{ user.id }}",
-            username: "{{ user.get_full_name|default:user.username }}",
+            name: "{{ user.get_full_name|default:user.username }}",
             email: "{{ user.email }}",
         })
         {% endif %}
