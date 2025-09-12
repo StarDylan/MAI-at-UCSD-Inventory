@@ -24,7 +24,7 @@
 <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
 {% endif %} 
 {% if perms.inventory.change_checkout %}
-<a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Bulk Checkout</a>
+<a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Checkout</a>
 {% endif %} 
 
   <style type="text/css">
