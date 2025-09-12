@@ -15,11 +15,27 @@ import environ
 import os
 import dj_database_url
 from django.core.management.utils import get_random_secret_key
+from django.contrib import messages
 
 # For type-hinting and default values
 env = environ.Env(
     DEBUG=(bool, False),
-    DELETE_CLOUDINARY_IMAGES=(bool, False)
+    DELETE_CLOUDINARY_IMAGES=(bool, False),
+    ENABLE_SILK=(bool, False),
+    ALLOWED_HOSTS=(list, []),
+    CSRF_TRUSTED_ORIGINS=(list, []),
+    DATABASE_URL=(str, None),
+
+    CLOUDINARY_API_KEY=(str, None),
+    CLOUDINARY_API_SECRET=(str, None),
+    CLOUDINARY_CLOUD_NAME=(str, None),
+
+    GOOGLE_CLIENT_ID=(str, None),
+    GOOGLE_CLIENT_SECRET=(str, None),
+    SENTRY_DSN=(str, None),
+    SENTRY_ENVIRONMENT=(str, None),
+
+    IS_BETA=(bool, False),
 )
 
 
@@ -35,12 +51,12 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'), parse_comments=True)
 SECRET_KEY = os.getenv("SECRET_KEY") or get_random_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG', default=False)
+DEBUG = env('DEBUG')
 
-DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES', default=False)
+DELETE_CLOUDINARY_IMAGES = env('DELETE_CLOUDINARY_IMAGES')
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['https://localhost', 'https://127.0.0.1'])
+ALLOWED_HOSTS = cast(list[str], env.list('ALLOWED_HOSTS'))
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS')
 
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https' if "localhost" not in ALLOWED_HOSTS else 'http'
 
@@ -77,6 +93,15 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "mai.urls"
 
+MESSAGE_TAGS = {
+    # Map Django message tags to Bootstrap alert classes
+    messages.DEBUG: 'alert-info',    # DEBUG
+    messages.INFO: 'alert-info',    # INFO
+    messages.SUCCESS: 'alert-success', # SUCCESS
+    messages.WARNING: 'alert-warning', # WARNING
+    messages.ERROR: 'alert-danger',  # ERROR
+}
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -100,9 +125,10 @@ WSGI_APPLICATION = "mai.wsgi.application"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Database configuration - supports both local SQLite and production PostgreSQL
-if 'DATABASE_URL' in os.environ:
+DATABASE_URL = env('DATABASE_URL')
+if DATABASE_URL:
     DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+        'default': dj_database_url.parse(cast(str, DATABASE_URL))
     }
 else:
     DATABASES = {
@@ -168,9 +194,9 @@ AUTH_USER_MODEL = "inventory.User"
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
-CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME', default=None)
-CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY', default=None)
-CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET', default=None)
+CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME')
+CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY')
+CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET')
 
 
 AUTHENTICATION_BACKENDS = [
@@ -188,8 +214,8 @@ SOCIALACCOUNT_PROVIDERS = {
     'google': {
         "VERIFIED_EMAIL": True,
         'APP': {
-            'client_id': env('GOOGLE_CLIENT_ID', default=None),
-            'secret': env('GOOGLE_CLIENT_SECRET', default=None),
+            'client_id': env('GOOGLE_CLIENT_ID'),
+            'secret': env('GOOGLE_CLIENT_SECRET'),
             'key': "",
         }
     }
@@ -218,14 +244,20 @@ if not DEBUG:
 
 
 
-if env('SENTRY_DSN', default=None):
+SENTRY_DSN = cast(str|None, env('SENTRY_DSN'))
+SENTRY_ENVIRONMENT = cast(str|None, env('SENTRY_ENVIRONMENT') or ('development' if DEBUG else 'production'))
+
+if SENTRY_DSN:
     import sentry_sdk
     sentry_sdk.init(
-        dsn=env('SENTRY_DSN'),
+        dsn=SENTRY_DSN,
         # Add data like request headers and IP for users,
         # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
         send_default_pii=True,
-        environment=env('SENTRY_ENVIRONMENT', default='development' if DEBUG else 'production'),
+        environment=SENTRY_ENVIRONMENT,
 )
-    
-IS_BETA = env('IS_BETA', default=False)
+
+IS_BETA = env('IS_BETA')
+
+SILKY_AUTHENTICATION = True  # User must login
+SILKY_AUTHORISATION = True  # User must have permissions

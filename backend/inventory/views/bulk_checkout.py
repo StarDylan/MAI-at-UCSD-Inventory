@@ -545,7 +545,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
             # Log the addition
             audit_log_event(
                 request.user,
-                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name} from item detail page",
+                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
                 checkout.id

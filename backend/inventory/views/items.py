@@ -17,9 +17,8 @@ from django.views.generic import UpdateView, CreateView
 
 from inventory import models
 from inventory.forms import ItemForm, ItemWithStockForm, StockItemEditForm
-from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem
+from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem, CheckOutItem
 from .utils import audit_log_state, audit_log_event
-
 
 def view_database(request):
     """
@@ -604,26 +603,33 @@ def stock_item_delete_view(request, uuid):
     """
     stock_item = get_object_or_404(StockItem, id=uuid)
     item_uuid = stock_item.item.pk
-    
+
+    # Check if this stock item is referenced by any checkout
+    if CheckOutItem.objects.filter(stock_item=stock_item).exists():
+        # Use extra_tags to set Bootstrap alert-danger for red error
+        messages.error(request, "This stock entry is referenced by a checkout and cannot be deleted. Set its quantity to 0 instead.")
+        return redirect('view_item', uuid=item_uuid)
+
     # Store info for success message before deletion
     quantity = stock_item.quantity
     item_name = stock_item.item.name
     location = stock_item.location
-    
+
     # Log the state before deletion
     before_state = audit_log_state(stock_item)
-    
+
     # Log the deletion event
     audit_log_event(
-        request.user, 
-        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"", 
-        before_state, 
-        audit_log_state(None)
+        request.user,
+        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"",
+        before_state,
+        audit_log_state(None),
+        entity_id=str(stock_item.item.id)
     )
-    
+
     # Perform deletion
     stock_item.delete()
-    
+
     messages.success(request, f'Removed {quantity} of "{item_name}" from location "{location}".')
     return redirect('view_item', uuid=item_uuid)
 
