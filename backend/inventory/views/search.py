@@ -41,7 +41,6 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             dict: Template context with form-specific data
         """
         context = super().get_context_data(**kwargs)
-        context['action'] = 'Check in'
         context['defaultQuantity'] = 1
         context["items"] = Item.active_objects.all().order_by('name')
         

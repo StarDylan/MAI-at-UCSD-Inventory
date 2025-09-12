@@ -35,7 +35,7 @@
   {% endif %} {% if perms.inventory.add_viaspreadsheet_item %}
   <a href="{% url 'spreadsheet_import_upload' %}" class="list-group-item list-group-item-action">Import items from spreadsheet</a>
   {% endif %} {% if perms.inventory.change_item %}
-  <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in an item</a>
+  <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in a stock item</a>
   {% endif %} {% if perms.inventory.view_checkout %}
   <a class="list-group-item list-group-item-action" href="{% url 'bulk_checkout_list' %}">View Checkouts</a>
   {% endif %}{% if perms.inventory.view_surplus_report %}
