@@ -221,22 +221,17 @@ class ItemWithStockForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Set up subcategory choices grouped by category
-        subcategories = models.Subcategory.objects.select_related('category').all().order_by('category__name', 'name')
+        # Set up subcategory choices grouped by category (show all categories)
+        categories = models.Category.objects.all().order_by('name')
         grouped_choices = []
-        current_category_name = None
-        category_group = []
-
-        for subcategory in subcategories:
-            if current_category_name and subcategory.category.name != current_category_name:
-                grouped_choices.append((current_category_name, category_group))
-                category_group = []
-            
-            category_group.append((subcategory.pk, subcategory.name))
-            current_category_name = subcategory.category.name
-
-        if category_group:
-            grouped_choices.append((current_category_name, category_group))
+        for category in categories:
+            subcategories = models.Subcategory.objects.filter(category=category).order_by('name')
+            subcat_choices = [(sub.pk, sub.name) for sub in subcategories]
+            # Optionally, only show categories with subcategories:
+            if subcat_choices:
+                grouped_choices.append((category.name, subcat_choices))
+            else:
+                grouped_choices.append((category.name, []))
 
         self.fields['subcategory'].choices = grouped_choices
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
@@ -403,7 +398,8 @@ class Search_QuantityAdd(forms.Form):
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.all().order_by('name'),
         widget=forms.Select(attrs={"class": "form-select"}),
-        label="Received From Organization"
+        label="Received From Organization",
+        empty_label="Select an organization"
     )
     quantity = forms.IntegerField(
         min_value=1,
