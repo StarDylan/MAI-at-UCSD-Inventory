@@ -313,7 +313,7 @@
           {% for event in checkout_audit %}
           <tr onclick="viewDiff({{ event.json_data }});">
             <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
-            <td>{{ event.user.get_full_name|default:event.user.username }}</td>
+            <td>{{ event.event.user.get_full_name|default:event.user.username }}</td>
             <td>{{ event.event }}</td>
           </tr>
           {% endfor %}
