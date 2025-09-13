@@ -880,6 +880,7 @@ function handleBarcodeResult(gtinInput, barcodeData) {
         }).join('');
     }
     console.log('Barcode scanned:', toHexString(barcodeData));
+    console.log('Barcode scanned:', barcodeData);
     const parsed = BarcodeScanner.parseGS1(barcodeData);
     
     // Set GTIN value
