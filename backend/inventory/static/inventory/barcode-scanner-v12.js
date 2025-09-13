@@ -19,354 +19,119 @@ class BarcodeScanner {
         this.selectedDeviceId = null;
     }
 
-    /**
-     * Parse GS1 Application Identifiers from a barcode string
-     * Supports both parentheses format: (01)GTIN(10)LOT(17)YYMMDD
-     * and FNC1 format: 01GTIN10LOT17YYMMDD (with leading FNC1 characters removed)
-     */
-    static parseGS1(barcodeData) {
-        if (!barcodeData || typeof barcodeData !== 'string') {
-            return { gtin: barcodeData || '', lot: '', expiration: '' };
-        }
-
-        // Remove any whitespace
-        let data = barcodeData.trim();
-        
-        // First try parentheses format: (01)GTIN(10)LOT(17)YYMMDD
-        const parenthesesPattern = /\((\d{2,4})\)([^(]*)/g;
-        const parenthesesMatches = [...data.matchAll(parenthesesPattern)];
-        
-        if (parenthesesMatches.length > 0) {
-            return this._parseGS1Matches(parenthesesMatches);
-        }
-        
-        // Remove FNC1 characters from the beginning and throughout the string
-        // FNC1 can be represented as \u001D (ASCII 29), \x1D, ]C1, <FNC1>, [FNC1]
-        const fnc1Chars = ['\u001D', '\x1D', String.fromCharCode(29)];
-        
-        // Remove common text representations of FNC1
-        data = data.replace(/\]C1/g, '');
-        data = data.replace(/<FNC1>/g, '');
-        data = data.replace(/\[FNC1\]/g, '');
-        
-        // Remove actual FNC1 characters
-        for (const char of fnc1Chars) {
-            data = data.replace(new RegExp(char, 'g'), '');
-        }
-        
-        // Now parse the clean data using AI numbers and lengths
-        return this._parseGS1ByAILength(data);
-    }
-
-    /**
-     * Parse GS1 data by sequentially reading AI numbers and their data based on length specifications
-     */
-    static _parseGS1ByAILength(data) {
-        const result = { gtin: '', lot: '', expiration: '' };
-        
-        if (!data) {
-            return result;
-        }
-        
-        // If no AI found, treat as plain GTIN
-        if (!data.match(/^\d{2}/)) {
-            result.gtin = data;
-            return result;
-        }
-        
-        let pos = 0;
-        
-        // Parse sequentially through the data
-        while (pos < data.length) {
-            // Try to find an Application Identifier (2-4 digits)
-            let ai = null;
-            let aiLength = 0;
-            
-            // Try 4-digit AI first, then 3-digit, then 2-digit
-            for (let len = 4; len >= 2; len--) {
-                if (pos + len <= data.length) {
-                    const testAI = data.substring(pos, pos + len);
-                    if (this._getAIDataLength(testAI) !== null) {
-                        ai = testAI;
-                        aiLength = len;
-                        break;
-                    }
-                }
-            }
-            
-            if (!ai) {
-                // No valid AI found, break or treat remaining as GTIN if we're at the start
-                if (pos === 0) {
-                    result.gtin = data;
-                }
-                break;
-            }
-            
-            pos += aiLength; // Move past the AI
-            
-            // Get the expected data length for this AI
-            const dataLength = this._getAIDataLength(ai);
-            let value;
-            
-            if (dataLength === -1) {
-                // Variable length - we need to look ahead for the next AI or take the rest
-                let endPos = pos;
-                let foundNextAI = false;
-                
-                // Look for the next AI (starting at least 1 char ahead)
-                for (let lookPos = pos + 1; lookPos <= data.length - 2; lookPos++) {
-                    // Try 2-4 digit AIs
-                    for (let testLen = 2; testLen <= 4 && lookPos + testLen <= data.length; testLen++) {
-                        const testAI = data.substring(lookPos, lookPos + testLen);
-                        if (this._getAIDataLength(testAI) !== null) {
-                            endPos = lookPos;
-                            foundNextAI = true;
-                            break;
-                        }
-                    }
-                    if (foundNextAI) break;
-                }
-                
-                if (!foundNextAI) {
-                    // Take the rest of the string
-                    endPos = data.length;
-                }
-                
-                value = data.substring(pos, endPos);
-                pos = endPos;
-            } else {
-                // Fixed length
-                value = data.substring(pos, pos + dataLength);
-                pos += dataLength;
-            }
-            
-            // Store the parsed value
-            switch (ai) {
-                case '01':  // GTIN (14 digits)
-                    result.gtin = value;
-                    break;
-                case '10':  // Lot/Batch Number (variable length)
-                    result.lot = value;
-                    break;
-                case '17':  // Expiration Date (6 digits YYMMDD)
-                    result.expiration = this.parseGS1Date(value);
-                    break;
-                // We can add more AIs here as needed
-            }
-        }
-        
-        return result;
-    }
     
-    /**
-     * Get the data length for a given Application Identifier
-     * Returns the expected data length, or -1 for variable length, or null if AI is invalid
-     */
-    static _getAIDataLength(ai) {
-        // Common Application Identifiers and their data lengths
-        const aiLengths = {
-            '00': 18,   // SSCC (fixed length)
-            '01': 14,   // GTIN (fixed length) 
-            '02': 14,   // GTIN of trade items contained in a logistic unit
-            '10': -1,   // Batch/lot number (variable length)
-            '11': 6,    // Production date (YYMMDD)
-            '12': 6,    // Due date (YYMMDD)
-            '13': 6,    // Packaging date (YYMMDD)
-            '15': 6,    // Best before date (YYMMDD)
-            '16': 6,    // Sell by date (YYMMDD)
-            '17': 6,    // Expiration date (YYMMDD)
-            '20': 2,    // Internal product variant
-            '21': -1,   // Serial number (variable length)
-            '22': -1,   // Consumer product variant (variable length)
-            '240': -1,  // Additional product identification assigned by the manufacturer (variable length)
-            '241': -1,  // Customer part number (variable length)
-            '242': -1,  // Made-to-Order variation number (variable length)
-            '243': -1,  // Packaging component number (variable length)
-            '250': -1,  // Secondary serial number (variable length)
-            '251': -1,  // Reference to source entity (variable length)
-            '253': -1,  // Global Document Type Identifier (variable length)
-            '254': -1,  // GLN extension component (variable length)
-            '30': -1,   // Variable count (variable length)
-            '310': 6,   // Net weight, kilograms
-            '311': 6,   // Length or first dimension, metres
-            '312': 6,   // Width, diameter, or second dimension, metres
-            '313': 6,   // Depth, thickness, height, or third dimension, metres
-            '314': 6,   // Area, square metres
-            '315': 6,   // Net volume, litres
-            '316': 6,   // Net volume, cubic metres
-            '320': 6,   // Net weight, pounds
-            '321': 6,   // Length or first dimension, inches
-            '322': 6,   // Length or first dimension, feet
-            '323': 6,   // Length or first dimension, yards
-            '324': 6,   // Width, diameter, or second dimension, inches
-            '325': 6,   // Width, diameter, or second dimension, feet
-            '326': 6,   // Width, diameter, or second dimension, yards
-            '327': 6,   // Depth, thickness, height, or third dimension, inches
-            '328': 6,   // Depth, thickness, height, or third dimension, feet
-            '329': 6,   // Depth, thickness, height, or third dimension, yards
-            '330': 6,   // Logistic weight, kilograms
-            '331': 6,   // Length or first dimension, metres
-            '332': 6,   // Width, diameter, or second dimension, metres
-            '333': 6,   // Depth, thickness, height, or third dimension, metres
-            '334': 6,   // Area, square metres
-            '335': 6,   // Logistic volume, litres
-            '336': 6,   // Logistic volume, cubic metres
-            '340': 6,   // Logistic weight, pounds
-            '341': 6,   // Length or first dimension, inches
-            '342': 6,   // Length or first dimension, feet
-            '343': 6,   // Length or first dimension, yards
-            '344': 6,   // Width, diameter, or second dimension, inches
-            '345': 6,   // Width, diameter, or second dimension, feet
-            '346': 6,   // Width, diameter, or second dimension, yards
-            '347': 6,   // Depth, thickness, height, or third dimension, inches
-            '348': 6,   // Depth, thickness, height, or third dimension, feet
-            '349': 6,   // Depth, thickness, height, or third dimension, yards
-            '350': 6,   // Area, square inches
-            '351': 6,   // Area, square feet
-            '352': 6,   // Area, square yards
-            '353': 6,   // Area, square inches
-            '354': 6,   // Area, square feet
-            '355': 6,   // Area, square yards
-            '356': 6,   // Net weight, troy ounces
-            '357': 6,   // Net weight or volume, ounces
-            '360': 6,   // Volume, quarts
-            '361': 6,   // Volume, gallons
-            '362': 6,   // Logistic volume, quarts
-            '363': 6,   // Logistic volume, gallons
-            '364': 6,   // Net volume, cubic inches
-            '365': 6,   // Net volume, cubic feet
-            '366': 6,   // Net volume, cubic yards
-            '367': 6,   // Logistic volume, cubic inches
-            '368': 6,   // Logistic volume, cubic feet
-            '369': 6,   // Logistic volume, cubic yards
-            '37': -1,   // Count of trade items or trade item pieces contained in a logistic unit (variable length)
-            '390': -1,  // Applicable amount payable or Coupon value, local currency (variable length)
-            '391': -1,  // Applicable amount payable with ISO currency code (variable length)
-            '392': -1,  // Applicable amount payable, single monetary area (variable length)
-            '393': -1,  // Applicable amount payable with ISO currency code (variable length)
-            '394': -1,  // Percentage discount of a coupon (variable length)
-            '400': -1,  // Customer's purchase order number (variable length)
-            '401': -1,  // Global Identification Number for Consignment (variable length)
-            '402': 17,  // Global Shipment Identification Number (fixed length)
-            '403': -1,  // Routing code (variable length)
-            '410': 13,  // Ship to / Deliver to Global Location Number
-            '411': 13,  // Bill to / Invoice to Global Location Number
-            '412': 13,  // Purchased from Global Location Number
-            '413': 13,  // Ship for / Deliver for / Forward to Global Location Number
-            '414': 13,  // Identification of a physical location - Global Location Number
-            '415': 13,  // Global Location Number of the invoicing party
-            '416': 13,  // Global Location Number of the production or service location
-            '417': 13,  // Party Global Location Number
-            '420': -1,  // Ship to / Deliver to postal code within a single postal authority (variable length)
-            '421': -1,  // Ship to / Deliver to postal code with ISO country code (variable length)
-            '422': 3,   // Country of origin of a trade item
-            '423': -1,  // Country of initial processing (variable length)
-            '424': 3,   // Country of processing
-            '425': 3,   // Country of disassembly
-            '426': 3,   // Country covering full process chain
-            '427': -1,  // Country subdivision Of origin (variable length)
-            '7001': 13, // NATO Stock Number (NSN)
-            '7002': -1, // UN/ECE meat carcasses and cuts classification (variable length)
-            '7003': 10, // Expiration date and time
-            '7004': -1, // Active potency (variable length)
-            '7005': -1, // Catch area (variable length)
-            '7006': 6,  // First freeze date
-            '7007': -1, // Harvest date (variable length)
-            '7008': -1, // Species for fishery purposes (variable length)
-            '7009': -1, // Fishing gear type (variable length)
-            '7010': -1, // Production method (variable length)
-            '7020': -1, // Refurbishment lot ID (variable length)
-            '7021': -1, // Functional status (variable length)
-            '7022': -1, // Revision status (variable length)
-            '7023': -1, // Global Individual Asset Identifier of an assembly (variable length)
-            '8001': 14, // Roll products (width, length, core diameter, direction, splices)
-            '8002': -1, // Cellular mobile telephone identifier (variable length)
-            '8003': -1, // Global Returnable Asset Identifier (variable length)
-            '8004': -1, // Global Individual Asset Identifier (variable length)
-            '8005': 6,  // Price per unit of measure
-            '8006': 18, // Identification of an individual trade item piece
-            '8007': -1, // International Bank Account Number (variable length)
-            '8008': -1, // Date and time of production (variable length)
-            '8009': -1, // Optically Readable Sensor Indicator (variable length)
-            '8010': -1, // Component/Part Identifier (variable length)
-            '8011': -1, // Component/Part Identifier serial number (variable length)
-            '8012': -1, // Software version (variable length)
-            '8013': -1, // Global Model Number (variable length)
-            '8017': 18, // Global Service Relation Number to identify the relationship between an organisation offering services and the provider of services
-            '8018': 18, // Global Service Relation Number to identify the relationship between an organisation offering services and the recipient of services
-            '8019': -1, // Service Relation Instance Number (variable length)
-            '8020': -1, // Payment slip reference number (variable length)
-            '8026': 18, // Identification of pieces of a trade item
-            '8110': -1, // Coupon code identification for use in North America (variable length)
-            '8111': 4,  // Loyalty points of a coupon
-            '8112': -1, // Paperless coupon code identification for use in North America (variable length)
-            '8200': -1, // Extended packaging URL (variable length)
-            '90': -1,   // Information mutually agreed between trading partners (variable length)
-            '91': -1,   // Company internal information (variable length)
-            '92': -1,   // Company internal information (variable length)
-            '93': -1,   // Company internal information (variable length)
-            '94': -1,   // Company internal information (variable length)
-            '95': -1,   // Company internal information (variable length)
-            '96': -1,   // Company internal information (variable length)
-            '97': -1,   // Company internal information (variable length)
-            '98': -1,   // Company internal information (variable length)
-            '99': -1    // Company internal information (variable length)
-        };
-        
-        return aiLengths[ai] !== undefined ? aiLengths[ai] : null;
-    }
 
-    /**
-     * Parse GS1 matches from parentheses format
-     */
-    static _parseGS1Matches(matches) {
-        const result = { gtin: '', lot: '', expiration: '' };
-        
-        for (const match of matches) {
-            const identifier = match[1];
-            const value = match[2].trim();
+    static parseGS1(data) {
+        const result = {};
+        let remainingData = data;
+        const separator = String.fromCharCode(29);
+
+        // Define a map of relevant AIs for your specific output keys
+        const ais = {
+            "01": { key: "gtin", isVariableLength: false, length: 14 },
+            "10": { key: "lot", isVariableLength: true, length: 20 },
+            "17": { key: "expiration", isVariableLength: false, length: 6 },
+            "21": { key: "serial", isVariableLength: true, length: 20 },
+            "11": { key: "production_date", isVariableLength: false, length: 6 },
+            "240": { key: "additional_id", isVariableLength: true, length: 30 },
+            "91": { key: "company_internal", isVariableLength: true, length: 30 },
+        };
+
+        const fixedLengthAis = {};
+        for (let ai in ais) {
+            if (!ais[ai].isVariableLength) {
+                fixedLengthAis[ai] = ais[ai].length;
+            }
+        }
+
+        while (remainingData.length > 0) {
+            let aiCode = "";
+            let dataField = "";
             
-            switch (identifier) {
-                case '01':  // GTIN
-                    result.gtin = value;
-                    break;
-                case '10':  // Lot/Batch Number
-                    result.lot = value;
-                    break;
-                case '17':  // Expiration Date (YYMMDD)
-                    result.expiration = this.parseGS1Date(value);
-                    break;
+            // Check for AIs with parentheses first
+            const parenthesisMatch = remainingData.match(/^\((\d{2,4})\)/);
+            
+            if (parenthesisMatch) {
+                aiCode = parenthesisMatch[1];
+                remainingData = remainingData.substring(parenthesisMatch[0] .length);
+            } else {
+                // If no parentheses, try to find the AI at the start of the string
+                let potentialAi;
+                if (remainingData.length >= 4) {
+                    potentialAi = remainingData.substring(0, 4);
+                    if (ais[potentialAi]) aiCode = potentialAi;
+                }
+                if (!aiCode && remainingData.length >= 3) {
+                    potentialAi = remainingData.substring(0, 3);
+                    if (ais[potentialAi]) aiCode = potentialAi;
+                }
+                if (!aiCode && remainingData.length >= 2) {
+                    potentialAi = remainingData.substring(0, 2);
+                    if (ais[potentialAi]) aiCode = potentialAi;
+                }
+
+                if (aiCode) {
+                    remainingData = remainingData.substring(aiCode.length);
+                }
+            }
+            
+            if (!aiCode || !ais[aiCode]) {
+                // If an unknown or irrelevant AI is found, we need to skip it to continue parsing
+                // For fixed-length AIs we need to know the length to skip ahead
+                // This is a simplified approach for demonstration
+                console.warn(`Unknown or irrelevant AI code "${aiCode}" detected. Skipping to next possible AI.`);
+                
+                // Find the next potential AI to resume parsing
+                let nextAiIndex = -1;
+                for(let key in ais){
+                    const index = remainingData.indexOf(key);
+                    if(index !== -1 && (nextAiIndex === -1 || index < nextAiIndex)){
+                        nextAiIndex = index;
+                    }
+                }
+                
+                if(nextAiIndex !== -1){
+                    remainingData = remainingData.substring(nextAiIndex);
+                } else {
+                    remainingData = ""; // No more AIs to parse, so we can stop
+                }
+                continue; // Go to the next loop iteration
+            }
+
+            let aiInfo = ais[aiCode];
+            
+            if (fixedLengthAis[aiCode]) {
+                let dataLength = fixedLengthAis[aiCode];
+                dataField = remainingData.substring(0, dataLength);
+                remainingData = remainingData.substring(dataLength);
+            } else {
+                // For variable-length fields, look for separator, next parenthesis, or end of string
+                const separatorIndex = remainingData.indexOf(separator);
+                const nextParenthesisIndex = remainingData.indexOf('(');
+                
+                let endIndex = remainingData.length; // Default to end of string
+                
+                // Find the earliest valid delimiter
+                if (separatorIndex !== -1 && (nextParenthesisIndex === -1 || separatorIndex < nextParenthesisIndex)) {
+                    endIndex = separatorIndex;
+                    dataField = remainingData.substring(0, endIndex);
+                    remainingData = remainingData.substring(endIndex + 1); // Skip separator
+                } else if (nextParenthesisIndex !== -1) {
+                    endIndex = nextParenthesisIndex;
+                    dataField = remainingData.substring(0, endIndex);
+                    remainingData = remainingData.substring(endIndex); // Don't skip parenthesis
+                } else {
+                    dataField = remainingData;
+                    remainingData = "";
+                }
+            }
+            
+            if (dataField) {
+                result[aiInfo.key] = dataField;
             }
         }
         
         return result;
-    }
-
-    /**
-     * Parse GS1 date format (YYMMDD) to YYYY-MM-DD
-     */
-    static parseGS1Date(dateStr) {
-        if (!dateStr || dateStr.length !== 6) {
-            return '';
-        }
-        
-        try {
-            const year = parseInt(dateStr.substring(0, 2));
-            const month = parseInt(dateStr.substring(2, 4));
-            const day = parseInt(dateStr.substring(4, 6));
-            
-            // Assume years 00-30 are 2000-2030, 31-99 are 1931-1999
-            const fullYear = year <= 30 ? 2000 + year : 1900 + year;
-            
-            // Validate month and day
-            if (month < 1 || month > 12 || day < 1 || day > 31) {
-                return '';
-            }
-            
-            return `${fullYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-        } catch (e) {
-            return '';
-        }
     }
 
     /**
@@ -874,13 +639,6 @@ function createBarcodeScannerButton(gtinInput) {
  * Handle barcode scan result by parsing GS1 data and populating form fields
  */
 function handleBarcodeResult(gtinInput, barcodeData) {
-    function toHexString(byteArray) {
-        return Array.from(byteArray, function(byte) {
-            return ('0' + (byte & 0xFF).toString(16)).slice(-2);
-        }).join('');
-    }
-    console.log('Barcode scanned:', toHexString(barcodeData));
-    console.log('Barcode scanned:', barcodeData);
     const parsed = BarcodeScanner.parseGS1(barcodeData);
     
     // Set GTIN value
@@ -914,23 +672,27 @@ function handleBarcodeResult(gtinInput, barcodeData) {
     }
     
     // Show success message
-    showParseResult(gtinInput, parsed);
+    showParseResult(gtinInput, barcodeData, parsed);
 }
 
 /**
  * Show parse result as a temporary message
  */
-function showParseResult(gtinInput, parsed) {
+function showParseResult(gtinInput, barcodeData, parsed) {
     const parts = [];
-    if (parsed.gtin) parts.push(`GTIN: ${parsed.gtin}`);
-    if (parsed.lot) parts.push(`Lot: ${parsed.lot}`);
-    if (parsed.expiration) parts.push(`Expires: ${parsed.expiration}`);
-    
-    if (parts.length > 1) {
+
+    if (!parsed) return;
+
+    if (parsed.gtin) parts.push(`<strong>GTIN:</strong> ${parsed.gtin}`);
+    if (parsed.lot) parts.push(`<strong>Lot:</strong> ${parsed.lot}`);
+    if (parsed.expiration) parts.push(`<strong>Expires:</strong> ${parsed.expiration}`);
+
+    if (parts.length >= 1) {
         const message = document.createElement('div');
         message.className = 'alert alert-success alert-dismissible fade show mt-2';
         message.innerHTML = `
-            <strong>Parsed GS1 data:</strong> ${parts.join(', ')}
+            <strong>Parsed GS1 data:</strong> ${barcodeData} 
+            <br/> ${parts.join(', ')}
             <button type="button" class="close" data-dismiss="alert">
                 <span aria-hidden="true">&times;</span>
             </button>
@@ -938,8 +700,16 @@ function showParseResult(gtinInput, parsed) {
         
         const container = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
         
-        // Safety check: ensure container exists and message is not already in DOM
+        // Safety check: ensure container exists
         if (container && !message.parentNode) {
+            // Remove any existing parse result messages first
+            const existingMessages = container.querySelectorAll('.alert-success');
+            existingMessages.forEach(existing => {
+                if (existing.innerHTML.includes('Parsed GS1 data:')) {
+                    existing.remove();
+                }
+            });
+            
             container.appendChild(message);
         }
     }
@@ -966,12 +736,12 @@ function addGS1ParseToInput(gtinInput) {
         if (!value) return;
         
         const parsed = BarcodeScanner.parseGS1(value);
-        
-        // Always update GTIN field with the parsed GTIN value
-        if (parsed.gtin && parsed.gtin !== value) {
-            this.value = parsed.gtin;
-            this.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        if (!parsed) return; // Only proceed if parsing was successful
+
+        // Always clear field if parsed successfully
+        this.value = parsed.gtin || "";
+
+
         
         // Try to populate other fields if they exist
         const form = this.closest('form');
@@ -1004,8 +774,8 @@ function addGS1ParseToInput(gtinInput) {
         }
         
         // Show parse result if additional data was found
-        if (parsed.lot || parsed.expiration) {
-            showParseResult(this, parsed);
+        if (parsed.lot || parsed.expiration || parsed.gtin) {
+            showParseResult(this, value, parsed);
         }
     });
 }
