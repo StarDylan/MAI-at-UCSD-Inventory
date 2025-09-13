@@ -921,7 +921,7 @@ function showParseResult(gtinInput, parsed) {
     
     if (parts.length > 1) {
         const message = document.createElement('div');
-        message.className = 'alert alert-success alert-dismissible show mt-2';
+        message.className = 'alert alert-success alert-dismissible fade show mt-2';
         message.innerHTML = `
             <strong>Parsed GS1 data:</strong> ${parts.join(', ')}
             <button type="button" class="close" data-dismiss="alert">
@@ -935,13 +935,6 @@ function showParseResult(gtinInput, parsed) {
         if (container && !message.parentNode) {
             container.appendChild(message);
         }
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            if (message.parentNode) {
-                message.remove();
-            }
-        }, 5000);
     }
 }
 
