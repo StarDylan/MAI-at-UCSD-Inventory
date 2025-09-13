@@ -921,7 +921,7 @@ function showParseResult(gtinInput, parsed) {
     
     if (parts.length > 1) {
         const message = document.createElement('div');
-        message.className = 'alert alert-success alert-dismissible fade show mt-2';
+        message.className = 'alert alert-success alert-dismissible show mt-2';
         message.innerHTML = `
             <strong>Parsed GS1 data:</strong> ${parts.join(', ')}
             <button type="button" class="close" data-dismiss="alert">
