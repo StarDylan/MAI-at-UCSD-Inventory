@@ -887,3 +887,198 @@ def items_search_api(request):
         'has_more': total_count > limit,
         'limit': limit
     })
+
+
+def public_search_view(request):
+    """
+    Public search page that displays all items in a store-like interface.
+    
+    Provides a comprehensive view of inventory items with filtering and sorting options.
+    Shows all items by default, sorted by last added first, with filtering options for:
+    - Categories to show
+    - Expired vs non-expired items
+    - Include zero quantity items
+    - View modes: tile view or table view with customizable columns
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        HttpResponse: Rendered template with search interface
+    """
+    # Get all categories for filter dropdown
+    categories = Category.objects.all().order_by('name')
+    
+    context = {
+        'categories': categories,
+    }
+    
+    template = loader.get_template("items/public_search.html")
+    return HttpResponse(template.render(context, request))
+
+
+def public_search_api(request):
+    """
+    API endpoint for the public search functionality.
+    
+    Returns items with comprehensive filtering and pagination support.
+    
+    Query Parameters:
+        offset: Starting position for pagination (default: 0)
+        limit: Maximum number of results to return (default: 20, max: 100)
+        search: General search query across name, manufacturer
+        categories: Comma-separated list of category IDs to filter by
+        include_expired: Include expired items (true/false, default: true)
+        include_zero_qty: Include items with zero quantity (true/false, default: false)
+        sort_by: Sort field (date_added, name, manufacturer, category, quantity)
+        sort_order: Sort order (asc/desc, default: desc for date_added, asc for others)
+        
+    Returns:
+        JsonResponse: JSON response with items data and pagination info
+    """
+    from django.db.models import Q, Sum, Case, When, IntegerField, Max
+    from django.utils import timezone
+    
+    # Get pagination parameters
+    try:
+        offset = int(request.GET.get('offset', 0))
+        offset = max(0, offset)
+    except (ValueError, TypeError):
+        offset = 0
+    
+    try:
+        limit = int(request.GET.get('limit', 20))
+        limit = max(1, min(limit, 100))  # Ensure limit is between 1 and 100
+    except (ValueError, TypeError):
+        limit = 20
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    category_ids = request.GET.get('categories', '').strip()
+    include_expired = request.GET.get('include_expired', 'true').lower() == 'true'
+    include_zero_qty = request.GET.get('include_zero_qty', 'false').lower() == 'true'
+    sort_by = request.GET.get('sort_by', 'date_added')
+    sort_order = request.GET.get('sort_order', 'desc' if sort_by == 'date_added' else 'asc')
+    
+    # Build the base queryset
+    items_query = models.Item.active_objects.select_related('category', 'subcategory')
+    
+    # Filter for permission-based access - only show surplus-approved items for public users
+    if not request.user.has_perm('inventory.view_internalstockingdetails'):
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+    
+    # Apply search filter
+    if search_query and len(search_query) >= 2:
+        search_conditions = (
+            Q(name__icontains=search_query) | 
+            Q(manufacturer__icontains=search_query) |
+            Q(gtin__exact=search_query)  # Exact match for GTIN
+        )
+        items_query = items_query.filter(search_conditions)
+    
+    # Apply category filter
+    if category_ids:
+        try:
+            category_list = [cat_id.strip() for cat_id in category_ids.split(',') if cat_id.strip()]
+            if category_list:
+                items_query = items_query.filter(category__id__in=category_list)
+        except (ValueError, TypeError):
+            pass
+    
+    # Annotate with stock information
+    today = timezone.now().date()
+    items_query = items_query.annotate(
+        total_stock_quantity=Sum(
+            Case(
+                When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                default=0,
+                output_field=IntegerField()
+            )
+        ),
+        expired_stock_quantity=Sum(
+            Case(
+                When(
+                    stock_items__quantity__gt=0,
+                    stock_items__expiration_date__lt=today,
+                    then='stock_items__quantity'
+                ),
+                default=0,
+                output_field=IntegerField()
+            )
+        ),
+        variant_count=models.Count('stock_items__detail', distinct=True),
+        latest_stock_date=Max('stock_items__date_received')
+    )
+    
+    # Apply quantity filter
+    if not include_zero_qty:
+        items_query = items_query.filter(total_stock_quantity__gt=0)
+    
+    # Apply expiration filter
+    if not include_expired:
+        items_query = items_query.exclude(
+            stock_items__expiration_date__lt=today,
+            stock_items__quantity__gt=0
+        )
+    
+    # Apply sorting
+    sort_field = 'name'  # default
+    if sort_by == 'date_added':
+        sort_field = 'latest_stock_date'
+    elif sort_by == 'name':
+        sort_field = 'name'
+    elif sort_by == 'manufacturer':
+        sort_field = 'manufacturer'
+    elif sort_by == 'category':
+        sort_field = 'category__name'
+    elif sort_by == 'quantity':
+        sort_field = 'total_stock_quantity'
+    
+    if sort_order == 'desc':
+        sort_field = f'-{sort_field}'
+    
+    items_query = items_query.order_by(sort_field).distinct()
+    
+    # Get total count for pagination
+    total_count = items_query.count()
+    
+    # Apply pagination
+    items = items_query[offset:offset + limit]
+    
+    # Prepare response data
+    items_list = []
+    for item in items:
+        # Get the first image URL if available
+        first_image = item.images.first()
+        image_url = first_image.image_url if first_image else None
+        
+        # Calculate expiration info
+        has_expired_stock = item.expired_stock_quantity > 0 if item.expired_stock_quantity else False
+        
+        # Get locations
+        locations = item.aggregated_locations
+        
+        items_list.append({
+            'id': str(item.id),
+            'name': item.name,
+            'manufacturer': item.manufacturer,
+            'category': item.category.name,
+            'subcategory': item.subcategory.name if item.subcategory else '',
+            'total_stock_quantity': item.total_stock_quantity or 0,
+            'expired_stock_quantity': item.expired_stock_quantity or 0,
+            'has_expired_stock': has_expired_stock,
+            'variant_count': item.variant_count or 0,
+            'image_url': image_url,
+            'locations': locations,
+            'latest_stock_date': item.latest_stock_date.isoformat() if item.latest_stock_date else None,
+            'notes_public': item.notes_public,
+            'url': item.url,
+        })
+    
+    return JsonResponse({
+        'items': items_list,
+        'total_count': total_count,
+        'offset': offset,
+        'limit': limit,
+        'has_more': total_count > offset + limit,
+    })

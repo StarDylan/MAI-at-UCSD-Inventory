@@ -1,0 +1,489 @@
+{% extends "shared/base.html" %}
+{% load static %}
+
+{% block body %}
+<div class="row">
+  <div class="col-12">
+    <h3>Inventory Search</h3>
+    <p class="text-muted">Browse all available items in the inventory</p>
+  </div>
+</div>
+
+<!-- Search and Filter Controls -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="row">
+          <!-- Search Input -->
+          <div class="col-md-4 mb-3">
+            <label for="search-input" class="form-label">Search Items</label>
+            <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN...">
+          </div>
+          
+          <!-- Category Filter -->
+          <div class="col-md-3 mb-3">
+            <label for="category-filter" class="form-label">Categories</label>
+            <select multiple class="form-control" id="category-filter" size="3">
+              {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+              {% endfor %}
+            </select>
+            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple</small>
+          </div>
+          
+          <!-- Filter Checkboxes -->
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Display Options</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="include-expired" checked>
+              <label class="form-check-label" for="include-expired">
+                Include expired items
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="include-zero-qty">
+              <label class="form-check-label" for="include-zero-qty">
+                Include zero quantity items
+              </label>
+            </div>
+          </div>
+          
+          <!-- View Mode Toggle -->
+          <div class="col-md-2 mb-3">
+            <label class="form-label">View Mode</label>
+            <div class="btn-group d-block" role="group">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="tile-view-btn">
+                <i class="material-icons">view_module</i> Tiles
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="table-view-btn">
+                <i class="material-icons">view_list</i> Table
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Sort Controls -->
+        <div class="row">
+          <div class="col-md-3">
+            <label for="sort-by" class="form-label">Sort By</label>
+            <select class="form-control" id="sort-by">
+              <option value="date_added">Date Added</option>
+              <option value="name">Name</option>
+              <option value="manufacturer">Manufacturer</option>
+              <option value="category">Category</option>
+              <option value="quantity">Quantity</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="sort-order" class="form-label">Order</label>
+            <select class="form-control" id="sort-order">
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="button" class="btn btn-secondary btn-sm" id="clear-filters">
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results Info -->
+<div class="row mb-3">
+  <div class="col-12">
+    <div id="results-info" class="text-muted small">
+      Loading items...
+    </div>
+  </div>
+</div>
+
+<!-- Tile View Container -->
+<div id="tile-view-container" class="row">
+  <!-- Tiles will be populated here -->
+</div>
+
+<!-- Table View Container -->
+<div id="table-view-container" style="display: none;">
+  <div class="table-responsive">
+    <table class="table table-hover" id="items-table">
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Name</th>
+          <th>Manufacturer</th>
+          <th>Category</th>
+          <th>Quantity</th>
+          <th>Variants</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <!-- Table rows will be populated here -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loading-indicator" class="text-center py-4" style="display: none;">
+  <div class="spinner-border" role="status">
+    <span class="sr-only">Loading...</span>
+  </div>
+  <p class="mt-2">Loading more items...</p>
+</div>
+
+<!-- No Results Message -->
+<div id="no-results" class="text-center py-5" style="display: none;">
+  <i class="material-icons" style="font-size: 4rem; color: #ccc;">search_off</i>
+  <h5 class="mt-3">No items found</h5>
+  <p class="text-muted">Try adjusting your search criteria or filters.</p>
+</div>
+
+<style>
+.item-tile {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  transition: box-shadow 0.2s;
+  height: 100%;
+}
+
+.item-tile:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.item-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.item-image-placeholder {
+  width: 100%;
+  height: 120px;
+  background-color: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+}
+
+.quantity-badge {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.expired-badge {
+  background-color: #dc3545;
+  color: white;
+}
+
+.low-stock-badge {
+  background-color: #ffc107;
+  color: black;
+}
+
+.in-stock-badge {
+  background-color: #28a745;
+  color: white;
+}
+
+.zero-stock-badge {
+  background-color: #6c757d;
+  color: white;
+}
+
+.item-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  height: 2.4rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.item-manufacturer {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.variant-info {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+@media (max-width: 768px) {
+  .item-tile {
+    margin-bottom: 15px;
+  }
+}
+</style>
+
+<script>
+let currentOffset = 0;
+let isLoading = false;
+let hasMore = true;
+let currentViewMode = 'tile'; // 'tile' or 'table'
+let searchTimeout = null;
+
+// Initialize the page
+$(document).ready(function() {
+  initializeEventListeners();
+  setViewMode('tile');
+  loadItems(true); // Reset and load initial items
+});
+
+function initializeEventListeners() {
+  // Search input with debouncing
+  $('#search-input').on('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      loadItems(true);
+    }, 300);
+  });
+  
+  // Filter controls
+  $('#category-filter, #include-expired, #include-zero-qty, #sort-by, #sort-order').on('change', function() {
+    loadItems(true);
+  });
+  
+  // View mode buttons
+  $('#tile-view-btn').on('click', function() {
+    setViewMode('tile');
+  });
+  
+  $('#table-view-btn').on('click', function() {
+    setViewMode('table');
+  });
+  
+  // Clear filters
+  $('#clear-filters').on('click', function() {
+    $('#search-input').val('');
+    $('#category-filter').val([]);
+    $('#include-expired').prop('checked', true);
+    $('#include-zero-qty').prop('checked', false);
+    $('#sort-by').val('date_added');
+    $('#sort-order').val('desc');
+    loadItems(true);
+  });
+  
+  // Infinite scroll
+  $(window).on('scroll', function() {
+    if ($(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
+      if (!isLoading && hasMore) {
+        loadItems(false);
+      }
+    }
+  });
+}
+
+function setViewMode(mode) {
+  currentViewMode = mode;
+  
+  if (mode === 'tile') {
+    $('#tile-view-btn').removeClass('btn-outline-primary').addClass('btn-primary');
+    $('#table-view-btn').removeClass('btn-primary').addClass('btn-outline-primary');
+    $('#tile-view-container').show();
+    $('#table-view-container').hide();
+  } else {
+    $('#table-view-btn').removeClass('btn-outline-primary').addClass('btn-primary');
+    $('#tile-view-btn').removeClass('btn-primary').addClass('btn-outline-primary');
+    $('#tile-view-container').hide();
+    $('#table-view-container').show();
+  }
+}
+
+function loadItems(reset = false) {
+  if (isLoading) return;
+  
+  if (reset) {
+    currentOffset = 0;
+    hasMore = true;
+    if (currentViewMode === 'tile') {
+      $('#tile-view-container').empty();
+    } else {
+      $('#table-body').empty();
+    }
+  }
+  
+  isLoading = true;
+  $('#loading-indicator').show();
+  $('#no-results').hide();
+  
+  // Collect filter parameters
+  const params = {
+    offset: currentOffset,
+    limit: 20,
+    search: $('#search-input').val().trim(),
+    categories: $('#category-filter').val().join(','),
+    include_expired: $('#include-expired').is(':checked'),
+    include_zero_qty: $('#include-zero-qty').is(':checked'),
+    sort_by: $('#sort-by').val(),
+    sort_order: $('#sort-order').val()
+  };
+  
+  // Remove empty parameters
+  Object.keys(params).forEach(key => {
+    if (params[key] === '' || params[key] === null || params[key] === undefined) {
+      delete params[key];
+    }
+  });
+  
+  $.ajax({
+    url: '/api/public-search/',
+    method: 'GET',
+    data: params,
+    success: function(data) {
+      if (reset || currentOffset === 0) {
+        updateResultsInfo(data.total_count);
+      }
+      
+      if (data.items.length === 0 && currentOffset === 0) {
+        $('#no-results').show();
+      } else {
+        if (currentViewMode === 'tile') {
+          renderTileItems(data.items);
+        } else {
+          renderTableItems(data.items);
+        }
+      }
+      
+      currentOffset = data.offset + data.items.length;
+      hasMore = data.has_more;
+      
+      isLoading = false;
+      $('#loading-indicator').hide();
+    },
+    error: function(xhr, status, error) {
+      console.error('Error loading items:', error);
+      isLoading = false;
+      $('#loading-indicator').hide();
+      
+      // Show error message
+      if (currentOffset === 0) {
+        $('#no-results h5').text('Error loading items');
+        $('#no-results p').text('Please try again later or contact support.');
+        $('#no-results').show();
+      }
+    }
+  });
+}
+
+function updateResultsInfo(totalCount) {
+  const plural = totalCount === 1 ? 'item' : 'items';
+  $('#results-info').text(`Showing ${totalCount} ${plural}`);
+}
+
+function renderTileItems(items) {
+  items.forEach(item => {
+    const tile = createItemTile(item);
+    $('#tile-view-container').append(tile);
+  });
+}
+
+function renderTableItems(items) {
+  items.forEach(item => {
+    const row = createTableRow(item);
+    $('#table-body').append(row);
+  });
+}
+
+function createItemTile(item) {
+  const imageHtml = item.image_url 
+    ? `<img src="${item.image_url}" alt="${item.name}" class="item-image">`
+    : `<div class="item-image-placeholder">
+         <i class="material-icons" style="font-size: 2rem;">image</i>
+       </div>`;
+  
+  const statusBadge = getStatusBadge(item);
+  const manufacturerHtml = item.manufacturer ? `<div class="item-manufacturer">${item.manufacturer}</div>` : '';
+  const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '';
+  const locationText = item.locations || 'No location specified';
+  
+  return $(`
+    <div class="col-lg-3 col-md-4 col-sm-6 col-12">
+      <div class="item-tile">
+        ${imageHtml}
+        <div class="item-title">${item.name}</div>
+        ${manufacturerHtml}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <small class="text-muted">${item.category}</small>
+          ${statusBadge}
+        </div>
+        <div class="variant-info">
+          ${variantText ? `<div>${variantText}</div>` : ''}
+          <div class="text-truncate" title="${locationText}">📍 ${locationText}</div>
+        </div>
+        <div class="mt-2">
+          <a href="/view/item/${item.id}/" class="btn btn-sm btn-outline-primary">
+            <i class="material-icons" style="font-size: 16px;">visibility</i> View Details
+          </a>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function createTableRow(item) {
+  const imageHtml = item.image_url 
+    ? `<img src="${item.image_url}" alt="${item.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">`
+    : `<div style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+         <i class="material-icons" style="font-size: 20px; color: #6c757d;">image</i>
+       </div>`;
+  
+  const statusBadge = getStatusBadge(item);
+  const manufacturerText = item.manufacturer || '-';
+  const subcategoryText = item.subcategory ? ` / ${item.subcategory}` : '';
+  const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '1 variant';
+  const locationText = item.locations || 'No location';
+  
+  return $(`
+    <tr>
+      <td>${imageHtml}</td>
+      <td>
+        <strong>${item.name}</strong>
+        ${item.notes_public ? `<br><small class="text-muted">${item.notes_public}</small>` : ''}
+      </td>
+      <td>${manufacturerText}</td>
+      <td>${item.category}${subcategoryText}</td>
+      <td>${item.total_stock_quantity}</td>
+      <td>${variantText}</td>
+      <td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <a href="/view/item/${item.id}/" class="btn btn-sm btn-outline-primary">
+          <i class="material-icons" style="font-size: 16px;">visibility</i>
+        </a>
+      </td>
+    </tr>
+  `);
+}
+
+function getStatusBadge(item) {
+  if (item.has_expired_stock) {
+    return `<span class="badge expired-badge">Expired Stock</span>`;
+  } else if (item.total_stock_quantity === 0) {
+    return `<span class="badge zero-stock-badge">Out of Stock</span>`;
+  } else if (item.total_stock_quantity <= 5) {
+    return `<span class="badge low-stock-badge">Low Stock (${item.total_stock_quantity})</span>`;
+  } else {
+    return `<span class="badge in-stock-badge">In Stock (${item.total_stock_quantity})</span>`;
+  }
+}
+</script>
+
+{% endblock %}
