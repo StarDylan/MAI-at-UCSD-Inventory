@@ -17,7 +17,7 @@ from django.views.generic import UpdateView, CreateView
 
 from inventory import models
 from inventory.forms import ItemForm, ItemWithStockForm, StockItemEditForm
-from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem, CheckOutItem
+from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem, CheckOutItem, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
 
 def view_database(request):
@@ -846,7 +846,7 @@ def public_search_view(request):
     
     Provides a comprehensive view of inventory items with filtering and sorting options.
     Shows all items by default, sorted by last added first, with filtering options for:
-    - Categories to show
+    - Tag groups and specific tags
     - Expired vs non-expired items
     - Include zero quantity items
     - View modes: tile view or table view with customizable columns
@@ -857,11 +857,16 @@ def public_search_view(request):
     Returns:
         HttpResponse: Rendered template with search interface
     """
-    # Get all categories for filter dropdown
-    categories = Category.objects.all().order_by('name')
+    # Get all active tag groups and their tags for filter dropdown
+    tag_groups = models.TagGroup.objects.filter(is_active=True).prefetch_related(
+        models.Prefetch(
+            'tags',
+            queryset=models.Tag.objects.filter(is_active=True).order_by('sort_order', 'name')
+        )
+    ).order_by('sort_order', 'name')
     
     context = {
-        'categories': categories,
+        'tag_groups': tag_groups,
     }
     
     template = loader.get_template("items/public_search.html")
@@ -870,18 +875,19 @@ def public_search_view(request):
 
 def public_search_api(request):
     """
-    API endpoint for the public search functionality.
+    API endpoint for the public search functionality with tag-based filtering.
     
     Returns items with comprehensive filtering and pagination support.
     
     Query Parameters:
         offset: Starting position for pagination (default: 0)
         limit: Maximum number of results to return (default: 20, max: 100)
-        search: General search query across name, manufacturer
-        categories: Comma-separated list of category IDs to filter by (include)
+        search: General search query across name, manufacturer, GTIN, and tags
+        tag_groups: Comma-separated list of tag group IDs to filter by
+        tags: Comma-separated list of tag IDs to filter by
         exclude_expired: Exclude expired items (true/false, default: false)
         include_zero_qty: Include items with zero quantity (true/false, default: false)
-        sort_by: Sort field (date_added, name, manufacturer, category, quantity)
+        sort_by: Sort field (date_added, name, manufacturer, tags, quantity)
         sort_order: Sort order (asc/desc, default: desc for date_added, asc for others)
         
     Returns:
@@ -905,8 +911,8 @@ def public_search_api(request):
     
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
-    category_ids = request.GET.get('categories', '').strip()
-    # excluded_category_ids = request.GET.get('excluded_categories', '').strip()  # COMMENTED OUT: Category exclude functionality
+    tag_group_ids = request.GET.get('tag_groups', '').strip()
+    tag_ids = request.GET.get('tags', '').strip()
     exclude_expired_param = request.GET.get('exclude_expired', 'false')
     exclude_expired = exclude_expired_param.lower() == 'true' if isinstance(exclude_expired_param, str) else bool(exclude_expired_param)
     include_zero_qty_param = request.GET.get('include_zero_qty', 'false')
@@ -914,40 +920,43 @@ def public_search_api(request):
     sort_by = request.GET.get('sort_by', 'date_added')
     sort_order = request.GET.get('sort_order', 'desc' if sort_by == 'date_added' else 'asc')
     
-    # Build the base queryset
-    items_query = models.Item.active_objects.select_related('category', 'subcategory')
+    # Build the base queryset with tag prefetching
+    items_query = models.Item.active_objects.prefetch_related(
+        'tags__tag_group'
+    ).select_related()  # Remove category/subcategory as they will be deprecated
     
     # Filter for permission-based access - only show surplus-approved items for public users
     if not request.user.has_perm('inventory.view_internalstockingdetails'):
         items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
     
-    # Apply search filter
+    # Apply search filter (now includes tags)
     if search_query and len(search_query) >= 2:
         search_conditions = (
             Q(name__icontains=search_query) | 
             Q(manufacturer__icontains=search_query) |
-            Q(gtin__exact=search_query)  # Exact match for GTIN
+            Q(gtin__exact=search_query) |  # Exact match for GTIN
+            Q(tags__name__icontains=search_query) |  # Search in tag names
+            Q(tags__tag_group__name__icontains=search_query)  # Search in tag group names
         )
         items_query = items_query.filter(search_conditions)
     
-    # Apply category filter
-    if category_ids:
+    # Apply tag group filter
+    if tag_group_ids:
         try:
-            category_list = [cat_id.strip() for cat_id in category_ids.split(',') if cat_id.strip()]
-            if category_list:
-                items_query = items_query.filter(category__id__in=category_list)
+            tag_group_list = [tg_id.strip() for tg_id in tag_group_ids.split(',') if tg_id.strip()]
+            if tag_group_list:
+                items_query = items_query.filter(tags__tag_group__id__in=tag_group_list)
         except (ValueError, TypeError):
             pass
     
-    # Apply excluded category filter
-    # COMMENTED OUT: Category exclude functionality
-    # if excluded_category_ids:
-    #     try:
-    #         excluded_category_list = [cat_id.strip() for cat_id in excluded_category_ids.split(',') if cat_id.strip()]
-    #         if excluded_category_list:
-    #             items_query = items_query.exclude(category__id__in=excluded_category_list)
-    #     except (ValueError, TypeError):
-    #         pass
+    # Apply specific tag filter
+    if tag_ids:
+        try:
+            tag_list = [tag_id.strip() for tag_id in tag_ids.split(',') if tag_id.strip()]
+            if tag_list:
+                items_query = items_query.filter(tags__id__in=tag_list)
+        except (ValueError, TypeError):
+            pass
     
     # Annotate with stock information
     today = timezone.now().date()
@@ -981,7 +990,6 @@ def public_search_api(request):
     # Apply expiration filter
     if exclude_expired:
         # Only exclude items where ALL stock is expired (no valid stock remaining)
-        # This allows items with mixed expired/non-expired stock to still appear
         from django.db.models import F
         items_query = items_query.exclude(
             Q(annotated_total_stock_quantity=F('expired_stock_quantity')) &
@@ -996,8 +1004,9 @@ def public_search_api(request):
         sort_field = 'name'
     elif sort_by == 'manufacturer':
         sort_field = 'manufacturer'
-    elif sort_by == 'category':
-        sort_field = 'category__name'
+    elif sort_by == 'tags':
+        # Sort by tag group name, then tag name
+        sort_field = 'tags__tag_group__name'
     elif sort_by == 'quantity':
         sort_field = 'annotated_total_stock_quantity'
     
@@ -1025,12 +1034,43 @@ def public_search_api(request):
         # Get locations
         locations = item.aggregated_locations
         
+        # Get tags information
+        item_tags = []
+        tag_groups_display = []
+        tags_by_group = {}
+        
+        for tag in item.tags.all():
+            tag_info = {
+                'id': str(tag.id),
+                'name': tag.name,
+                'color': tag.display_color,
+                'tag_group': {
+                    'id': str(tag.tag_group.id),
+                    'name': tag.tag_group.name,
+                    'color': tag.tag_group.color
+                }
+            }
+            item_tags.append(tag_info)
+            
+            # Group tags by tag group for display
+            group_name = tag.tag_group.name
+            if group_name not in tags_by_group:
+                tags_by_group[group_name] = []
+                tag_groups_display.append(group_name)
+            tags_by_group[group_name].append(tag.name)
+        
         items_list.append({
             'id': str(item.id),
             'name': item.name,
             'manufacturer': item.manufacturer,
-            'category': item.category.name,
-            'subcategory': item.subcategory.name if item.subcategory else '',
+            # Keep legacy fields for backward compatibility during transition
+            'category': getattr(item.category, 'name', '') if hasattr(item, 'category') and item.category else '',
+            'subcategory': getattr(item.subcategory, 'name', '') if hasattr(item, 'subcategory') and item.subcategory else '',
+            # New tag-based fields
+            'tags': item_tags,
+            'tags_display': item.tags_display,
+            'tag_groups_display': ', '.join(tag_groups_display),
+            'tags_by_group': tags_by_group,
             'total_stock_quantity': item.annotated_total_stock_quantity or 0,
             'expired_stock_quantity': item.expired_stock_quantity or 0,
             'has_expired_stock': has_expired_stock,
