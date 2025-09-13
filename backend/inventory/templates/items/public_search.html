@@ -1024,41 +1024,65 @@ function createTableRow(item) {
 }
 
 function getStatusInfo(item) {
-  if (item.has_expired_stock && item.total_stock_quantity > 0) {
-    const expiredCount = item.expired_stock_quantity || 'Some';
-    if (item.total_stock_quantity === item.expired_stock_quantity) {
+  const excludeExpired = $('#exclude-expired').is(':checked');
+  
+  if (excludeExpired) {
+    // When exclude expired is checked, all items shown are unexpired
+    if (item.total_stock_quantity === 0) {
       return {
-        status: 'expired',
-        class: 'status-expired',
+        status: 'out-of-stock',
+        class: 'status-out-of-stock',
         icon: 'material-icons',
-        iconText: 'warning',
-        text: 'All expired'
+        iconText: 'cancel',
+        text: 'Out of stock'
       };
     } else {
       return {
-        status: 'partial',
-        class: 'status-partial',
+        status: 'valid',
+        class: 'status-valid',
         icon: 'material-icons',
-        iconText: 'warning',
-        text: `${expiredCount}/${item.total_stock_quantity} expired`
+        iconText: 'check_circle',
+        text: 'All Unexpired'
       };
     }
-  } else if (item.total_stock_quantity === 0) {
-    return {
-      status: 'out-of-stock',
-      class: 'status-out-of-stock',
-      icon: 'material-icons',
-      iconText: 'cancel',
-      text: 'Out of stock'
-    };
   } else {
-    return {
-      status: 'valid',
-      class: 'status-valid',
-      icon: 'material-icons',
-      iconText: 'check_circle',
-      text: 'All Not Expired'
-    };
+    // Original behavior when exclude expired is not checked
+    if (item.has_expired_stock && item.total_stock_quantity > 0) {
+      const expiredCount = item.expired_stock_quantity || 'Some';
+      if (item.total_stock_quantity === item.expired_stock_quantity) {
+        return {
+          status: 'expired',
+          class: 'status-expired',
+          icon: 'material-icons',
+          iconText: 'warning',
+          text: 'All expired'
+        };
+      } else {
+        return {
+          status: 'partial',
+          class: 'status-partial',
+          icon: 'material-icons',
+          iconText: 'warning',
+          text: `${expiredCount}/${item.total_stock_quantity} expired`
+        };
+      }
+    } else if (item.total_stock_quantity === 0) {
+      return {
+        status: 'out-of-stock',
+        class: 'status-out-of-stock',
+        icon: 'material-icons',
+        iconText: 'cancel',
+        text: 'Out of stock'
+      };
+    } else {
+      return {
+        status: 'valid',
+        class: 'status-valid',
+        icon: 'material-icons',
+        iconText: 'check_circle',
+        text: 'All Not Expired'
+      };
+    }
   }
 }
 
