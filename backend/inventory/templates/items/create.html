@@ -1,4 +1,4 @@
-{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
+{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %} {% load static %}
 
 <h4>Create Item</h4>
 <form method="post" action="{% url 'create_item' %}" autocomplete="off">
