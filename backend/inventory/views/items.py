@@ -955,8 +955,10 @@ def public_search_api(request):
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
     category_ids = request.GET.get('categories', '').strip()
-    include_expired = request.GET.get('include_expired', 'true').lower() == 'true'
-    include_zero_qty = request.GET.get('include_zero_qty', 'false').lower() == 'true'
+    include_expired_param = request.GET.get('include_expired', 'true')
+    include_expired = include_expired_param.lower() == 'true' if isinstance(include_expired_param, str) else bool(include_expired_param)
+    include_zero_qty_param = request.GET.get('include_zero_qty', 'false')
+    include_zero_qty = include_zero_qty_param.lower() == 'true' if isinstance(include_zero_qty_param, str) else bool(include_zero_qty_param)
     sort_by = request.GET.get('sort_by', 'date_added')
     sort_order = request.GET.get('sort_order', 'desc' if sort_by == 'date_added' else 'asc')
     

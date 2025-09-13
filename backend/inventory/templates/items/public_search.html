@@ -285,7 +285,7 @@ function initializeEventListeners() {
   $(window).on('scroll', function() {
     if ($(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
       if (!isLoading && hasMore) {
-        loadItems(false);
+        loadItems(false); // Load more items without resetting
       }
     }
   });
