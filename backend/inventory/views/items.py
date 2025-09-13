@@ -886,7 +886,7 @@ def public_search_api(request):
     Returns:
         JsonResponse: JSON response with items data and pagination info
     """
-    from django.db.models import Q, Sum, Case, When, IntegerField, Max
+    from django.db.models import Q, Sum, Case, When, IntegerField, Max, Count
     from django.utils import timezone
     
     # Get pagination parameters
@@ -958,7 +958,7 @@ def public_search_api(request):
                 output_field=IntegerField()
             )
         ),
-        variant_count=models.Count('stock_items__detail', distinct=True),
+        variant_count=Count('stock_items__detail', distinct=True),
         latest_stock_date=Max('stock_items__date_received')
     )
     
