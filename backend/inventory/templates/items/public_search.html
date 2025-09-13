@@ -927,6 +927,24 @@ function renderTableItems(items) {
   });
 }
 
+function getDisplayQuantity(item) {
+  // Calculate unexpired quantity when "Exclude expired items" is checked
+  const excludeExpired = $('#exclude-expired').is(':checked');
+  
+  if (excludeExpired && item.expired_stock_quantity > 0) {
+    // Return total - expired = unexpired quantity
+    return item.total_stock_quantity - item.expired_stock_quantity;
+  }
+  
+  // Return total quantity by default
+  return item.total_stock_quantity;
+}
+
+function getQuantityText() {
+  const excludeExpired = $('#exclude-expired').is(':checked');
+  return excludeExpired ? 'unexpired units available' : 'units available';
+}
+
 function createItemTile(item) {
   const imageHtml = item.image_url 
     ? `<img src="${item.image_url}" alt="${item.name}" class="card-image">`
@@ -938,6 +956,8 @@ function createItemTile(item) {
   const manufacturerHtml = item.manufacturer ? `<div class="manufacturer">${item.manufacturer}</div>` : '';
   const variantText = item.variant_count > 1 ? `${item.variant_count} variants available` : '';
   const locationText = item.locations || 'No location specified';
+  const displayQuantity = getDisplayQuantity(item);
+  const quantityText = getQuantityText();
   
   return $(`
     <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
@@ -950,7 +970,7 @@ function createItemTile(item) {
         ${manufacturerHtml}
         
         <div class="quantity-display">
-          ${item.total_stock_quantity} <span class="quantity-unit">units available</span>
+          ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
         </div>
         
         <div class="bottom-section">
@@ -979,6 +999,7 @@ function createTableRow(item) {
   const subcategoryText = item.subcategory ? ` / ${item.subcategory}` : '';
   const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '1 variant';
   const locationText = item.locations || 'No location';
+  const displayQuantity = getDisplayQuantity(item);
   
   return $(`
     <tr>
@@ -989,7 +1010,7 @@ function createTableRow(item) {
       </td>
       <td>${manufacturerText}</td>
       <td>${item.category}${subcategoryText}</td>
-      <td>${item.total_stock_quantity}</td>
+      <td>${displayQuantity}</td>
       <td>${variantText}</td>
       <td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>
       <td>${statusBadge}</td>
@@ -1042,14 +1063,16 @@ function getStatusInfo(item) {
 }
 
 function getStatusBadge(item) {
+  const displayQuantity = getDisplayQuantity(item);
+  
   if (item.has_expired_stock) {
     return `<span class="badge expired-badge">Expired Stock</span>`;
-  } else if (item.total_stock_quantity === 0) {
+  } else if (displayQuantity === 0) {
     return `<span class="badge zero-stock-badge">Out of Stock</span>`;
-  } else if (item.total_stock_quantity <= 5) {
-    return `<span class="badge low-stock-badge">Low Stock (${item.total_stock_quantity})</span>`;
+  } else if (displayQuantity <= 5) {
+    return `<span class="badge low-stock-badge">Low Stock (${displayQuantity})</span>`;
   } else {
-    return `<span class="badge in-stock-badge">In Stock (${item.total_stock_quantity})</span>`;
+    return `<span class="badge in-stock-badge">In Stock (${displayQuantity})</span>`;
   }
 }
 </script>
