@@ -1,7 +1,7 @@
 /**
- * Barcode Scanner and GS1 Parser Module
- * Provides functionality for parsing GS1 Application Identifiers and camera-based barcode scanning
- * Uses ZXing-JS library for comprehensive barcode detection including Data Matrix (GS1)
+ * Data Matrix Scanner and GS1 Parser Module
+ * Provides functionality for parsing GS1 Application Identifiers and camera-based Data Matrix scanning
+ * Uses ZXing-JS library for Data Matrix (GS1) detection
  */
 
 class BarcodeScanner {
@@ -164,7 +164,7 @@ class BarcodeScanner {
     }
 
     /**
-     * Initialize camera for barcode scanning using ZXing-JS
+     * Initialize camera for Data Matrix scanning using ZXing-JS
      */
     async initCamera(container) {
         try {
@@ -196,7 +196,7 @@ class BarcodeScanner {
             return this.container;
         } catch (error) {
             console.error('Error initializing camera:', error);
-            throw new Error('Unable to initialize barcode scanner. Please ensure camera permissions are granted.');
+            throw new Error('Unable to initialize Data Matrix scanner. Please ensure camera permissions are granted.');
         }
     }
 
@@ -256,7 +256,7 @@ class BarcodeScanner {
     }
 
     /**
-     * Start scanning for barcodes using ZXing-JS
+     * Start scanning for Data Matrix codes using ZXing-JS
      */
     async startScanning(onResult) {
         if (this.isScanning) return;
@@ -267,7 +267,7 @@ class BarcodeScanner {
             this.isScanning = true;
             this.onResult = onResult;
             
-            // Create a multi-format reader that supports various barcode types including Data Matrix
+            // Create a Data Matrix code reader
             const codeReader = new window.ZXing.BrowserDatamatrixCodeReader();
             this.codeReader = codeReader;
             
@@ -314,7 +314,7 @@ class BarcodeScanner {
             // Start continuous decoding
             this.codeReader.decodeFromVideoDevice(selectedDeviceId, this.videoElement, (result, err) => {
                 if (result) {
-                    // Successfully decoded a barcode
+                    // Successfully decoded a Data Matrix code
                     if (this.onResult) {
                         this.onResult(result.getText());
                     }
@@ -389,7 +389,7 @@ class BarcodeScanner {
 }
 
 /**
- * Create barcode scanner button and modal for GTIN input fields
+ * Create Data Matrix scanner button and modal for GTIN input fields
  */
 function createBarcodeScannerButton(gtinInput) {
     if (!gtinInput || gtinInput.hasAttribute('data-barcode-scanner-added')) {
@@ -409,7 +409,7 @@ function createBarcodeScannerButton(gtinInput) {
     scanButton.type = 'button';
     scanButton.className = 'btn btn-outline-primary btn-sm ml-2';
     scanButton.innerHTML = '<i class="material-icons">qr_code_scanner</i> Scan';
-    scanButton.title = 'Scan barcode with camera';
+    scanButton.title = 'Scan Data Matrix code with camera';
 
     // Insert button after the input
     const parentGroup = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
@@ -449,7 +449,7 @@ function createBarcodeScannerButton(gtinInput) {
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Scan Barcode</h5>
+                    <h5 class="modal-title">Scan Data Matrix Code</h5>
                     <button type="button" class="close" data-dismiss="modal">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -505,7 +505,7 @@ function createBarcodeScannerButton(gtinInput) {
             const container = await scanner.initCamera(cameraDiv);
             
             // Clear loading message and set up container
-            cameraDiv.innerHTML = '<p class="mb-2">Point camera at barcode</p>';
+            cameraDiv.innerHTML = '<p class="mb-2">Point camera at Data Matrix code</p>';
             
             // Safety check: only append if container is not the same as cameraDiv
             if (container && container !== cameraDiv && !cameraDiv.contains(container)) {
@@ -761,7 +761,7 @@ function addGS1ParseToInput(gtinInput) {
 }
 
 /**
- * Initialize barcode scanner for all GTIN inputs on the page
+ * Initialize Data Matrix scanner for all GTIN inputs on the page
  */
 function initBarcodeScanner() {
     // Find all GTIN input fields (including dynamically added ones)
