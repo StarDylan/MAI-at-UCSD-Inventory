@@ -878,7 +878,8 @@ def public_search_api(request):
         offset: Starting position for pagination (default: 0)
         limit: Maximum number of results to return (default: 20, max: 100)
         search: General search query across name, manufacturer
-        categories: Comma-separated list of category IDs to filter by
+        categories: Comma-separated list of category IDs to filter by (include)
+        excluded_categories: Comma-separated list of category IDs to exclude
         include_expired: Include expired items (true/false, default: true)
         include_zero_qty: Include items with zero quantity (true/false, default: false)
         sort_by: Sort field (date_added, name, manufacturer, category, quantity)
@@ -906,6 +907,7 @@ def public_search_api(request):
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
     category_ids = request.GET.get('categories', '').strip()
+    excluded_category_ids = request.GET.get('excluded_categories', '').strip()
     include_expired_param = request.GET.get('include_expired', 'true')
     include_expired = include_expired_param.lower() == 'true' if isinstance(include_expired_param, str) else bool(include_expired_param)
     include_zero_qty_param = request.GET.get('include_zero_qty', 'false')
@@ -935,6 +937,15 @@ def public_search_api(request):
             category_list = [cat_id.strip() for cat_id in category_ids.split(',') if cat_id.strip()]
             if category_list:
                 items_query = items_query.filter(category__id__in=category_list)
+        except (ValueError, TypeError):
+            pass
+    
+    # Apply excluded category filter
+    if excluded_category_ids:
+        try:
+            excluded_category_list = [cat_id.strip() for cat_id in excluded_category_ids.split(',') if cat_id.strip()]
+            if excluded_category_list:
+                items_query = items_query.exclude(category__id__in=excluded_category_list)
         except (ValueError, TypeError):
             pass
     
@@ -969,9 +980,12 @@ def public_search_api(request):
     
     # Apply expiration filter
     if not include_expired:
+        # Only exclude items where ALL stock is expired (no valid stock remaining)
+        # This allows items with mixed expired/non-expired stock to still appear
+        from django.db.models import F
         items_query = items_query.exclude(
-            stock_items__expiration_date__lt=today,
-            stock_items__quantity__gt=0
+            Q(annotated_total_stock_quantity=F('expired_stock_quantity')) &
+            Q(annotated_total_stock_quantity__gt=0)
         )
     
     # Apply sorting
