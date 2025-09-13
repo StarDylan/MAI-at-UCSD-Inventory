@@ -193,6 +193,7 @@ def view_item_detail(request, uuid):
         'images': images,
         'stock_items': stock_items,
         'audit': all_events,
+        'total_items': sum(si.quantity for si in stock_items),
     }
     
     template = loader.get_template("items/detail.html")
