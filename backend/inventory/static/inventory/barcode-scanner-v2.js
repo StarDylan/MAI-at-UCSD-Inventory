@@ -276,8 +276,10 @@ class BarcodeScanner {
                     // Start scanning
                     window.Quagga.start();
                     
-                    // Check torch capabilities after initialization
-                    this.checkTorchCapabilities();
+                    // Check torch capabilities after initialization with a small delay
+                    setTimeout(() => {
+                        this.checkTorchCapabilities();
+                    }, 500);
                     
                     // Attach detection event listener
                     window.Quagga.onDetected((result) => {
@@ -303,6 +305,7 @@ class BarcodeScanner {
     stopScanning() {
         this.isScanning = false;
         this.torchEnabled = false; // Reset torch state
+        this.torchSupported = false; // Reset torch capabilities
         
         try {
             if (window.Quagga) {
@@ -475,35 +478,42 @@ function createBarcodeScannerButton(gtinInput) {
                 handleBarcodeResult(gtinInput, result);
             });
             
-            // Show torch button if supported
-            const torchButton = document.getElementById(`${modalId}_torch`);
-            if (scanner.torchSupported && torchButton) {
-                torchButton.classList.remove('d-none');
-                
-                // Add torch toggle event listener
-                torchButton.addEventListener('click', async () => {
-                    try {
-                        const isEnabled = await scanner.toggleTorch();
-                        const icon = torchButton.querySelector('i');
-                        const text = torchButton.querySelector('span');
-                        
-                        if (isEnabled) {
-                            icon.textContent = 'flashlight_on';
-                            text.textContent = 'Torch On';
-                            torchButton.classList.remove('btn-outline-warning');
-                            torchButton.classList.add('btn-warning');
-                        } else {
-                            icon.textContent = 'flashlight_off';
-                            text.textContent = 'Torch';
-                            torchButton.classList.remove('btn-warning');
-                            torchButton.classList.add('btn-outline-warning');
+            // Wait a bit longer for torch capabilities to be checked
+            setTimeout(() => {
+                // Show torch button if supported
+                const torchButton = document.getElementById(`${modalId}_torch`);
+                if (scanner.torchSupported && torchButton) {
+                    torchButton.classList.remove('d-none');
+                    
+                    // Remove any existing event listeners first
+                    const newTorchButton = torchButton.cloneNode(true);
+                    torchButton.parentNode.replaceChild(newTorchButton, torchButton);
+                    
+                    // Add fresh torch toggle event listener
+                    newTorchButton.addEventListener('click', async () => {
+                        try {
+                            const isEnabled = await scanner.toggleTorch();
+                            const icon = newTorchButton.querySelector('i');
+                            const text = newTorchButton.querySelector('span');
+                            
+                            if (isEnabled) {
+                                icon.textContent = 'flashlight_on';
+                                text.textContent = 'Torch On';
+                                newTorchButton.classList.remove('btn-outline-warning');
+                                newTorchButton.classList.add('btn-warning');
+                            } else {
+                                icon.textContent = 'flashlight_off';
+                                text.textContent = 'Torch';
+                                newTorchButton.classList.remove('btn-warning');
+                                newTorchButton.classList.add('btn-outline-warning');
+                            }
+                        } catch (error) {
+                            console.error('Error toggling torch:', error);
+                            // Could show a toast message here if needed
                         }
-                    } catch (error) {
-                        console.error('Error toggling torch:', error);
-                        // Could show a toast message here if needed
-                    }
-                });
-            }
+                    });
+                }
+            }, 1000);
             
         } catch (error) {
             errorDiv.textContent = error.message;
@@ -554,10 +564,20 @@ function createBarcodeScannerButton(gtinInput) {
         // Ensure any previous scanner instance is stopped
         scanner.stopScanning();
         
+        // Reset scanner state completely
+        scanner.torchSupported = false;
+        scanner.torchEnabled = false;
+        
         // Hide torch button initially
         const torchButton = document.getElementById(`${modalId}_torch`);
         if (torchButton) {
             torchButton.classList.add('d-none');
+            torchButton.classList.remove('btn-warning');
+            torchButton.classList.add('btn-outline-warning');
+            const icon = torchButton.querySelector('i');
+            const text = torchButton.querySelector('span');
+            if (icon) icon.textContent = 'flashlight_off';
+            if (text) text.textContent = 'Torch';
         }
     });
 }
