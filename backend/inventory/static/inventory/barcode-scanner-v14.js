@@ -664,7 +664,14 @@ function handleBarcodeResult(gtinInput, barcodeData) {
         for (const fieldName of expirationFields) {
             const expirationInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
             if (expirationInput && parsed.expiration) {
-                expirationInput.value = parsed.expiration;
+                // parsed.expiration looks like YYMMDD, convert to YYYY-MM-DD if possible
+                const year = parsed.expiration.substring(0, 2);
+                const month = parsed.expiration.substring(2, 4);
+                const day = parsed.expiration.substring(4, 6);
+                let fullYear = parseInt(year, 10);
+                fullYear += (fullYear >= 50) ? 1900 : 2000; // Simple pivot year logic
+
+                expirationInput.value = `${fullYear}-${month}-${day}`;
                 expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
                 break;
             }
