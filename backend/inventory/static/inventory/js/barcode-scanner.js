@@ -420,8 +420,6 @@ class BarcodeScanner {
                 <p class="text-muted">Initializing camera...</p>
               </div>
               <div id="scanner-container" style="position: relative; display: inline-block; border: 2px solid #007bff; border-radius: 8px; overflow: hidden; width: 640px; height: 480px; background: #000;">
-                <!-- Quagga2 will create the video element inside this container -->
-                <canvas id="preview-canvas" style="position: absolute; top: 0; left: 0; z-index: 1;"></canvas>
               </div>
               <div class="mt-3">
                 <p class="small text-muted">Position the barcode within the camera view</p>
