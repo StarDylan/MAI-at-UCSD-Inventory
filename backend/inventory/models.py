@@ -5,6 +5,72 @@ import uuid
 
 from inventory.managers import ActiveManager
 
+class TagGroup(models.Model):
+    """
+    Groups for organizing tags into logical categories.
+    Examples: 'Medical Supplies', 'Office Equipment', 'Electronics', etc.
+    """
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    name = models.CharField(max_length=100, help_text="Name of the tag group (e.g., 'Medical Supplies')")
+    description = models.TextField(blank=True, default="", help_text="Optional description of this tag group")
+    color = models.CharField(
+        max_length=7, 
+        default="#6c757d", 
+        help_text="Hex color code for visual representation (e.g., #ff0000)"
+    )
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order for displaying tag groups")
+    is_active = models.BooleanField(default=True, help_text="Whether this tag group is active")
+
+    class Meta:
+        db_table = "tag_group"
+        ordering = ['sort_order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['name'], name='unique_tag_group_name')
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Tag(models.Model):
+    """
+    Individual tags that can be applied to items.
+    Each tag belongs to a tag group for organization.
+    """
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    name = models.CharField(max_length=100, help_text="Name of the tag (e.g., 'PPE', 'Disposable')")
+    description = models.TextField(blank=True, default="", help_text="Optional description of this tag")
+    tag_group = models.ForeignKey(
+        TagGroup,
+        related_name="tags",
+        on_delete=models.PROTECT,
+        help_text="The group this tag belongs to"
+    )
+    color = models.CharField(
+        max_length=7, 
+        blank=True, 
+        default="", 
+        help_text="Hex color code (optional, inherits from tag group if empty)"
+    )
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order for displaying tags within group")
+    is_active = models.BooleanField(default=True, help_text="Whether this tag is active")
+
+    class Meta:
+        db_table = "tag"
+        ordering = ['tag_group__sort_order', 'tag_group__name', 'sort_order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['name', 'tag_group'], name='unique_tag_name_per_group')
+        ]
+
+    def __str__(self):
+        return f"{self.tag_group.name}: {self.name}"
+    
+    @property
+    def display_color(self):
+        """Get the display color, falling back to tag group color if not set."""
+        return self.color or self.tag_group.color
+
+
 class Category(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     name = models.CharField(max_length=100)
@@ -69,6 +135,14 @@ class Item(models.Model):
         null=True,
         blank=True,
         db_column="subcategory_id",
+    )
+    
+    # New tagging system - items can have multiple tags
+    tags = models.ManyToManyField(
+        Tag,
+        related_name="items",
+        blank=True,
+        help_text="Tags assigned to this item for flexible categorization"
     )
 
     name = models.CharField(max_length=255)
@@ -144,6 +218,29 @@ class Item(models.Model):
         gtins.extend(stock_gtins)
         
         return gtins
+    
+    # Tag-related methods
+    @property
+    def tag_groups_display(self):
+        """Get comma-separated list of tag groups for this item"""
+        tag_groups = self.tags.values_list('tag_group__name', flat=True).distinct()
+        return ', '.join(sorted(tag_groups)) if tag_groups else ""
+    
+    @property
+    def tags_display(self):
+        """Get comma-separated list of tag names for this item"""
+        tag_names = self.tags.values_list('name', flat=True).order_by('tag_group__sort_order', 'sort_order', 'name')
+        return ', '.join(tag_names) if tag_names else ""
+    
+    def get_tags_by_group(self):
+        """Get tags organized by tag group for this item"""
+        tags_by_group = {}
+        for tag in self.tags.select_related('tag_group').order_by('tag_group__sort_order', 'sort_order'):
+            group_name = tag.tag_group.name
+            if group_name not in tags_by_group:
+                tags_by_group[group_name] = []
+            tags_by_group[group_name].append(tag)
+        return tags_by_group
 
 
 class StockItem(models.Model):
