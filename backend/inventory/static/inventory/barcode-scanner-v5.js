@@ -226,8 +226,8 @@ class BarcodeScanner {
             const codeReader = new window.ZXing.BrowserMultiFormatReader();
             this.codeReader = codeReader;
             
-            // Get video input devices
-            const videoInputDevices = await window.ZXing.BrowserCodeReader.listVideoInputDevices();
+            // Get video input devices using the correct API
+            const videoInputDevices = await this.codeReader.getVideoInputDevices();
             
             // Prefer back camera if available
             let selectedDeviceId = undefined;
