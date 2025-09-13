@@ -21,7 +21,9 @@ class BarcodeScanner {
 
     /**
      * Parse GS1 Application Identifiers from a barcode string
-     * Supports (01) GTIN, (10) Lot, (17) Expiration
+     * Supports both parentheses format: (01)GTIN(10)LOT(17)YYMMDD
+     * and FNC1 format: 01GTIN<FNC1>10LOT<FNC1>17YYMMDD
+     * FNC1 is typically ASCII character 29 (Group Separator)
      */
     static parseGS1(barcodeData) {
         if (!barcodeData || typeof barcodeData !== 'string') {
@@ -31,15 +33,271 @@ class BarcodeScanner {
         // Remove any whitespace
         const data = barcodeData.trim();
         
-        // Check if this looks like GS1 data (contains parentheses with numbers)
-        const gs1Pattern = /\((\d{2,4})\)([^(]*)/g;
-        const matches = [...data.matchAll(gs1Pattern)];
+        // First try parentheses format: (01)GTIN(10)LOT(17)YYMMDD
+        const parenthesesPattern = /\((\d{2,4})\)([^(]*)/g;
+        const parenthesesMatches = [...data.matchAll(parenthesesPattern)];
         
-        if (matches.length === 0) {
-            // No GS1 identifiers found, treat as plain GTIN
-            return { gtin: data, lot: '', expiration: '' };
+        if (parenthesesMatches.length > 0) {
+            return this._parseGS1Matches(parenthesesMatches);
         }
+        
+        // Try FNC1 format (ASCII 29 - Group Separator)
+        // FNC1 can be represented as \u001D (ASCII 29), \x1D, or sometimes as ]C1
+        const fnc1Chars = ['\u001D', '\x1D', String.fromCharCode(29)];
+        let fnc1Data = data;
+        let fnc1Char = null;
+        
+        // Find which FNC1 character is used
+        for (const char of fnc1Chars) {
+            if (data.includes(char)) {
+                fnc1Char = char;
+                break;
+            }
+        }
+        
+        // Also check for common text representations of FNC1
+        if (!fnc1Char) {
+            if (data.includes(']C1')) {
+                fnc1Data = data.replace(/\]C1/g, '\u001D');
+                fnc1Char = '\u001D';
+            } else if (data.includes('<FNC1>')) {
+                fnc1Data = data.replace(/<FNC1>/g, '\u001D');
+                fnc1Char = '\u001D';
+            } else if (data.includes('[FNC1]')) {
+                fnc1Data = data.replace(/\[FNC1\]/g, '\u001D');
+                fnc1Char = '\u001D';
+            }
+        }
+        
+        if (fnc1Char) {
+            return this._parseGS1FNC1Format(fnc1Data, fnc1Char);
+        }
+        
+        // No GS1 identifiers found, treat as plain GTIN
+        return { gtin: data, lot: '', expiration: '' };
+    }
 
+    /**
+     * Parse GS1 data in FNC1 format
+     */
+    static _parseGS1FNC1Format(data, fnc1Char) {
+        const result = { gtin: '', lot: '', expiration: '' };
+        
+        // Split by FNC1 character
+        const segments = data.split(fnc1Char);
+        
+        // Parse each segment
+        for (let segment of segments) {
+            segment = segment.trim();
+            if (!segment) continue;
+            
+            // Extract Application Identifier and data
+            const aiMatch = this._extractApplicationIdentifier(segment);
+            if (aiMatch) {
+                const { ai, value } = aiMatch;
+                
+                switch (ai) {
+                    case '01':  // GTIN (14 digits)
+                        result.gtin = value;
+                        break;
+                    case '10':  // Lot/Batch Number (variable length, up to 20 alphanumeric)
+                        result.lot = value;
+                        break;
+                    case '17':  // Expiration Date (6 digits YYMMDD)
+                        result.expiration = this.parseGS1Date(value);
+                        break;
+                }
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Extract Application Identifier and its value from a segment
+     * Uses GS1 Application Identifier length rules
+     */
+    static _extractApplicationIdentifier(segment) {
+        if (!segment || segment.length < 3) return null;
+        
+        // Common Application Identifiers and their data lengths
+        const aiLengths = {
+            '00': 18,   // SSCC (fixed length)
+            '01': 14,   // GTIN (fixed length) 
+            '02': 14,   // GTIN of trade items contained in a logistic unit
+            '10': -1,   // Batch/lot number (variable length)
+            '11': 6,    // Production date (YYMMDD)
+            '12': 6,    // Due date (YYMMDD)
+            '13': 6,    // Packaging date (YYMMDD)
+            '15': 6,    // Best before date (YYMMDD)
+            '16': 6,    // Sell by date (YYMMDD)
+            '17': 6,    // Expiration date (YYMMDD)
+            '20': 2,    // Internal product variant
+            '21': -1,   // Serial number (variable length)
+            '22': -1,   // Consumer product variant (variable length)
+            '240': -1,  // Additional product identification assigned by the manufacturer (variable length)
+            '241': -1,  // Customer part number (variable length)
+            '242': -1,  // Made-to-Order variation number (variable length)
+            '243': -1,  // Packaging component number (variable length)
+            '250': -1,  // Secondary serial number (variable length)
+            '251': -1,  // Reference to source entity (variable length)
+            '253': -1,  // Global Document Type Identifier (variable length)
+            '254': -1,  // GLN extension component (variable length)
+            '30': -1,   // Variable count (variable length)
+            '310': 6,   // Net weight, kilograms
+            '311': 6,   // Length or first dimension, metres
+            '312': 6,   // Width, diameter, or second dimension, metres
+            '313': 6,   // Depth, thickness, height, or third dimension, metres
+            '314': 6,   // Area, square metres
+            '315': 6,   // Net volume, litres
+            '316': 6,   // Net volume, cubic metres
+            '320': 6,   // Net weight, pounds
+            '321': 6,   // Length or first dimension, inches
+            '322': 6,   // Length or first dimension, feet
+            '323': 6,   // Length or first dimension, yards
+            '324': 6,   // Width, diameter, or second dimension, inches
+            '325': 6,   // Width, diameter, or second dimension, feet
+            '326': 6,   // Width, diameter, or second dimension, yards
+            '327': 6,   // Depth, thickness, height, or third dimension, inches
+            '328': 6,   // Depth, thickness, height, or third dimension, feet
+            '329': 6,   // Depth, thickness, height, or third dimension, yards
+            '330': 6,   // Logistic weight, kilograms
+            '331': 6,   // Length or first dimension, metres
+            '332': 6,   // Width, diameter, or second dimension, metres
+            '333': 6,   // Depth, thickness, height, or third dimension, metres
+            '334': 6,   // Area, square metres
+            '335': 6,   // Logistic volume, litres
+            '336': 6,   // Logistic volume, cubic metres
+            '340': 6,   // Logistic weight, pounds
+            '341': 6,   // Length or first dimension, inches
+            '342': 6,   // Length or first dimension, feet
+            '343': 6,   // Length or first dimension, yards
+            '344': 6,   // Width, diameter, or second dimension, inches
+            '345': 6,   // Width, diameter, or second dimension, feet
+            '346': 6,   // Width, diameter, or second dimension, yards
+            '347': 6,   // Depth, thickness, height, or third dimension, inches
+            '348': 6,   // Depth, thickness, height, or third dimension, feet
+            '349': 6,   // Depth, thickness, height, or third dimension, yards
+            '350': 6,   // Area, square inches
+            '351': 6,   // Area, square feet
+            '352': 6,   // Area, square yards
+            '353': 6,   // Area, square inches
+            '354': 6,   // Area, square feet
+            '355': 6,   // Area, square yards
+            '356': 6,   // Net weight, troy ounces
+            '357': 6,   // Net weight or volume, ounces
+            '360': 6,   // Volume, quarts
+            '361': 6,   // Volume, gallons
+            '362': 6,   // Logistic volume, quarts
+            '363': 6,   // Logistic volume, gallons
+            '364': 6,   // Net volume, cubic inches
+            '365': 6,   // Net volume, cubic feet
+            '366': 6,   // Net volume, cubic yards
+            '367': 6,   // Logistic volume, cubic inches
+            '368': 6,   // Logistic volume, cubic feet
+            '369': 6,   // Logistic volume, cubic yards
+            '37': -1,   // Count of trade items or trade item pieces contained in a logistic unit (variable length)
+            '390': -1,  // Applicable amount payable or Coupon value, local currency (variable length)
+            '391': -1,  // Applicable amount payable with ISO currency code (variable length)
+            '392': -1,  // Applicable amount payable, single monetary area (variable length)
+            '393': -1,  // Applicable amount payable with ISO currency code (variable length)
+            '394': -1,  // Percentage discount of a coupon (variable length)
+            '400': -1,  // Customer's purchase order number (variable length)
+            '401': -1,  // Global Identification Number for Consignment (variable length)
+            '402': 17,  // Global Shipment Identification Number (fixed length)
+            '403': -1,  // Routing code (variable length)
+            '410': 13,  // Ship to / Deliver to Global Location Number
+            '411': 13,  // Bill to / Invoice to Global Location Number
+            '412': 13,  // Purchased from Global Location Number
+            '413': 13,  // Ship for / Deliver for / Forward to Global Location Number
+            '414': 13,  // Identification of a physical location - Global Location Number
+            '415': 13,  // Global Location Number of the invoicing party
+            '416': 13,  // Global Location Number of the production or service location
+            '417': 13,  // Party Global Location Number
+            '420': -1,  // Ship to / Deliver to postal code within a single postal authority (variable length)
+            '421': -1,  // Ship to / Deliver to postal code with ISO country code (variable length)
+            '422': 3,   // Country of origin of a trade item
+            '423': -1,  // Country of initial processing (variable length)
+            '424': 3,   // Country of processing
+            '425': 3,   // Country of disassembly
+            '426': 3,   // Country covering full process chain
+            '427': -1,  // Country subdivision Of origin (variable length)
+            '7001': 13, // NATO Stock Number (NSN)
+            '7002': -1, // UN/ECE meat carcasses and cuts classification (variable length)
+            '7003': 10, // Expiration date and time
+            '7004': -1, // Active potency (variable length)
+            '7005': -1, // Catch area (variable length)
+            '7006': 6,  // First freeze date
+            '7007': -1, // Harvest date (variable length)
+            '7008': -1, // Species for fishery purposes (variable length)
+            '7009': -1, // Fishing gear type (variable length)
+            '7010': -1, // Production method (variable length)
+            '7020': -1, // Refurbishment lot ID (variable length)
+            '7021': -1, // Functional status (variable length)
+            '7022': -1, // Revision status (variable length)
+            '7023': -1, // Global Individual Asset Identifier of an assembly (variable length)
+            '8001': 14, // Roll products (width, length, core diameter, direction, splices)
+            '8002': -1, // Cellular mobile telephone identifier (variable length)
+            '8003': -1, // Global Returnable Asset Identifier (variable length)
+            '8004': -1, // Global Individual Asset Identifier (variable length)
+            '8005': 6,  // Price per unit of measure
+            '8006': 18, // Identification of an individual trade item piece
+            '8007': -1, // International Bank Account Number (variable length)
+            '8008': -1, // Date and time of production (variable length)
+            '8009': -1, // Optically Readable Sensor Indicator (variable length)
+            '8010': -1, // Component/Part Identifier (variable length)
+            '8011': -1, // Component/Part Identifier serial number (variable length)
+            '8012': -1, // Software version (variable length)
+            '8013': -1, // Global Model Number (variable length)
+            '8017': 18, // Global Service Relation Number to identify the relationship between an organisation offering services and the provider of services
+            '8018': 18, // Global Service Relation Number to identify the relationship between an organisation offering services and the recipient of services
+            '8019': -1, // Service Relation Instance Number (variable length)
+            '8020': -1, // Payment slip reference number (variable length)
+            '8026': 18, // Identification of pieces of a trade item
+            '8110': -1, // Coupon code identification for use in North America (variable length)
+            '8111': 4,  // Loyalty points of a coupon
+            '8112': -1, // Paperless coupon code identification for use in North America (variable length)
+            '8200': -1, // Extended packaging URL (variable length)
+            '90': -1,   // Information mutually agreed between trading partners (variable length)
+            '91': -1,   // Company internal information (variable length)
+            '92': -1,   // Company internal information (variable length)
+            '93': -1,   // Company internal information (variable length)
+            '94': -1,   // Company internal information (variable length)
+            '95': -1,   // Company internal information (variable length)
+            '96': -1,   // Company internal information (variable length)
+            '97': -1,   // Company internal information (variable length)
+            '98': -1,   // Company internal information (variable length)
+            '99': -1    // Company internal information (variable length)
+        };
+        
+        // Try different AI lengths (2, 3, 4 digits)
+        for (let aiLen = 2; aiLen <= 4 && aiLen <= segment.length; aiLen++) {
+            const ai = segment.substring(0, aiLen);
+            const dataLength = aiLengths[ai];
+            
+            if (dataLength !== undefined) {
+                let value;
+                if (dataLength === -1) {
+                    // Variable length - take remaining data
+                    value = segment.substring(aiLen);
+                } else {
+                    // Fixed length
+                    value = segment.substring(aiLen, aiLen + dataLength);
+                }
+                
+                if (value) {
+                    return { ai, value };
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Parse GS1 matches from parentheses format
+     */
+    static _parseGS1Matches(matches) {
         const result = { gtin: '', lot: '', expiration: '' };
         
         for (const match of matches) {
