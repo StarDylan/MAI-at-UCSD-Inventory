@@ -1,10 +1,6 @@
 {% extends "shared/base.html" %}
 {% load static %}
 
-{% block extra_head %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-{% endblock %}
-
 {% block body %}
 <div class="row">
   <div class="col-12">
@@ -464,7 +460,7 @@ function createItemTile(item) {
   const locationText = item.locations || 'No location specified';
   
   return $(`
-    <div class="col-lg-6 col-md-6 col-sm-12 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
       <div class="supply-card" onclick="window.location.href='/view/item/${item.id}/'">
         <div class="card-image-container">
           ${imageHtml}
@@ -479,7 +475,7 @@ function createItemTile(item) {
         
         <div class="bottom-section">
           <div class="expiration-status ${statusInfo.class}">
-            <i class="${statusInfo.icon} mr-1"></i>
+            <i class="${statusInfo.icon} mr-1">${statusInfo.iconText}</i>
             ${statusInfo.text}
           </div>
           <div class="variants-info">
@@ -528,35 +524,39 @@ function createTableRow(item) {
 
 function getStatusInfo(item) {
   if (item.has_expired_stock && item.total_stock_quantity > 0) {
-    const expiredCount = item.expired_quantity || 'Some';
-    if (item.total_stock_quantity === item.expired_quantity) {
+    const expiredCount = item.expired_stock_quantity || 'Some';
+    if (item.total_stock_quantity === item.expired_stock_quantity) {
       return {
         status: 'expired',
         class: 'status-expired',
-        icon: 'fas fa-exclamation-triangle',
+        icon: 'material-icons',
+        iconText: 'warning',
         text: 'All expired'
       };
     } else {
       return {
         status: 'partial',
         class: 'status-partial',
-        icon: 'fas fa-exclamation-triangle',
-        text: `${expiredCount} expired`
+        icon: 'material-icons',
+        iconText: 'warning',
+        text: `${expiredCount}/${item.total_stock_quantity} expired`
       };
     }
   } else if (item.total_stock_quantity === 0) {
     return {
       status: 'out-of-stock',
       class: 'status-out-of-stock',
-      icon: 'fas fa-times-circle',
+      icon: 'material-icons',
+      iconText: 'cancel',
       text: 'Out of stock'
     };
   } else {
     return {
       status: 'valid',
       class: 'status-valid',
-      icon: 'fas fa-check-circle',
-      text: 'All valid'
+      icon: 'material-icons',
+      iconText: 'check_circle',
+      text: 'All Not Expired'
     };
   }
 }
