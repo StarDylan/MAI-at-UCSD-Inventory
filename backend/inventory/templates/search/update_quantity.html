@@ -1,4 +1,4 @@
-{% extends "shared/base.html" %} {% load crispy_forms_tags %} {% block body %}
+{% extends "shared/base.html" %} {% load crispy_forms_tags %} {% load static %} {% block body %}
 
 <h4>Check in a stock item</h4>
 
@@ -10,6 +10,13 @@
     ></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js" defer></script>
+
+  <!-- Load GTIN processing scripts -->
+  {% load static %}
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.js"></script>
+  <script src="{% static 'inventory/js/gtin-parser.js' %}"></script>
+  <script src="{% static 'inventory/js/barcode-scanner.js' %}"></script>
+  <script src="{% static 'inventory/js/gtin-input-component.js' %}"></script>
 
 
   <!-- Item details card -->
@@ -121,6 +128,19 @@
 
         });
         {% endif %}
+
+        // Initialize GTIN component with GS1 parsing and barcode scanning
+        const gtinInput = document.getElementById("id_gtin");
+        if (gtinInput) {
+          const gtinComponent = new GTINInputComponent({
+            gtinInput: gtinInput,
+            lotInput: document.getElementById("id_lot_number"),
+            expirationInput: document.getElementById("id_expiration_date"),
+            onParsed: function(parsed) {
+              console.log('GTIN parsed:', parsed);
+            }
+          });
+        }
     });
 
     // Stock Location autocomplete functionality

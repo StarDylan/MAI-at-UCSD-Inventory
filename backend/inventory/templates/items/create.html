@@ -1,4 +1,4 @@
-{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
+{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %} {% load static %}
 
 <h4>Create Item</h4>
 <form method="post" action="{% url 'create_item' %}" autocomplete="off">
@@ -23,6 +23,14 @@
   <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Suggested Locations</h6>
   <ul id="stock-location-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
 </div>
+
+<!-- Load GTIN processing scripts -->
+{% load static %}
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+<script src="{% static 'inventory/js/gtin-parser.js' %}"></script>
+<script src="{% static 'inventory/js/gtin-input-component.js' %}"></script>
+<script src="{% static 'inventory/js/barcode-scanner.js' %}"></script>
 
 <script>
   // Wait for DOM to be fully loaded
@@ -167,6 +175,21 @@
 
   if (manufacturerInput) {
     manufacturerInput.addEventListener("input", triggerSearch);
+  }
+
+  // Initialize GTIN component with GS1 parsing and barcode scanning
+  if (gtinInput) {
+    const gtinComponent = new GTINInputComponent({
+      gtinInput: gtinInput,
+      lotInput: document.getElementById("id_lot_number"),
+      expirationInput: document.getElementById("id_expiration_date"),
+      onParsed: function(parsed) {
+        // Trigger search after GTIN is parsed
+        if (parsed.gtin) {
+          triggerSearch();
+        }
+      }
+    });
   }
 
   itemsList.addEventListener("click", function (e) {

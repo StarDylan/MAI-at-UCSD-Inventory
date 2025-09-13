@@ -407,7 +407,6 @@ class Search_QuantityAdd(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 12"})
     )
     gtin = forms.CharField(
-        max_length=14, 
         required=False, 
         widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. 1234567890123"}),
         label="GTIN (Global Trade Item Number)",
