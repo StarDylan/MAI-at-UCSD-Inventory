@@ -642,8 +642,10 @@ function handleBarcodeResult(gtinInput, barcodeData) {
     const parsed = BarcodeScanner.parseGS1(barcodeData);
     
     // Set GTIN value
-    gtinInput.value = parsed.gtin;
-    gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+    if (parsed.gtin) {
+        gtinInput.value = parsed.gtin
+        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     
     // Try to populate lot and expiration fields if they exist
     const form = gtinInput.closest('form');
@@ -663,19 +665,23 @@ function handleBarcodeResult(gtinInput, barcodeData) {
         const expirationInput = form.querySelector(`#id_expiration_date`);
         if (expirationInput && parsed.expiration) {
             // parsed.expiration looks like YYMMDD, convert to YYYY-MM-DD
-            const year = parsed.expiration.substring(0, 2);
-            const month = parsed.expiration.substring(2, 4);
-            const day = parsed.expiration.substring(4, 6);
-            let fullYear = parseInt(year, 10);
-            fullYear += (fullYear >= 50) ? 1900 : 2000; // Simple pivot year logic
-
-            expirationInput.value = `${fullYear}-${month}-${day}`;
+            expirationInput.value = parseGS1Date(parsed.expiration);
             expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
     }
     
     // Show success message
     showParseResult(gtinInput, barcodeData, parsed);
+}
+
+function parseGS1Date(date) {
+    const year = date.substring(0, 2);
+    const month = date.substring(2, 4);
+    const day = date.substring(4, 6);
+    let fullYear = parseInt(year, 10);
+    fullYear += (fullYear >= 50) ? 1900 : 2000; // Simple pivot year logic
+
+    return `${fullYear}-${month}-${day}`
 }
 
 /**
@@ -688,7 +694,7 @@ function showParseResult(gtinInput, barcodeData, parsed) {
 
     if (parsed.gtin) parts.push(`<strong>GTIN:</strong> ${parsed.gtin}`);
     if (parsed.lot) parts.push(`<strong>Lot:</strong> ${parsed.lot}`);
-    if (parsed.expiration) parts.push(`<strong>Expires:</strong> ${parsed.expiration}`);
+    if (parsed.expiration) parts.push(`<strong>Expires:</strong> ${parseGS1Date(parsed.expiration)}`);
 
     if (parts.length >= 1) {
         const message = document.createElement('div');
@@ -744,38 +750,8 @@ function addGS1ParseToInput(gtinInput) {
         // Always clear field / set GTIN if parsed successfully
         this.value = parsed.gtin || "";
         gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
-
-
         
-        // Try to populate other fields if they exist
-        const form = this.closest('form');
-        if (form) {
-            // Populate lot field
-            if (parsed.lot) {
-                const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
-                for (const fieldName of lotFields) {
-                    const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
-                    if (lotInput && !lotInput.value) {
-                        lotInput.value = parsed.lot;
-                        lotInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        break;
-                    }
-                }
-            }
-            
-            // Populate expiration field
-            if (parsed.expiration) {
-                const expirationFields = ['expiration_date', 'expiry_date', 'expires', 'expiration'];
-                for (const fieldName of expirationFields) {
-                    const expirationInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
-                    if (expirationInput && !expirationInput.value) {
-                        expirationInput.value = parsed.expiration;
-                        expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        break;
-                    }
-                }
-            }
-        }
+        handleBarcodeResult(gtinInput, value)
         
         // Show parse result if additional data was found
         if (parsed.lot || parsed.expiration || parsed.gtin) {
