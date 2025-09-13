@@ -1,17 +1,16 @@
 /**
  * Barcode Scanner and GS1 Parser Module
  * Provides functionality for parsing GS1 Application Identifiers and camera-based barcode scanning
+ * Uses quagga2 library for reliable barcode detection
  */
 
 class BarcodeScanner {
     constructor() {
-        this.video = null;
-        this.canvas = null;
-        this.context = null;
-        this.stream = null;
+        this.container = null;
         this.isScanning = false;
         this.onResult = null;
-        this.scanInterval = null;
+        this.isQuaggaLoaded = false;
+        this.loadQuaggaPromise = null;
     }
 
     /**
@@ -85,58 +84,136 @@ class BarcodeScanner {
     }
 
     /**
-     * Initialize camera for barcode scanning
+     * Load quagga2 library dynamically
      */
-    async initCamera() {
-        try {
-            // Create video element if it doesn't exist
-            if (!this.video) {
-                this.video = document.createElement('video');
-                this.video.style.width = '100%';
-                this.video.style.height = 'auto';
-                this.video.autoplay = true;
-                this.video.muted = true;
-                this.video.playsInline = true;
-            }
+    async loadQuagga() {
+        if (this.isQuaggaLoaded || window.Quagga) {
+            this.isQuaggaLoaded = true;
+            return;
+        }
 
-            // Create canvas for frame capture
-            if (!this.canvas) {
-                this.canvas = document.createElement('canvas');
-                this.context = this.canvas.getContext('2d');
-            }
+        if (this.loadQuaggaPromise) {
+            return this.loadQuaggaPromise;
+        }
 
-            // Request camera access
-            const constraints = {
-                video: {
-                    facingMode: 'environment', // Use back camera on mobile
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
+        this.loadQuaggaPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.6/dist/quagga.min.js';
+            script.onload = () => {
+                this.isQuaggaLoaded = true;
+                resolve();
             };
+            script.onerror = () => {
+                reject(new Error('Failed to load quagga2 library'));
+            };
+            document.head.appendChild(script);
+        });
 
-            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-            this.video.srcObject = this.stream;
+        return this.loadQuaggaPromise;
+    }
+
+    /**
+     * Initialize camera for barcode scanning using quagga2
+     */
+    async initCamera(container) {
+        try {
+            await this.loadQuagga();
             
-            return this.video;
+            this.container = container;
+            
+            // Create scanner container if not provided
+            if (!this.container) {
+                this.container = document.createElement('div');
+                this.container.style.width = '100%';
+                this.container.style.height = '300px';
+                this.container.style.position = 'relative';
+            }
+
+            return this.container;
         } catch (error) {
-            console.error('Error accessing camera:', error);
-            throw new Error('Unable to access camera. Please ensure camera permissions are granted.');
+            console.error('Error initializing camera:', error);
+            throw new Error('Unable to initialize barcode scanner. Please ensure camera permissions are granted.');
         }
     }
 
     /**
-     * Start scanning for barcodes
+     * Start scanning for barcodes using quagga2
      */
-    startScanning(onResult) {
+    async startScanning(onResult) {
         if (this.isScanning) return;
         
-        this.isScanning = true;
-        this.onResult = onResult;
-        
-        // Start scanning loop
-        this.scanInterval = setInterval(() => {
-            this.captureAndScan();
-        }, 500); // Scan every 500ms
+        try {
+            await this.loadQuagga();
+            
+            this.isScanning = true;
+            this.onResult = onResult;
+            
+            return new Promise((resolve, reject) => {
+                // Configure quagga2
+                const config = {
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: this.container,
+                        constraints: {
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment", // Use back camera on mobile
+                            aspectRatio: { min: 1, max: 2 }
+                        }
+                    },
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    numOfWorkers: 2,
+                    frequency: 10, // Scan frequency
+                    decoder: {
+                        readers: [
+                            'code_128_reader', 
+                            'ean_reader', 
+                            'ean_8_reader',
+                            'code_39_reader',
+                            'code_39_vin_reader',
+                            'codabar_reader',
+                            'upc_reader',
+                            'upc_e_reader',
+                            'i2of5_reader',
+                            '2of5_reader',
+                            'code_93_reader'
+                        ]
+                    },
+                    locate: true
+                };
+
+                // Initialize quagga2
+                window.Quagga.init(config, (err) => {
+                    if (err) {
+                        console.error('Quagga initialization error:', err);
+                        this.isScanning = false;
+                        reject(new Error('Failed to initialize barcode scanner'));
+                        return;
+                    }
+                    
+                    // Start scanning
+                    window.Quagga.start();
+                    
+                    // Attach detection event listener
+                    window.Quagga.onDetected((result) => {
+                        if (this.onResult && result.codeResult) {
+                            this.onResult(result.codeResult.code);
+                        }
+                    });
+                    
+                    resolve();
+                });
+            });
+            
+        } catch (error) {
+            this.isScanning = false;
+            console.error('Error starting scanner:', error);
+            throw error;
+        }
     }
 
     /**
@@ -145,61 +222,21 @@ class BarcodeScanner {
     stopScanning() {
         this.isScanning = false;
         
-        if (this.scanInterval) {
-            clearInterval(this.scanInterval);
-            this.scanInterval = null;
-        }
-        
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
-            this.stream = null;
-        }
-        
-        if (this.video) {
-            this.video.srcObject = null;
+        try {
+            if (window.Quagga) {
+                // Remove detection event listeners
+                window.Quagga.offDetected();
+                window.Quagga.offProcessed();
+                
+                // Stop quagga2
+                window.Quagga.stop();
+            }
+        } catch (error) {
+            console.error('Error stopping scanner:', error);
         }
     }
 
-    /**
-     * Capture frame and attempt barcode detection
-     * Uses BarcodeDetector API if available, falls back to QuaggaJS
-     */
-    captureAndScan() {
-        if (!this.video || !this.canvas || !this.isScanning) return;
-        
-        try {
-            // Set canvas size to match video
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
-            
-            // Draw current video frame to canvas
-            this.context.drawImage(this.video, 0, 0);
-            
-            // Try to detect barcodes using browser's built-in BarcodeDetector API
-            if ('BarcodeDetector' in window) {
-                const detector = new BarcodeDetector({ 
-                    formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'code_93', 'qr_code'] 
-                });
-                detector.detect(this.canvas)
-                    .then(barcodes => {
-                        if (barcodes.length > 0 && this.onResult) {
-                            this.onResult(barcodes[0].rawValue);
-                        }
-                    })
-                    .catch(err => {
-                        // Silently handle detection errors
-                        console.debug('Barcode detection error:', err);
-                    });
-            } else {
-                // Fallback: Try to use QuaggaJS if available
-                // Note: QuaggaJS would need to be included separately
-                // This is a placeholder for future enhancement
-                console.debug('BarcodeDetector not supported, manual entry available');
-            }
-        } catch (error) {
-            console.debug('Frame capture error:', error);
-        }
-    }
+
 }
 
 /**
@@ -251,12 +288,12 @@ function createBarcodeScannerButton(gtinInput) {
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div id="${modalId}_camera" class="text-center">
+                    <div id="${modalId}_camera" class="text-center" style="min-height: 300px;">
                         <div class="mb-3">
                             <div class="spinner-border" role="status">
-                                <span class="sr-only">Loading camera...</span>
+                                <span class="sr-only">Loading scanner...</span>
                             </div>
-                            <p class="mt-2">Initializing camera...</p>
+                            <p class="mt-2">Initializing camera and scanner...</p>
                         </div>
                     </div>
                     <div id="${modalId}_error" class="alert alert-danger d-none"></div>
@@ -282,12 +319,14 @@ function createBarcodeScannerButton(gtinInput) {
         $('#' + modalId).modal('show');
         
         try {
-            const video = await scanner.initCamera();
             const cameraDiv = document.getElementById(`${modalId}_camera`);
-            cameraDiv.innerHTML = '<p class="mb-2">Point camera at barcode</p>';
-            cameraDiv.appendChild(video);
+            const container = await scanner.initCamera(cameraDiv);
             
-            scanner.startScanning((result) => {
+            // Clear loading message and set up container
+            cameraDiv.innerHTML = '<p class="mb-2">Point camera at barcode</p>';
+            cameraDiv.appendChild(container);
+            
+            await scanner.startScanning((result) => {
                 scanner.stopScanning();
                 $('#' + modalId).modal('hide');
                 handleBarcodeResult(gtinInput, result);
@@ -297,6 +336,10 @@ function createBarcodeScannerButton(gtinInput) {
             const errorDiv = document.getElementById(`${modalId}_error`);
             errorDiv.textContent = error.message;
             errorDiv.classList.remove('d-none');
+            
+            // Hide loading spinner on error
+            const cameraDiv = document.getElementById(`${modalId}_camera`);
+            cameraDiv.innerHTML = '<p class="text-muted">Camera initialization failed. Please use manual entry below.</p>';
         }
     });
 
@@ -455,7 +498,8 @@ function initBarcodeScanner() {
     gtinInputs.forEach(input => {
         addGS1ParseToInput(input);
         
-        // Only add scanner button if device has camera support
+        // Add scanner button if device has camera support and is likely a mobile device
+        // Quagga2 works better on devices with good camera support
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             createBarcodeScannerButton(input);
         }
