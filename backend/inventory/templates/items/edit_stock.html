@@ -20,10 +20,11 @@
 
 <!-- Load GTIN processing scripts -->
 {% load static %}
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.js"></script>
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 <script src="{% static 'inventory/js/gtin-parser.js' %}"></script>
-<script src="{% static 'inventory/js/barcode-scanner.js' %}"></script>
 <script src="{% static 'inventory/js/gtin-input-component.js' %}"></script>
+<script src="{% static 'inventory/js/barcode-scanner.js' %}"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {

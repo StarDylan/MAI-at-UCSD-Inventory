@@ -47,6 +47,7 @@ class BarcodeScanner {
   getCameraConstraints() {
     const browserInfo = this.getBrowserInfo();
     const isMobile = this.isMobileDevice();
+    const isIOS = this.isIOSDevice();
     
     let constraints = {
       width: { min: 320, ideal: 640, max: 1920 },
@@ -66,8 +67,19 @@ class BarcodeScanner {
       constraints.facingMode = "user";
     }
 
+    // iOS-specific optimizations
+    if (isIOS) {
+      // iOS Safari has strict camera constraints
+      constraints.width = { min: 320, ideal: 640, max: 1280 };
+      constraints.height = { min: 240, ideal: 480, max: 720 };
+      // iOS Safari works better with exact constraints
+      if (browserInfo.browser === 'safari') {
+        constraints.width = { exact: 640 };
+        constraints.height = { exact: 480 };
+      }
+    }
     // Browser-specific optimizations
-    if (browserInfo.browser === 'safari') {
+    else if (browserInfo.browser === 'safari') {
       // Safari sometimes has issues with high resolutions
       constraints.width = { min: 320, ideal: 480, max: 1280 };
       constraints.height = { min: 240, ideal: 360, max: 720 };
@@ -85,6 +97,14 @@ class BarcodeScanner {
    */
   isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+
+  /**
+   * Check if we're on iOS device
+   * @returns {boolean}
+   */
+  isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
   }
 
   /**
@@ -170,23 +190,33 @@ class BarcodeScanner {
    * @param {HTMLElement} container - The scanner container
    */
   addScanningGuides(container) {
-    // Create scanning guide overlay
+    // Remove existing guides if present
+    const existingGuide = container.querySelector('.scanning-guide');
+    if (existingGuide) {
+      existingGuide.remove();
+    }
+
+    // Create scanning guide overlay with responsive design
     const guide = document.createElement('div');
+    guide.className = 'scanning-guide';
     guide.style.cssText = `
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 250px;
-      height: 120px;
-      border: 2px solid #ff0000;
+      width: min(70%, 300px);
+      height: min(35%, 150px);
+      border: 2px solid #00ff00;
       border-radius: 8px;
       pointer-events: none;
       z-index: 1000;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+      box-shadow: 
+        0 0 0 2px rgba(0, 255, 0, 0.2),
+        0 0 0 9999px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
     `;
     
-    // Add corner indicators
+    // Add corner indicators for better visual guidance
     const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     corners.forEach(corner => {
       const cornerElement = document.createElement('div');
@@ -201,9 +231,27 @@ class BarcodeScanner {
         ${corner.includes('top') && corner.includes('right') ? 'border-left: none; border-bottom: none;' : ''}
         ${corner.includes('bottom') && corner.includes('left') ? 'border-right: none; border-top: none;' : ''}
         ${corner.includes('bottom') && corner.includes('right') ? 'border-left: none; border-top: none;' : ''}
+        border-radius: 2px;
       `;
       guide.appendChild(cornerElement);
     });
+    
+    // Add instruction text
+    const instructionText = document.createElement('div');
+    instructionText.style.cssText = `
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #00ff00;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+      text-align: center;
+    `;
+    instructionText.textContent = 'Position barcode within frame';
+    guide.appendChild(instructionText);
     
     container.appendChild(guide);
   }
@@ -224,7 +272,7 @@ class BarcodeScanner {
           name: "Live",
           type: "LiveStream",
           target: videoContainer, // Target the container, not the video element
-          //constraints: this.getCameraConstraints(),
+          constraints: this.getCameraConstraints(), // Re-enable camera constraints
           singleChannel: false // Quagga2 feature for better performance
         },
         decoder: {
@@ -295,6 +343,15 @@ class BarcodeScanner {
         setTimeout(() => {
           const videoElement = videoContainer.querySelector('video');
           if (videoElement) {
+            // Make video responsive and properly sized
+            videoElement.style.cssText = `
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              max-width: 100%;
+              max-height: 100%;
+            `;
+            
             // Set canvas dimensions to match video
             previewCanvas.width = videoElement.videoWidth || 640;
             previewCanvas.height = videoElement.videoHeight || 480;
@@ -307,6 +364,24 @@ class BarcodeScanner {
           }
         }, 1000); // Give Quagga2 time to initialize
       }
+      
+      // Ensure video element is properly styled when it's created
+      const checkVideoElement = () => {
+        const videoElement = videoContainer.querySelector('video');
+        if (videoElement) {
+          videoElement.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            max-width: 100%;
+            max-height: 100%;
+          `;
+        } else {
+          // Keep checking until video element is created
+          setTimeout(checkVideoElement, 100);
+        }
+      };
+      checkVideoElement();
       
       // Add scanning guides
       this.addScanningGuides(videoContainer);
@@ -404,10 +479,10 @@ class BarcodeScanner {
       existingModal.remove();
     }
 
-    // Create modal HTML
+    // Create modal HTML with responsive design
     const modalHTML = `
       <div id="barcode-scanner-modal" class="modal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.8);">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg" style="max-width: min(90vw, 800px);">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">Scan Barcode</h5>
@@ -419,10 +494,20 @@ class BarcodeScanner {
               <div id="scanner-status" class="mb-3">
                 <p class="text-muted">Initializing camera...</p>
               </div>
-              <div id="scanner-container" style="position: relative; display: inline-block; border: 2px solid #007bff; border-radius: 8px; overflow: hidden; width: 640px; height: 480px; background: #000;">
+              <div id="scanner-container" style="
+                position: relative; 
+                display: inline-block; 
+                border: 2px solid #007bff; 
+                border-radius: 8px; 
+                overflow: hidden; 
+                width: min(100%, 640px); 
+                height: min(70vh, 480px); 
+                background: #000;
+                max-width: 90vw;
+              ">
               </div>
               <div class="mt-3">
-                <p class="small text-muted">Position the barcode within the camera view</p>
+                <p class="small text-muted">Position the barcode within the green frame</p>
                 <p id="debug-info" class="small text-muted" style="font-family: monospace;"></p>
               </div>
             </div>
