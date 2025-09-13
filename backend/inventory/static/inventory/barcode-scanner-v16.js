@@ -700,7 +700,7 @@ function showParseResult(gtinInput, barcodeData, parsed) {
         const message = document.createElement('div');
         message.className = 'alert alert-success alert-dismissible fade show mt-2';
         message.innerHTML = `
-            <strong>Parsed GS1 data:</strong> ${barcodeData} 
+            <strong>Parsed GS1 data:</strong>
             <br/> ${parts.join(', ')}
             <button type="button" class="close" data-dismiss="alert">
                 <span aria-hidden="true">&times;</span>
