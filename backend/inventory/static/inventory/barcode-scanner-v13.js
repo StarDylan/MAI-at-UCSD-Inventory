@@ -268,7 +268,7 @@ class BarcodeScanner {
             this.onResult = onResult;
             
             // Create a multi-format reader that supports various barcode types including Data Matrix
-            const codeReader = new window.ZXing.BrowserMultiFormatReader();
+            const codeReader = new window.ZXing.BrowserDatamatrixCodeReader();
             this.codeReader = codeReader;
             
             // Get video input devices using the correct API
