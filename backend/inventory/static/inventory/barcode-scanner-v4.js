@@ -1,7 +1,7 @@
 /**
  * Barcode Scanner and GS1 Parser Module
  * Provides functionality for parsing GS1 Application Identifiers and camera-based barcode scanning
- * Uses quagga2 library for reliable barcode detection
+ * Uses ZXing-JS library for comprehensive barcode detection including Data Matrix (GS1)
  */
 
 class BarcodeScanner {
@@ -9,10 +9,14 @@ class BarcodeScanner {
         this.container = null;
         this.isScanning = false;
         this.onResult = null;
-        this.isQuaggaLoaded = false;
-        this.loadQuaggaPromise = null;
+        this.isZXingLoaded = false;
+        this.loadZXingPromise = null;
         this.torchSupported = false;
         this.torchEnabled = false;
+        this.codeReader = null;
+        this.stream = null;
+        this.videoElement = null;
+        this.selectedDeviceId = null;
     }
 
     /**
@@ -86,40 +90,51 @@ class BarcodeScanner {
     }
 
     /**
-     * Load quagga2 library dynamically
+     * Load ZXing-JS library dynamically
      */
-    async loadQuagga() {
-        if (this.isQuaggaLoaded || window.Quagga) {
-            this.isQuaggaLoaded = true;
+    async loadZXing() {
+        if (this.isZXingLoaded || window.ZXing) {
+            this.isZXingLoaded = true;
             return;
         }
 
-        if (this.loadQuaggaPromise) {
-            return this.loadQuaggaPromise;
+        if (this.loadZXingPromise) {
+            return this.loadZXingPromise;
         }
 
-        this.loadQuaggaPromise = new Promise((resolve, reject) => {
+        this.loadZXingPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js';
+            script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
             script.onload = () => {
-                this.isQuaggaLoaded = true;
+                this.isZXingLoaded = true;
                 resolve();
             };
             script.onerror = () => {
-                reject(new Error('Failed to load quagga2 library'));
+                reject(new Error('Failed to load ZXing-JS library'));
             };
             document.head.appendChild(script);
         });
 
-        return this.loadQuaggaPromise;
+        return this.loadZXingPromise;
     }
 
     /**
-     * Initialize camera for barcode scanning using quagga2
+     * Initialize camera for barcode scanning using ZXing-JS
      */
     async initCamera(container) {
         try {
-            await this.loadQuagga();
+            await this.loadZXing();
+            
+            // Create video element for camera preview
+            this.videoElement = document.createElement('video');
+            this.videoElement.style.width = '100%';
+            this.videoElement.style.height = '300px';
+            this.videoElement.style.objectFit = 'cover';
+            this.videoElement.style.border = '1px solid #ddd';
+            this.videoElement.style.borderRadius = '4px';
+            this.videoElement.autoplay = true;
+            this.videoElement.muted = true;
+            this.videoElement.playsInline = true;
             
             // Always create a new scanner container to avoid DOM hierarchy issues
             this.container = document.createElement('div');
@@ -130,42 +145,9 @@ class BarcodeScanner {
             this.container.style.border = '1px solid #ddd';
             this.container.style.borderRadius = '4px';
             
-            // Add CSS styles that will apply to video and canvas elements immediately
-            const style = document.createElement('style');
-            style.textContent = `
-                #${this.container.id || 'scanner-container'} video,
-                #${this.container.id || 'scanner-container'} canvas {
-                    width: 100% !important;
-                    height: 100% !important;
-                    object-fit: cover !important;
-                    display: block !important;
-                }
-            `;
+            // Add the video element to the container
+            this.container.appendChild(this.videoElement);
             
-            // Give container a unique ID if it doesn't have one
-            if (!this.container.id) {
-                this.container.id = 'scanner-container-' + Date.now();
-            }
-            
-            // Update the style to use the actual ID
-            style.textContent = `
-                #${this.container.id} video,
-                #${this.container.id} canvas {
-                    width: 100% !important;
-                    height: 100% !important;
-                    object-fit: cover !important;
-                    display: block !important;
-                }
-            `;
-            
-            // Add the style to the document head
-            document.head.appendChild(style);
-            
-            // Store style reference for cleanup
-            this.containerStyle = style;
-            
-            // If a parent container was provided, we'll return the scanner container
-            // to be appended to it, otherwise return the scanner container directly
             return this.container;
         } catch (error) {
             console.error('Error initializing camera:', error);
@@ -174,24 +156,26 @@ class BarcodeScanner {
     }
 
     /**
-     * Check torch capabilities after Quagga initialization
+     * Check torch capabilities
      */
     checkTorchCapabilities() {
         try {
-            const track = window.Quagga.CameraAccess.getActiveTrack();
-            if (track && typeof track.getCapabilities === 'function') {
-                const capabilities = track.getCapabilities();
-                this.torchSupported = !!capabilities.torch;
-                
-                // Also check current torch state to ensure consistency
-                if (this.torchSupported && typeof track.getSettings === 'function') {
-                    const settings = track.getSettings();
-                    if (settings.torch !== undefined) {
-                        this.torchEnabled = !!settings.torch;
+            if (this.stream) {
+                const videoTrack = this.stream.getVideoTracks()[0];
+                if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
+                    const capabilities = videoTrack.getCapabilities();
+                    this.torchSupported = !!capabilities.torch;
+                    
+                    // Also check current torch state to ensure consistency
+                    if (this.torchSupported && typeof videoTrack.getSettings === 'function') {
+                        const settings = videoTrack.getSettings();
+                        if (settings.torch !== undefined) {
+                            this.torchEnabled = !!settings.torch;
+                        }
                     }
+                    
+                    return this.torchSupported;
                 }
-                
-                return this.torchSupported;
             }
         } catch (error) {
             console.warn('Could not check torch capabilities:', error);
@@ -210,13 +194,15 @@ class BarcodeScanner {
         }
 
         try {
-            const track = window.Quagga.CameraAccess.getActiveTrack();
-            if (track && typeof track.applyConstraints === 'function') {
-                this.torchEnabled = !this.torchEnabled;
-                await track.applyConstraints({
-                    advanced: [{ torch: this.torchEnabled }]
-                });
-                return this.torchEnabled;
+            if (this.stream) {
+                const videoTrack = this.stream.getVideoTracks()[0];
+                if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
+                    this.torchEnabled = !this.torchEnabled;
+                    await videoTrack.applyConstraints({
+                        advanced: [{ torch: this.torchEnabled }]
+                    });
+                    return this.torchEnabled;
+                }
             }
         } catch (error) {
             console.error('Error toggling torch:', error);
@@ -225,81 +211,74 @@ class BarcodeScanner {
     }
 
     /**
-     * Start scanning for barcodes using quagga2
+     * Start scanning for barcodes using ZXing-JS
      */
     async startScanning(onResult) {
         if (this.isScanning) return;
         
         try {
-            await this.loadQuagga();
+            await this.loadZXing();
             
             this.isScanning = true;
             this.onResult = onResult;
             
-            return new Promise((resolve, reject) => {
-                // Configure quagga2
-                const config = {
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: this.container,
-                        constraints: {
-                            width: { min: 640, ideal: 1280, max: 1920 },
-                            height: { min: 480, ideal: 720, max: 1080 },
-                            facingMode: "environment", // Use back camera on mobile
-                            aspectRatio: { min: 1, max: 2 }
-                        }
-                    },
-                    locator: {
-                        patchSize: "medium",
-                        halfSample: true
-                    },
-                    numOfWorkers: 2,
-                    frequency: 10, // Scan frequency
-                    decoder: {
-                        readers: [
-                            'code_128_reader', 
-                            'ean_reader', 
-                            'ean_8_reader',
-                            'code_39_reader',
-                            'code_39_vin_reader',
-                            'codabar_reader',
-                            'upc_reader',
-                            'upc_e_reader',
-                            'i2of5_reader',
-                            '2of5_reader',
-                            'code_93_reader'
-                        ]
-                    },
-                    locate: true
-                };
-
-                // Initialize quagga2
-                window.Quagga.init(config, (err) => {
-                    if (err) {
-                        console.error('Quagga initialization error:', err);
-                        this.isScanning = false;
-                        reject(new Error('Failed to initialize barcode scanner'));
-                        return;
+            // Create a multi-format reader that supports various barcode types including Data Matrix
+            const codeReader = new window.ZXing.BrowserMultiFormatReader();
+            this.codeReader = codeReader;
+            
+            // Get video input devices
+            const videoInputDevices = await window.ZXing.BrowserCodeReader.listVideoInputDevices();
+            
+            // Prefer back camera if available
+            let selectedDeviceId = undefined;
+            if (videoInputDevices.length > 0) {
+                // Try to find back camera
+                const backCamera = videoInputDevices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('rear') ||
+                    device.label.toLowerCase().includes('environment')
+                );
+                selectedDeviceId = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
+            }
+            this.selectedDeviceId = selectedDeviceId;
+            
+            // Start decoding from video device
+            const constraints = {
+                video: {
+                    deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+                    facingMode: selectedDeviceId ? undefined : { ideal: 'environment' },
+                    width: { min: 640, ideal: 1280, max: 1920 },
+                    height: { min: 480, ideal: 720, max: 1080 }
+                }
+            };
+            
+            // Get user media
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.videoElement.srcObject = this.stream;
+            
+            // Wait for video to load
+            await new Promise((resolve) => {
+                this.videoElement.onloadedmetadata = resolve;
+            });
+            
+            // Check torch capabilities after stream is ready
+            setTimeout(() => {
+                this.checkTorchCapabilities();
+            }, 500);
+            
+            // Start continuous decoding
+            this.codeReader.decodeFromVideoDevice(selectedDeviceId, this.videoElement, (result, err) => {
+                if (result) {
+                    // Successfully decoded a barcode
+                    if (this.onResult) {
+                        this.onResult(result.getText());
                     }
-                    
-                    // Start scanning
-                    window.Quagga.start();
-                    
-                    // Check torch capabilities after initialization with a small delay
-                    setTimeout(() => {
-                        this.checkTorchCapabilities();
-                    }, 500);
-                    
-                    // Attach detection event listener
-                    window.Quagga.onDetected((result) => {
-                        if (this.onResult && result.codeResult) {
-                            this.onResult(result.codeResult.code);
-                        }
-                    });
-                    
-                    resolve();
-                });
+                }
+                
+                if (err && !(err instanceof window.ZXing.NotFoundException)) {
+                    // Only log non-"not found" errors
+                    console.warn('Decode error:', err);
+                }
             });
             
         } catch (error) {
@@ -317,10 +296,10 @@ class BarcodeScanner {
         
         try {
             // Turn off torch before stopping if it's enabled
-            if (this.torchEnabled && this.torchSupported && window.Quagga) {
-                const track = window.Quagga.CameraAccess.getActiveTrack();
-                if (track && typeof track.applyConstraints === 'function') {
-                    track.applyConstraints({
+            if (this.torchEnabled && this.torchSupported && this.stream) {
+                const videoTrack = this.stream.getVideoTracks()[0];
+                if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
+                    videoTrack.applyConstraints({
                         advanced: [{ torch: false }]
                     }).catch(error => {
                         console.warn('Error turning off torch during cleanup:', error);
@@ -328,35 +307,30 @@ class BarcodeScanner {
                 }
             }
             
-            if (window.Quagga) {
-                // Remove detection event listeners
-                window.Quagga.offDetected();
-                window.Quagga.offProcessed();
-                
-                // Stop quagga2
-                window.Quagga.stop();
+            // Stop the code reader
+            if (this.codeReader) {
+                this.codeReader.reset();
+                this.codeReader = null;
             }
             
-            // Clean up container
+            // Stop media stream
+            if (this.stream) {
+                this.stream.getTracks().forEach(track => track.stop());
+                this.stream = null;
+            }
+            
+            // Clear video element
+            if (this.videoElement) {
+                this.videoElement.srcObject = null;
+                this.videoElement = null;
+            }
+            
+            // Clear container
             if (this.container) {
-                // Stop any media streams in the container
-                const video = this.container.querySelector('video');
-                if (video && video.srcObject) {
-                    const tracks = video.srcObject.getTracks();
-                    tracks.forEach(track => track.stop());
-                    video.srcObject = null;
-                }
-                
-                // Clear container content
                 this.container.innerHTML = '';
                 this.container = null;
             }
             
-            // Clean up injected styles
-            if (this.containerStyle && this.containerStyle.parentNode) {
-                this.containerStyle.parentNode.removeChild(this.containerStyle);
-                this.containerStyle = null;
-            }
         } catch (error) {
             console.error('Error stopping scanner:', error);
         } finally {
