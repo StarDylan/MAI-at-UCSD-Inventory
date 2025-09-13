@@ -711,7 +711,7 @@ def items_search_api(request):
     items_qs = (items_query
                 .filter(search_conditions)
                 .annotate(
-                    total_stock_quantity=Sum(
+                    annotated_total_stock_quantity=Sum(
                         Case(
                             When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                             default=0,
@@ -719,8 +719,8 @@ def items_search_api(request):
                         )
                     )
                 )
-                .filter(total_stock_quantity__gt=0)  # Only return items with stock
-                .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
+                .filter(annotated_total_stock_quantity__gt=0)  # Only return items with stock
+                .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'annotated_total_stock_quantity'))
     # Also search by stock item GTINs if GTIN queries are provided
     # These items must also match other non-GTIN criteria
     stock_item_matches = []
@@ -774,7 +774,7 @@ def items_search_api(request):
             items_query
             .filter(id__in=stock_item_matches)
             .annotate(
-            total_stock_quantity=Sum(
+            annotated_total_stock_quantity=Sum(
                 Case(
                 When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                 default=0,
@@ -782,8 +782,8 @@ def items_search_api(request):
                 )
             )
             )
-            .filter(total_stock_quantity__gt=0)
-            .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity')
+            .filter(annotated_total_stock_quantity__gt=0)
+            .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'annotated_total_stock_quantity')
         )
         
         # Combine results and remove duplicates
@@ -827,7 +827,7 @@ def items_search_api(request):
             'gtins': gtins,
             'category__name': item['category__name'],
             'subcategory__name': item['subcategory__name'],
-            'total_stock_quantity': item['total_stock_quantity'] or 0,
+            'total_stock_quantity': item['annotated_total_stock_quantity'] or 0,
             'location': location_str,
         })
     
@@ -940,7 +940,7 @@ def public_search_api(request):
     # Annotate with stock information
     today = timezone.now().date()
     items_query = items_query.annotate(
-        total_stock_quantity=Sum(
+        annotated_total_stock_quantity=Sum(
             Case(
                 When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                 default=0,
@@ -964,7 +964,7 @@ def public_search_api(request):
     
     # Apply quantity filter
     if not include_zero_qty:
-        items_query = items_query.filter(total_stock_quantity__gt=0)
+        items_query = items_query.filter(annotated_total_stock_quantity__gt=0)
     
     # Apply expiration filter
     if not include_expired:
@@ -984,7 +984,7 @@ def public_search_api(request):
     elif sort_by == 'category':
         sort_field = 'category__name'
     elif sort_by == 'quantity':
-        sort_field = 'total_stock_quantity'
+        sort_field = 'annotated_total_stock_quantity'
     
     if sort_order == 'desc':
         sort_field = f'-{sort_field}'
@@ -1016,7 +1016,7 @@ def public_search_api(request):
             'manufacturer': item.manufacturer,
             'category': item.category.name,
             'subcategory': item.subcategory.name if item.subcategory else '',
-            'total_stock_quantity': item.total_stock_quantity or 0,
+            'total_stock_quantity': item.annotated_total_stock_quantity or 0,
             'expired_stock_quantity': item.expired_stock_quantity or 0,
             'has_expired_stock': has_expired_stock,
             'variant_count': item.variant_count or 0,
