@@ -119,16 +119,14 @@ class BarcodeScanner {
         try {
             await this.loadQuagga();
             
-            this.container = container;
+            // Always create a new scanner container to avoid DOM hierarchy issues
+            this.container = document.createElement('div');
+            this.container.style.width = '100%';
+            this.container.style.height = '300px';
+            this.container.style.position = 'relative';
             
-            // Create scanner container if not provided
-            if (!this.container) {
-                this.container = document.createElement('div');
-                this.container.style.width = '100%';
-                this.container.style.height = '300px';
-                this.container.style.position = 'relative';
-            }
-
+            // If a parent container was provided, we'll return the scanner container
+            // to be appended to it, otherwise return the scanner container directly
             return this.container;
         } catch (error) {
             console.error('Error initializing camera:', error);
@@ -247,8 +245,13 @@ function createBarcodeScannerButton(gtinInput) {
         return;
     }
 
-    // Mark input as having scanner added
+    // Mark input as having scanner added immediately to prevent race conditions
     gtinInput.setAttribute('data-barcode-scanner-added', 'true');
+
+    // Additional safety check: ensure the input is still in the DOM
+    if (!document.contains(gtinInput)) {
+        return;
+    }
 
     // Create scanner button
     const scanButton = document.createElement('button');
@@ -264,10 +267,23 @@ function createBarcodeScannerButton(gtinInput) {
         const inputContainer = document.createElement('div');
         inputContainer.className = 'd-flex align-items-center';
         
-        // Move input into container
-        gtinInput.parentNode.insertBefore(inputContainer, gtinInput);
+        // Store reference to the parent before manipulation
+        const originalParent = gtinInput.parentNode;
+        const nextSibling = gtinInput.nextSibling;
+        
+        // Remove input from DOM temporarily to avoid ancestry issues
+        originalParent.removeChild(gtinInput);
+        
+        // Set up the container structure
         inputContainer.appendChild(gtinInput);
         inputContainer.appendChild(scanButton);
+        
+        // Insert the container in the original position
+        if (nextSibling) {
+            originalParent.insertBefore(inputContainer, nextSibling);
+        } else {
+            originalParent.appendChild(inputContainer);
+        }
         
         // Adjust input width
         gtinInput.style.flex = '1';
@@ -324,7 +340,11 @@ function createBarcodeScannerButton(gtinInput) {
             
             // Clear loading message and set up container
             cameraDiv.innerHTML = '<p class="mb-2">Point camera at barcode</p>';
-            cameraDiv.appendChild(container);
+            
+            // Safety check: only append if container is not the same as cameraDiv
+            if (container && container !== cameraDiv && !cameraDiv.contains(container)) {
+                cameraDiv.appendChild(container);
+            }
             
             await scanner.startScanning((result) => {
                 scanner.stopScanning();
@@ -418,7 +438,11 @@ function showParseResult(gtinInput, parsed) {
         `;
         
         const container = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
-        container.appendChild(message);
+        
+        // Safety check: ensure container exists and message is not already in DOM
+        if (container && !message.parentNode) {
+            container.appendChild(message);
+        }
         
         // Auto-hide after 5 seconds
         setTimeout(() => {
@@ -437,7 +461,13 @@ function addGS1ParseToInput(gtinInput) {
         return;
     }
 
+    // Mark input as having parser added immediately to prevent race conditions
     gtinInput.setAttribute('data-gs1-parser-added', 'true');
+    
+    // Additional safety check: ensure the input is still in the DOM
+    if (!document.contains(gtinInput)) {
+        return;
+    }
     
     gtinInput.addEventListener('blur', function() {
         const value = this.value.trim();
@@ -445,44 +475,44 @@ function addGS1ParseToInput(gtinInput) {
         
         const parsed = BarcodeScanner.parseGS1(value);
         
-        // If parsing extracted additional data, update the form
+        // Always update GTIN field with the parsed GTIN value
+        if (parsed.gtin && parsed.gtin !== value) {
+            this.value = parsed.gtin;
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // Try to populate other fields if they exist
+        const form = this.closest('form');
+        if (form) {
+            // Populate lot field
+            if (parsed.lot) {
+                const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
+                for (const fieldName of lotFields) {
+                    const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
+                    if (lotInput && !lotInput.value) {
+                        lotInput.value = parsed.lot;
+                        lotInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        break;
+                    }
+                }
+            }
+            
+            // Populate expiration field
+            if (parsed.expiration) {
+                const expirationFields = ['expiration_date', 'expiry_date', 'expires', 'expiration'];
+                for (const fieldName of expirationFields) {
+                    const expirationInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
+                    if (expirationInput && !expirationInput.value) {
+                        expirationInput.value = parsed.expiration;
+                        expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Show parse result if additional data was found
         if (parsed.lot || parsed.expiration) {
-            // Update GTIN field with just the GTIN part
-            if (parsed.gtin && parsed.gtin !== value) {
-                this.value = parsed.gtin;
-            }
-            
-            // Try to populate other fields
-            const form = this.closest('form');
-            if (form) {
-                // Populate lot field
-                if (parsed.lot) {
-                    const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
-                    for (const fieldName of lotFields) {
-                        const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
-                        if (lotInput && !lotInput.value) {
-                            lotInput.value = parsed.lot;
-                            lotInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            break;
-                        }
-                    }
-                }
-                
-                // Populate expiration field
-                if (parsed.expiration) {
-                    const expirationFields = ['expiration_date', 'expiry_date', 'expires', 'expiration'];
-                    for (const fieldName of expirationFields) {
-                        const expirationInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
-                        if (expirationInput && !expirationInput.value) {
-                            expirationInput.value = parsed.expiration;
-                            expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Show parse result
             showParseResult(this, parsed);
         }
     });
@@ -493,7 +523,7 @@ function addGS1ParseToInput(gtinInput) {
  */
 function initBarcodeScanner() {
     // Find all GTIN input fields (including dynamically added ones)
-    const gtinInputs = document.querySelectorAll('input[name="gtin"], input[id*="gtin"], input[id*="GTIN"], input[id="id_gtin"]');
+    const gtinInputs = document.querySelectorAll('input[id="id_gtin"]');
     
     gtinInputs.forEach(input => {
         addGS1ParseToInput(input);
@@ -511,7 +541,7 @@ function initBarcodeScanner() {
             mutation.addedNodes.forEach(function(node) {
                 if (node.nodeType === 1) { // Element node
                     const newGtinInputs = node.querySelectorAll ? 
-                        node.querySelectorAll('input[name="gtin"], input[id*="gtin"], input[id*="GTIN"], input[id="id_gtin"]') : 
+                        node.querySelectorAll('input[id="id_gtin"]') : 
                         [];
                     
                     newGtinInputs.forEach(input => {
@@ -522,7 +552,7 @@ function initBarcodeScanner() {
                     });
                     
                     // Check if the added node itself is a GTIN input
-                    if (node.matches && node.matches('input[name="gtin"], input[id*="gtin"], input[id*="GTIN"], input[id="id_gtin"]')) {
+                    if (node.matches && node.matches('input[id="id_gtin"]')) {
                         addGS1ParseToInput(node);
                         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                             createBarcodeScannerButton(node);
