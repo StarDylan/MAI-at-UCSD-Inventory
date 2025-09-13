@@ -50,9 +50,11 @@
                           <button type="button" class="btn btn-xs category-btn include-btn" data-action="include">
                             <i class="material-icons">add</i> Include
                           </button>
+                          <!-- COMMENTED OUT: Category exclude functionality
                           <button type="button" class="btn btn-xs category-btn exclude-btn" data-action="exclude">
                             <i class="material-icons">remove</i> Exclude
                           </button>
+                          -->
                         </div>
                       </div>
                     </div>
@@ -66,9 +68,9 @@
           <div class="col-md-2 mb-3">
             <label class="form-label">Display Options</label>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="include-expired" checked>
-              <label class="form-check-label" for="include-expired">
-                Include expired items
+              <input class="form-check-input" type="checkbox" id="exclude-expired">
+              <label class="form-check-label" for="exclude-expired">
+                Exclude expired items
               </label>
             </div>
           </div>
@@ -607,22 +609,27 @@ function initializeCategoryFilter() {
 
 function updateCategoryCount() {
   const included = Object.values(categoryStates).filter(state => state === 'include').length;
-  const excluded = Object.values(categoryStates).filter(state => state === 'exclude').length;
-  const total = included + excluded;
+  // const excluded = Object.values(categoryStates).filter(state => state === 'exclude').length;  // COMMENTED OUT: Category exclude functionality
+  const total = included; // + excluded;  // COMMENTED OUT: Category exclude functionality
   
   let text = `${total} selected`;
   let buttonText = 'Select Categories';
   
-  if (included > 0 && excluded > 0) {
-    text = `${included} included, ${excluded} excluded`;
-    buttonText = `${included} included, ${excluded} excluded`;
-  } else if (included > 0) {
+  // COMMENTED OUT: Category exclude functionality
+  // if (included > 0 && excluded > 0) {
+  //   text = `${included} included, ${excluded} excluded`;
+  //   buttonText = `${included} included, ${excluded} excluded`;
+  // } else 
+  if (included > 0) {
     text = `${included} included`;
     buttonText = `${included} categories included`;
-  } else if (excluded > 0) {
-    text = `${excluded} excluded`;
-    buttonText = `${excluded} categories excluded`;
-  } else {
+  }
+  // COMMENTED OUT: Category exclude functionality
+  // else if (excluded > 0) {
+  //   text = `${excluded} excluded`;
+  //   buttonText = `${excluded} categories excluded`;
+  // } 
+  else {
     text = '0 selected';
     buttonText = 'Select Categories';
   }
@@ -683,20 +690,22 @@ function initializeEventListeners() {
     const categoryId = categoryItem.data('category-id');
     const action = $(this).data('action');
     
-    // Toggle the state
+    // Toggle the state (only include action now)
     if (categoryStates[categoryId] === action) {
       // Clicking the same action - deselect
       categoryStates[categoryId] = null;
-      categoryItem.removeClass('included excluded');
+      categoryItem.removeClass('included'); // removed 'excluded' since we commented out exclude functionality
     } else {
-      // Set new state
+      // Set new state (only include now)
       categoryStates[categoryId] = action;
-      categoryItem.removeClass('included excluded');
+      categoryItem.removeClass('included'); // removed 'excluded' since we commented out exclude functionality
       if (action === 'include') {
         categoryItem.addClass('included');
-      } else if (action === 'exclude') {
-        categoryItem.addClass('excluded');
       }
+      // COMMENTED OUT: Category exclude functionality
+      // else if (action === 'exclude') {
+      //   categoryItem.addClass('excluded');
+      // }
     }
     
     updateCategoryCount();
@@ -719,14 +728,14 @@ function initializeEventListeners() {
     $('.category-item').each(function() {
       const categoryId = $(this).data('category-id');
       categoryStates[categoryId] = null;
-      $(this).removeClass('included excluded');
+      $(this).removeClass('included'); // removed 'excluded' since we commented out exclude functionality
     });
     updateCategoryCount();
     loadItems(true);
   });
   
   // Other filter controls
-  $('#include-expired, #include-zero-qty, #sort-by, #sort-order').on('change', function() {
+  $('#exclude-expired, #include-zero-qty, #sort-by, #sort-order').on('change', function() {
     loadItems(true);
   });
   
@@ -748,10 +757,10 @@ function initializeEventListeners() {
     $('.category-item').each(function() {
       const categoryId = $(this).data('category-id');
       categoryStates[categoryId] = null;
-      $(this).removeClass('included excluded hidden');
+      $(this).removeClass('included hidden'); // removed 'excluded' since we commented out exclude functionality
     });
     
-    $('#include-expired').prop('checked', true);
+    $('#exclude-expired').prop('checked', false);
     $('#include-zero-qty').prop('checked', false);
     $('#sort-by').val('date_added');
     $('#sort-order').val('desc');
@@ -814,15 +823,17 @@ function loadItems(reset = false) {
   
   // Build category filter parameters
   const includedCategories = [];
-  const excludedCategories = [];
+  // const excludedCategories = [];  // COMMENTED OUT: Category exclude functionality
   
   Object.keys(categoryStates).forEach(categoryId => {
     const state = categoryStates[categoryId];
     if (state === 'include') {
       includedCategories.push(categoryId);
-    } else if (state === 'exclude') {
-      excludedCategories.push(categoryId);
     }
+    // COMMENTED OUT: Category exclude functionality
+    // else if (state === 'exclude') {
+    //   excludedCategories.push(categoryId);
+    // }
   });
   
   // Collect filter parameters
@@ -830,7 +841,7 @@ function loadItems(reset = false) {
     offset: currentOffset,
     limit: 20,
     search: $('#search-input').val().trim(),
-    include_expired: $('#include-expired').is(':checked'),
+    exclude_expired: $('#exclude-expired').is(':checked'),
     include_zero_qty: $('#include-zero-qty').is(':checked'),
     sort_by: $('#sort-by').val(),
     sort_order: $('#sort-order').val()
@@ -840,9 +851,10 @@ function loadItems(reset = false) {
   if (includedCategories.length > 0) {
     params.categories = includedCategories.join(',');
   }
-  if (excludedCategories.length > 0) {
-    params.excluded_categories = excludedCategories.join(',');
-  }
+  // COMMENTED OUT: Category exclude functionality
+  // if (excludedCategories.length > 0) {
+  //   params.excluded_categories = excludedCategories.join(',');
+  // }
   
   // Remove empty parameters
   Object.keys(params).forEach(key => {

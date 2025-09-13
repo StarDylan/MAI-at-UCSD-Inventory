@@ -879,8 +879,7 @@ def public_search_api(request):
         limit: Maximum number of results to return (default: 20, max: 100)
         search: General search query across name, manufacturer
         categories: Comma-separated list of category IDs to filter by (include)
-        excluded_categories: Comma-separated list of category IDs to exclude
-        include_expired: Include expired items (true/false, default: true)
+        exclude_expired: Exclude expired items (true/false, default: false)
         include_zero_qty: Include items with zero quantity (true/false, default: false)
         sort_by: Sort field (date_added, name, manufacturer, category, quantity)
         sort_order: Sort order (asc/desc, default: desc for date_added, asc for others)
@@ -907,9 +906,9 @@ def public_search_api(request):
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
     category_ids = request.GET.get('categories', '').strip()
-    excluded_category_ids = request.GET.get('excluded_categories', '').strip()
-    include_expired_param = request.GET.get('include_expired', 'true')
-    include_expired = include_expired_param.lower() == 'true' if isinstance(include_expired_param, str) else bool(include_expired_param)
+    # excluded_category_ids = request.GET.get('excluded_categories', '').strip()  # COMMENTED OUT: Category exclude functionality
+    exclude_expired_param = request.GET.get('exclude_expired', 'false')
+    exclude_expired = exclude_expired_param.lower() == 'true' if isinstance(exclude_expired_param, str) else bool(exclude_expired_param)
     include_zero_qty_param = request.GET.get('include_zero_qty', 'false')
     include_zero_qty = include_zero_qty_param.lower() == 'true' if isinstance(include_zero_qty_param, str) else bool(include_zero_qty_param)
     sort_by = request.GET.get('sort_by', 'date_added')
@@ -941,13 +940,14 @@ def public_search_api(request):
             pass
     
     # Apply excluded category filter
-    if excluded_category_ids:
-        try:
-            excluded_category_list = [cat_id.strip() for cat_id in excluded_category_ids.split(',') if cat_id.strip()]
-            if excluded_category_list:
-                items_query = items_query.exclude(category__id__in=excluded_category_list)
-        except (ValueError, TypeError):
-            pass
+    # COMMENTED OUT: Category exclude functionality
+    # if excluded_category_ids:
+    #     try:
+    #         excluded_category_list = [cat_id.strip() for cat_id in excluded_category_ids.split(',') if cat_id.strip()]
+    #         if excluded_category_list:
+    #             items_query = items_query.exclude(category__id__in=excluded_category_list)
+    #     except (ValueError, TypeError):
+    #         pass
     
     # Annotate with stock information
     today = timezone.now().date()
@@ -979,7 +979,7 @@ def public_search_api(request):
         items_query = items_query.filter(annotated_total_stock_quantity__gt=0)
     
     # Apply expiration filter
-    if not include_expired:
+    if exclude_expired:
         # Only exclude items where ALL stock is expired (no valid stock remaining)
         # This allows items with mixed expired/non-expired stock to still appear
         from django.db.models import F
