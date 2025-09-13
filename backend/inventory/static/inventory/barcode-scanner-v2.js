@@ -182,12 +182,22 @@ class BarcodeScanner {
             if (track && typeof track.getCapabilities === 'function') {
                 const capabilities = track.getCapabilities();
                 this.torchSupported = !!capabilities.torch;
+                
+                // Also check current torch state to ensure consistency
+                if (this.torchSupported && typeof track.getSettings === 'function') {
+                    const settings = track.getSettings();
+                    if (settings.torch !== undefined) {
+                        this.torchEnabled = !!settings.torch;
+                    }
+                }
+                
                 return this.torchSupported;
             }
         } catch (error) {
             console.warn('Could not check torch capabilities:', error);
         }
         this.torchSupported = false;
+        this.torchEnabled = false;
         return false;
     }
 
@@ -304,10 +314,20 @@ class BarcodeScanner {
      */
     stopScanning() {
         this.isScanning = false;
-        this.torchEnabled = false; // Reset torch state
-        this.torchSupported = false; // Reset torch capabilities
         
         try {
+            // Turn off torch before stopping if it's enabled
+            if (this.torchEnabled && this.torchSupported && window.Quagga) {
+                const track = window.Quagga.CameraAccess.getActiveTrack();
+                if (track && typeof track.applyConstraints === 'function') {
+                    track.applyConstraints({
+                        advanced: [{ torch: false }]
+                    }).catch(error => {
+                        console.warn('Error turning off torch during cleanup:', error);
+                    });
+                }
+            }
+            
             if (window.Quagga) {
                 // Remove detection event listeners
                 window.Quagga.offDetected();
@@ -339,6 +359,10 @@ class BarcodeScanner {
             }
         } catch (error) {
             console.error('Error stopping scanner:', error);
+        } finally {
+            // Reset torch state after cleanup
+            this.torchEnabled = false;
+            this.torchSupported = false;
         }
     }
 
@@ -489,12 +513,26 @@ function createBarcodeScannerButton(gtinInput) {
                     const newTorchButton = torchButton.cloneNode(true);
                     torchButton.parentNode.replaceChild(newTorchButton, torchButton);
                     
+                    // Update button state to reflect current torch state
+                    const icon = newTorchButton.querySelector('i');
+                    const text = newTorchButton.querySelector('span');
+                    
+                    if (scanner.torchEnabled) {
+                        icon.textContent = 'flashlight_on';
+                        text.textContent = 'Torch On';
+                        newTorchButton.classList.remove('btn-outline-warning');
+                        newTorchButton.classList.add('btn-warning');
+                    } else {
+                        icon.textContent = 'flashlight_off';
+                        text.textContent = 'Torch';
+                        newTorchButton.classList.remove('btn-warning');
+                        newTorchButton.classList.add('btn-outline-warning');
+                    }
+                    
                     // Add fresh torch toggle event listener
                     newTorchButton.addEventListener('click', async () => {
                         try {
                             const isEnabled = await scanner.toggleTorch();
-                            const icon = newTorchButton.querySelector('i');
-                            const text = newTorchButton.querySelector('span');
                             
                             if (isEnabled) {
                                 icon.textContent = 'flashlight_on';
@@ -564,11 +602,7 @@ function createBarcodeScannerButton(gtinInput) {
         // Ensure any previous scanner instance is stopped
         scanner.stopScanning();
         
-        // Reset scanner state completely
-        scanner.torchSupported = false;
-        scanner.torchEnabled = false;
-        
-        // Hide torch button initially
+        // Hide torch button initially (but don't reset scanner state yet)
         const torchButton = document.getElementById(`${modalId}_torch`);
         if (torchButton) {
             torchButton.classList.add('d-none');
