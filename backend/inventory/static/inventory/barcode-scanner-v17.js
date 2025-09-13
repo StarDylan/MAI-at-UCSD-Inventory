@@ -744,7 +744,7 @@ function addGS1ParseToInput(gtinInput) {
         const value = this.value.trim();
         if (!value) return;
 
-        if (!value.includes("(") || !value.includes(String.fromCharCode(29))) {
+        if (!value.includes("(") && !value.includes(String.fromCharCode(29))) {
             // If no parentheses / special data, assume it's a plain GTIN and skip parsing
             return;
         }
