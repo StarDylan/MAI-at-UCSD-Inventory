@@ -738,8 +738,9 @@ function addGS1ParseToInput(gtinInput) {
         const parsed = BarcodeScanner.parseGS1(value);
         if (!parsed) return; // Only proceed if parsing was successful
 
-        // Always clear field if parsed successfully
+        // Always clear field / set GTIN if parsed successfully
         this.value = parsed.gtin || "";
+        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
 
 
         
