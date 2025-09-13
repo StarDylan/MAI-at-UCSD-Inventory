@@ -98,7 +98,7 @@ class BarcodeScanner {
 
         this.loadQuaggaPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.6/dist/quagga.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js';
             script.onload = () => {
                 this.isQuaggaLoaded = true;
                 resolve();
