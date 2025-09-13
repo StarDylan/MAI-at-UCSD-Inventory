@@ -743,6 +743,11 @@ function addGS1ParseToInput(gtinInput) {
     gtinInput.addEventListener('blur', function() {
         const value = this.value.trim();
         if (!value) return;
+
+        if (!value.includes("(") || !value.includes(String.fromCharCode(29))) {
+            // If no parentheses / special data, assume it's a plain GTIN and skip parsing
+            return;
+        }
         
         const parsed = BarcodeScanner.parseGS1(value);
         if (!parsed) return; // Only proceed if parsing was successful
