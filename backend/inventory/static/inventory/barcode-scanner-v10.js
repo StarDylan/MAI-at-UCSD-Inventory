@@ -874,6 +874,12 @@ function createBarcodeScannerButton(gtinInput) {
  * Handle barcode scan result by parsing GS1 data and populating form fields
  */
 function handleBarcodeResult(gtinInput, barcodeData) {
+    function toHexString(byteArray) {
+        return Array.from(byteArray, function(byte) {
+            return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+        }).join('');
+    }
+    console.log('Barcode scanned:', toHexString(barcodeData));
     const parsed = BarcodeScanner.parseGS1(barcodeData);
     
     // Set GTIN value
