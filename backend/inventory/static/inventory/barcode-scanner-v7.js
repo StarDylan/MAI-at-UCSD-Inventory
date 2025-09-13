@@ -22,8 +22,7 @@ class BarcodeScanner {
     /**
      * Parse GS1 Application Identifiers from a barcode string
      * Supports both parentheses format: (01)GTIN(10)LOT(17)YYMMDD
-     * and FNC1 format: 01GTIN<FNC1>10LOT<FNC1>17YYMMDD
-     * FNC1 is typically ASCII character 29 (Group Separator)
+     * and FNC1 format: 01GTIN10LOT17YYMMDD (with leading FNC1 characters removed)
      */
     static parseGS1(barcodeData) {
         if (!barcodeData || typeof barcodeData !== 'string') {
@@ -31,7 +30,7 @@ class BarcodeScanner {
         }
 
         // Remove any whitespace
-        const data = barcodeData.trim();
+        let data = barcodeData.trim();
         
         // First try parentheses format: (01)GTIN(10)LOT(17)YYMMDD
         const parenthesesPattern = /\((\d{2,4})\)([^(]*)/g;
@@ -41,85 +40,129 @@ class BarcodeScanner {
             return this._parseGS1Matches(parenthesesMatches);
         }
         
-        // Try FNC1 format (ASCII 29 - Group Separator)
-        // FNC1 can be represented as \u001D (ASCII 29), \x1D, or sometimes as ]C1
+        // Remove FNC1 characters from the beginning and throughout the string
+        // FNC1 can be represented as \u001D (ASCII 29), \x1D, ]C1, <FNC1>, [FNC1]
         const fnc1Chars = ['\u001D', '\x1D', String.fromCharCode(29)];
-        let fnc1Data = data;
-        let fnc1Char = null;
         
-        // Find which FNC1 character is used
+        // Remove common text representations of FNC1
+        data = data.replace(/\]C1/g, '');
+        data = data.replace(/<FNC1>/g, '');
+        data = data.replace(/\[FNC1\]/g, '');
+        
+        // Remove actual FNC1 characters
         for (const char of fnc1Chars) {
-            if (data.includes(char)) {
-                fnc1Char = char;
-                break;
-            }
+            data = data.replace(new RegExp(char, 'g'), '');
         }
         
-        // Also check for common text representations of FNC1
-        if (!fnc1Char) {
-            if (data.includes(']C1')) {
-                fnc1Data = data.replace(/\]C1/g, '\u001D');
-                fnc1Char = '\u001D';
-            } else if (data.includes('<FNC1>')) {
-                fnc1Data = data.replace(/<FNC1>/g, '\u001D');
-                fnc1Char = '\u001D';
-            } else if (data.includes('[FNC1]')) {
-                fnc1Data = data.replace(/\[FNC1\]/g, '\u001D');
-                fnc1Char = '\u001D';
-            }
-        }
-        
-        if (fnc1Char) {
-            return this._parseGS1FNC1Format(fnc1Data, fnc1Char);
-        }
-        
-        // No GS1 identifiers found, treat as plain GTIN
-        return { gtin: data, lot: '', expiration: '' };
+        // Now parse the clean data using AI numbers and lengths
+        return this._parseGS1ByAILength(data);
     }
 
     /**
-     * Parse GS1 data in FNC1 format
+     * Parse GS1 data by sequentially reading AI numbers and their data based on length specifications
      */
-    static _parseGS1FNC1Format(data, fnc1Char) {
+    static _parseGS1ByAILength(data) {
         const result = { gtin: '', lot: '', expiration: '' };
         
-        // Split by FNC1 character
-        const segments = data.split(fnc1Char);
+        if (!data) {
+            return result;
+        }
         
-        // Parse each segment
-        for (let segment of segments) {
-            segment = segment.trim();
-            if (!segment) continue;
+        // If no AI found, treat as plain GTIN
+        if (!data.match(/^\d{2}/)) {
+            result.gtin = data;
+            return result;
+        }
+        
+        let pos = 0;
+        
+        // Parse sequentially through the data
+        while (pos < data.length) {
+            // Try to find an Application Identifier (2-4 digits)
+            let ai = null;
+            let aiLength = 0;
             
-            // Extract Application Identifier and data
-            const aiMatch = this._extractApplicationIdentifier(segment);
-            if (aiMatch) {
-                const { ai, value } = aiMatch;
-                
-                switch (ai) {
-                    case '01':  // GTIN (14 digits)
-                        result.gtin = value;
+            // Try 4-digit AI first, then 3-digit, then 2-digit
+            for (let len = 4; len >= 2; len--) {
+                if (pos + len <= data.length) {
+                    const testAI = data.substring(pos, pos + len);
+                    if (this._getAIDataLength(testAI) !== null) {
+                        ai = testAI;
+                        aiLength = len;
                         break;
-                    case '10':  // Lot/Batch Number (variable length, up to 20 alphanumeric)
-                        result.lot = value;
-                        break;
-                    case '17':  // Expiration Date (6 digits YYMMDD)
-                        result.expiration = this.parseGS1Date(value);
-                        break;
+                    }
                 }
+            }
+            
+            if (!ai) {
+                // No valid AI found, break or treat remaining as GTIN if we're at the start
+                if (pos === 0) {
+                    result.gtin = data;
+                }
+                break;
+            }
+            
+            pos += aiLength; // Move past the AI
+            
+            // Get the expected data length for this AI
+            const dataLength = this._getAIDataLength(ai);
+            let value;
+            
+            if (dataLength === -1) {
+                // Variable length - we need to look ahead for the next AI or take the rest
+                let endPos = pos;
+                let foundNextAI = false;
+                
+                // Look for the next AI (starting at least 1 char ahead)
+                for (let lookPos = pos + 1; lookPos <= data.length - 2; lookPos++) {
+                    // Try 2-4 digit AIs
+                    for (let testLen = 2; testLen <= 4 && lookPos + testLen <= data.length; testLen++) {
+                        const testAI = data.substring(lookPos, lookPos + testLen);
+                        if (this._getAIDataLength(testAI) !== null) {
+                            endPos = lookPos;
+                            foundNextAI = true;
+                            break;
+                        }
+                    }
+                    if (foundNextAI) break;
+                }
+                
+                if (!foundNextAI) {
+                    // Take the rest of the string
+                    endPos = data.length;
+                }
+                
+                value = data.substring(pos, endPos);
+                pos = endPos;
+            } else {
+                // Fixed length
+                value = data.substring(pos, pos + dataLength);
+                pos += dataLength;
+            }
+            
+            // Store the parsed value
+            switch (ai) {
+                case '01':  // GTIN (14 digits)
+                    result.gtin = value;
+                    break;
+                case '10':  // Lot/Batch Number (variable length)
+                    result.lot = value;
+                    break;
+                case '17':  // Expiration Date (6 digits YYMMDD)
+                    result.expiration = this.parseGS1Date(value);
+                    break;
+                // We can add more AIs here as needed
             }
         }
         
         return result;
     }
-
+    
     /**
-     * Extract Application Identifier and its value from a segment
-     * Uses GS1 Application Identifier length rules
+     * Get the data length for a given Application Identifier
+     * Returns the expected data length, or -1 for variable length, or null if AI is invalid
      */
-    static _extractApplicationIdentifier(segment) {
-        if (!segment || segment.length < 3) return null;
-        
+    static _getAIDataLength(ai) {
         // Common Application Identifiers and their data lengths
         const aiLengths = {
             '00': 18,   // SSCC (fixed length)
@@ -270,28 +313,7 @@ class BarcodeScanner {
             '99': -1    // Company internal information (variable length)
         };
         
-        // Try different AI lengths (2, 3, 4 digits)
-        for (let aiLen = 2; aiLen <= 4 && aiLen <= segment.length; aiLen++) {
-            const ai = segment.substring(0, aiLen);
-            const dataLength = aiLengths[ai];
-            
-            if (dataLength !== undefined) {
-                let value;
-                if (dataLength === -1) {
-                    // Variable length - take remaining data
-                    value = segment.substring(aiLen);
-                } else {
-                    // Fixed length
-                    value = segment.substring(aiLen, aiLen + dataLength);
-                }
-                
-                if (value) {
-                    return { ai, value };
-                }
-            }
-        }
-        
-        return null;
+        return aiLengths[ai] !== undefined ? aiLengths[ai] : null;
     }
 
     /**
