@@ -34,7 +34,6 @@ urlpatterns = [
     # Database and Items Views
     path("view_database/", items.view_database, name="view_database"),
     path('view/', items.view_database, name='view_database'),
-    path('view/all/', items.view_all_items, name='view_all_items'),
     path('view/category/<uuid:uuid>/', items.view_category_items, name='view_category'),
     path('view/subcategory/<uuid:uuid>/', items.view_subcategory_items, name='view_subcategory'),
     path('view/item/<uuid:uuid>/', items.view_item_detail, name='view_item'),

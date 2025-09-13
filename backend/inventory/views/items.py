@@ -44,56 +44,6 @@ def view_database(request):
     return HttpResponse(template.render(context, request))
 
 
-def view_all_items(request):
-    """
-    Display all items in the inventory system.
-    
-    Shows a comprehensive list of all items with their category and
-    subcategory information. For non-authenticated users, only shows
-    items with surplus-approved stock items.
-    
-    Args:
-        request: HTTP request object
-        
-    Returns:
-        HttpResponse: Rendered template with all items
-    """
-    from django.db.models import Sum, Case, When, IntegerField
-    
-    # Fetch all items with related category and subcategory data
-    # Use annotations to avoid N+1 queries for total_stock_quantity
-    items_query = Item.active_objects.select_related('category', 'subcategory')
-    
-    # Filter for non-authenticated users - only show items with surplus-approved stock
-    if not request.user.is_authenticated:
-        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
-    
-    # Only show surplus-approved stock items if user lacks "view_internalstockingdetails" permission
-    if not request.user.has_perm('inventory.view_internalstockingdetails'):
-        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
-
-    items = (items_query
-            .annotate(
-                stock_items_quantity_annotated=Sum(
-                    Case(
-                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                        default=0,
-                        output_field=IntegerField()
-                    )
-                )
-            )
-            .distinct()
-            .order_by('name'))
-
-    context = {
-        'items': items,
-        'category': "All Items"
-    }
-
-    template = loader.get_template("items/list.html")
-    return HttpResponse(template.render(context, request))
-
-
 def view_category_items(request, uuid):
     """
     Display all items belonging to a specific category.
