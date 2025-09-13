@@ -21,41 +21,51 @@
             <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN...">
           </div>
           
-          <!-- Category Filter -->
+          <!-- Tag Filter -->
           <div class="col-md-5 mb-3">
-            <label class="form-label">Category Filter</label>
-            <div class="category-dropdown">
-              <button type="button" class="btn btn-outline-secondary w-100 category-dropdown-btn" id="category-dropdown-btn">
+            <label class="form-label">Tag Filter</label>
+            <div class="tag-dropdown">
+              <button type="button" class="btn btn-outline-secondary w-100 tag-dropdown-btn" id="tag-dropdown-btn">
                 <span class="dropdown-text">
-                  <i class="material-icons">category</i>
-                  <span id="category-button-text">Select Categories</span>
+                  <i class="material-icons">label</i>
+                  <span id="tag-button-text">Select Tags</span>
                 </span>
                 <i class="material-icons dropdown-arrow">expand_more</i>
               </button>
-              <div class="category-dropdown-menu" id="category-dropdown-menu">
-                <div class="category-search-container mb-2">
-                  <input type="text" class="form-control form-control-sm" id="category-search" placeholder="Search categories...">
-                  <div class="category-actions mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="select-all-categories">Select All</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-categories">Clear All</button>
-                    <span class="selected-count text-muted ms-2" id="category-count">0 selected</span>
+              <div class="tag-dropdown-menu" id="tag-dropdown-menu">
+                <div class="tag-search-container mb-2">
+                  <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
+                  <div class="tag-actions mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="select-all-tags">Select All</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Clear All</button>
+                    <span class="selected-count text-muted ms-2" id="tag-count">0 selected</span>
                   </div>
                 </div>
-                <div class="category-list" id="category-list">
-                  {% for category in categories %}
-                    <div class="category-item" data-category-id="{{ category.id }}" data-category-name="{{ category.name|lower }}">
-                      <div class="category-content">
-                        <span class="category-name">{{ category.name }}</span>
-                        <div class="category-controls">
-                          <button type="button" class="btn btn-xs category-btn include-btn" data-action="include">
-                            <i class="material-icons">add</i> Include
+                <div class="tag-groups-list" id="tag-groups-list">
+                  {% for tag_group in tag_groups %}
+                    <div class="tag-group-section" data-tag-group-id="{{ tag_group.id }}">
+                      <div class="tag-group-header" style="border-left: 4px solid {{ tag_group.color }};">
+                        <h6 class="tag-group-name mb-1">{{ tag_group.name }}</h6>
+                        {% if tag_group.description %}
+                          <small class="text-muted">{{ tag_group.description }}</small>
+                        {% endif %}
+                        <div class="tag-group-actions mt-1">
+                          <button type="button" class="btn btn-xs btn-outline-primary tag-group-btn" data-action="select-group">
+                            <i class="material-icons">add</i> Select Group
                           </button>
-                          <!-- COMMENTED OUT: Category exclude functionality
-                          <button type="button" class="btn btn-xs category-btn exclude-btn" data-action="exclude">
-                            <i class="material-icons">remove</i> Exclude
-                          </button>
-                          -->
                         </div>
+                      </div>
+                      <div class="tags-in-group">
+                        {% for tag in tag_group.tags.all %}
+                          <div class="tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name|lower }}" data-tag-group-id="{{ tag_group.id }}">
+                            <span class="tag-badge" style="background-color: {{ tag.display_color }};">
+                              {{ tag.name }}
+                            </span>
+                            <button type="button" class="btn btn-xs tag-btn include-btn" data-action="include">
+                              <i class="material-icons">add</i>
+                            </button>
+                          </div>
+                        {% endfor %}
                       </div>
                     </div>
                   {% endfor %}
@@ -97,7 +107,7 @@
               <option value="date_added">Date Added</option>
               <option value="name">Name</option>
               <option value="manufacturer">Manufacturer</option>
-              <option value="category">Category</option>
+              <option value="tags">Tags</option>
               <option value="quantity">Quantity</option>
             </select>
           </div>
@@ -142,7 +152,7 @@
           <th>Image</th>
           <th>Name</th>
           <th>Manufacturer</th>
-          <th>Category</th>
+          <th>Tags</th>
           <th>Quantity</th>
           <th>Variants</th>
           <th>Location</th>
@@ -576,6 +586,154 @@
     margin-top: 0.5rem;
   }
 }
+
+/* Tag Filter Styles - New tagging system */
+.tag-dropdown {
+  position: relative;
+}
+
+.tag-dropdown-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.tag-dropdown-btn:hover {
+  border-color: #007bff;
+  background-color: #f8f9fa;
+}
+
+.tag-dropdown-btn:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.tag-dropdown.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.tag-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 1rem;
+  display: none;
+}
+
+.tag-dropdown.open .tag-dropdown-menu {
+  display: block;
+}
+
+.tag-group-section {
+  margin-bottom: 1rem;
+  border: 1px solid #e9ecef;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.tag-group-header {
+  background-color: #f8f9fa;
+  padding: 0.75rem;
+  border-left: 4px solid #6c757d;
+}
+
+.tag-group-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.tag-group-actions {
+  margin-top: 0.5rem;
+}
+
+.tags-in-group {
+  padding: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  background-color: white;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 1rem;
+  border: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.tag-item:hover {
+  background-color: #e9ecef;
+}
+
+.tag-item.included {
+  background-color: #d1ecf1;
+  border-color: #b6d4de;
+}
+
+.tag-group-section.group-selected .tag-group-header {
+  background-color: #d1ecf1;
+}
+
+.tag-btn, .tag-group-btn {
+  padding: 0.125rem 0.375rem;
+  font-size: 0.7rem;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tag-btn.include-btn {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.tag-btn.include-btn:hover {
+  background-color: #138496;
+}
+
+.tag-group-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.tag-group-btn:hover {
+  background-color: #0056b3;
+}
+
+.tag-search-container {
+  margin-bottom: 1rem;
+}
+
+.tag-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 </style>
 
 <script>
@@ -586,56 +744,60 @@ let currentViewMode = 'tile'; // 'tile' or 'table'
 let searchTimeout = null;
 let loadedItems = []; // Store all loaded items
 
-// Category filter state
-let categoryStates = {}; // { categoryId: 'include'|'exclude'|null }
+// Tag filter state
+let tagStates = {}; // { tagId: 'include'|null }
+let tagGroupStates = {}; // { tagGroupId: 'include'|null }
 
 // Initialize the page
 $(document).ready(function() {
-  initializeCategoryFilter();
+  initializeTagFilter();
   initializeEventListeners();
   setViewMode('tile');
   loadItems(true); // Reset and load initial items
 });
 
-function initializeCategoryFilter() {
-  // Initialize category states
-  $('.category-item').each(function() {
-    const categoryId = $(this).data('category-id');
-    categoryStates[categoryId] = null;
+function initializeTagFilter() {
+  // Initialize tag states
+  $('.tag-item').each(function() {
+    const tagId = $(this).data('tag-id');
+    tagStates[tagId] = null;
   });
   
-  updateCategoryCount();
+  // Initialize tag group states
+  $('.tag-group-section').each(function() {
+    const tagGroupId = $(this).data('tag-group-id');
+    tagGroupStates[tagGroupId] = null;
+  });
+  
+  updateTagCount();
 }
 
-function updateCategoryCount() {
-  const included = Object.values(categoryStates).filter(state => state === 'include').length;
-  // const excluded = Object.values(categoryStates).filter(state => state === 'exclude').length;  // COMMENTED OUT: Category exclude functionality
-  const total = included; // + excluded;  // COMMENTED OUT: Category exclude functionality
+function updateTagCount() {
+  const includedTags = Object.values(tagStates).filter(state => state === 'include').length;
+  const includedTagGroups = Object.values(tagGroupStates).filter(state => state === 'include').length;
+  const total = includedTags + includedTagGroups;
   
   let text = `${total} selected`;
-  let buttonText = 'Select Categories';
+  let buttonText = 'Select Tags';
   
-  // COMMENTED OUT: Category exclude functionality
-  // if (included > 0 && excluded > 0) {
-  //   text = `${included} included, ${excluded} excluded`;
-  //   buttonText = `${included} included, ${excluded} excluded`;
-  // } else 
-  if (included > 0) {
-    text = `${included} included`;
-    buttonText = `${included} categories included`;
-  }
-  // COMMENTED OUT: Category exclude functionality
-  // else if (excluded > 0) {
-  //   text = `${excluded} excluded`;
-  //   buttonText = `${excluded} categories excluded`;
-  // } 
-  else {
+  if (total > 0) {
+    if (includedTagGroups > 0 && includedTags > 0) {
+      text = `${includedTagGroups} groups, ${includedTags} tags`;
+      buttonText = `${includedTagGroups} groups, ${includedTags} tags selected`;
+    } else if (includedTagGroups > 0) {
+      text = `${includedTagGroups} groups`;
+      buttonText = `${includedTagGroups} tag groups selected`;
+    } else {
+      text = `${includedTags} tags`;
+      buttonText = `${includedTags} tags selected`;
+    }
+  } else {
     text = '0 selected';
-    buttonText = 'Select Categories';
+    buttonText = 'Select Tags';
   }
   
-  $('#category-count').text(text);
-  $('#category-button-text').text(buttonText);
+  $('#tag-count').text(text);
+  $('#tag-button-text').text(buttonText);
 }
 
 function initializeEventListeners() {
@@ -647,90 +809,154 @@ function initializeEventListeners() {
     }, 300);
   });
   
-  // Category dropdown toggle
-  $('#category-dropdown-btn').on('click', function(e) {
+  // Tag dropdown toggle
+  $('#tag-dropdown-btn').on('click', function(e) {
     e.preventDefault();
-    $('.category-dropdown').toggleClass('open');
+    $('.tag-dropdown').toggleClass('open');
   });
   
   // Close dropdown when clicking outside
   $(document).on('click', function(e) {
-    if (!$(e.target).closest('.category-dropdown').length) {
-      $('.category-dropdown').removeClass('open');
+    if (!$(e.target).closest('.tag-dropdown').length) {
+      $('.tag-dropdown').removeClass('open');
     }
   });
   
-  // Category search functionality
-  $('#category-search').on('input', function() {
+  // Tag search functionality
+  $('#tag-search').on('input', function() {
     const searchTerm = $(this).val().toLowerCase();
     let visibleCount = 0;
     
-    $('.category-item').each(function() {
-      const categoryName = $(this).data('category-name');
-      if (categoryName.includes(searchTerm)) {
-        $(this).removeClass('hidden');
-        visibleCount++;
+    // Search through tag groups and tags
+    $('.tag-group-section').each(function() {
+      const $groupSection = $(this);
+      const groupName = $groupSection.find('.tag-group-name').text().toLowerCase();
+      let groupVisible = false;
+      let tagsInGroupVisible = 0;
+      
+      // Check if group name matches
+      if (groupName.includes(searchTerm)) {
+        groupVisible = true;
+      }
+      
+      // Check individual tags in this group
+      $groupSection.find('.tag-item').each(function() {
+        const tagName = $(this).data('tag-name');
+        if (tagName.includes(searchTerm) || groupVisible) {
+          $(this).removeClass('hidden');
+          tagsInGroupVisible++;
+          visibleCount++;
+        } else {
+          $(this).addClass('hidden');
+        }
+      });
+      
+      // Show/hide the entire group based on whether any tags or group name matched
+      if (groupVisible || tagsInGroupVisible > 0) {
+        $groupSection.removeClass('hidden');
       } else {
-        $(this).addClass('hidden');
+        $groupSection.addClass('hidden');
       }
     });
     
     // Update placeholder to show count
     if (searchTerm) {
-      $(this).attr('placeholder', `${visibleCount} categories found`);
+      $(this).attr('placeholder', `${visibleCount} tags found`);
     } else {
-      $(this).attr('placeholder', 'Search categories...');
+      $(this).attr('placeholder', 'Search tags...');
     }
   });
   
-  // Category filter controls
-  $(document).on('click', '.category-btn', function(e) {
+  // Tag filter controls
+  $(document).on('click', '.tag-btn', function(e) {
     e.preventDefault();
-    const categoryItem = $(this).closest('.category-item');
-    const categoryId = categoryItem.data('category-id');
+    const tagItem = $(this).closest('.tag-item');
+    const tagId = tagItem.data('tag-id');
     const action = $(this).data('action');
     
-    // Toggle the state (only include action now)
-    if (categoryStates[categoryId] === action) {
+    // Toggle the state
+    if (tagStates[tagId] === action) {
       // Clicking the same action - deselect
-      categoryStates[categoryId] = null;
-      categoryItem.removeClass('included'); // removed 'excluded' since we commented out exclude functionality
+      tagStates[tagId] = null;
+      tagItem.removeClass('included');
     } else {
-      // Set new state (only include now)
-      categoryStates[categoryId] = action;
-      categoryItem.removeClass('included'); // removed 'excluded' since we commented out exclude functionality
+      // Set new state
+      tagStates[tagId] = action;
+      tagItem.removeClass('included');
       if (action === 'include') {
-        categoryItem.addClass('included');
+        tagItem.addClass('included');
       }
-      // COMMENTED OUT: Category exclude functionality
-      // else if (action === 'exclude') {
-      //   categoryItem.addClass('excluded');
-      // }
     }
     
-    updateCategoryCount();
+    updateTagCount();
     loadItems(true);
   });
   
-  // Select all categories
-  $('#select-all-categories').on('click', function() {
-    $('.category-item:not(.hidden)').each(function() {
-      const categoryId = $(this).data('category-id');
-      categoryStates[categoryId] = 'include';
-      $(this).removeClass('included excluded').addClass('included');
+  // Tag group filter controls
+  $(document).on('click', '.tag-group-btn', function(e) {
+    e.preventDefault();
+    const tagGroupSection = $(this).closest('.tag-group-section');
+    const tagGroupId = tagGroupSection.data('tag-group-id');
+    const action = $(this).data('action');
+    
+    if (action === 'select-group') {
+      // Toggle all tags in this group
+      const anyTagsSelected = tagGroupSection.find('.tag-item.included').length > 0;
+      
+      if (anyTagsSelected) {
+        // Deselect all tags in this group
+        tagGroupSection.find('.tag-item').each(function() {
+          const tagId = $(this).data('tag-id');
+          tagStates[tagId] = null;
+          $(this).removeClass('included');
+        });
+        tagGroupStates[tagGroupId] = null;
+        tagGroupSection.removeClass('group-selected');
+      } else {
+        // Select all tags in this group
+        tagGroupSection.find('.tag-item').each(function() {
+          const tagId = $(this).data('tag-id');
+          tagStates[tagId] = 'include';
+          $(this).addClass('included');
+        });
+        tagGroupStates[tagGroupId] = 'include';
+        tagGroupSection.addClass('group-selected');
+      }
+      
+      updateTagCount();
+      loadItems(true);
+    }
+  });
+  
+  // Select all tags
+  $('#select-all-tags').on('click', function() {
+    $('.tag-item:not(.hidden)').each(function() {
+      const tagId = $(this).data('tag-id');
+      tagStates[tagId] = 'include';
+      $(this).addClass('included');
     });
-    updateCategoryCount();
+    $('.tag-group-section:not(.hidden)').each(function() {
+      const tagGroupId = $(this).data('tag-group-id');
+      tagGroupStates[tagGroupId] = 'include';
+      $(this).addClass('group-selected');
+    });
+    updateTagCount();
     loadItems(true);
   });
   
-  // Clear all categories
-  $('#clear-all-categories').on('click', function() {
-    $('.category-item').each(function() {
-      const categoryId = $(this).data('category-id');
-      categoryStates[categoryId] = null;
-      $(this).removeClass('included'); // removed 'excluded' since we commented out exclude functionality
+  // Clear all tags
+  $('#clear-all-tags').on('click', function() {
+    $('.tag-item').each(function() {
+      const tagId = $(this).data('tag-id');
+      tagStates[tagId] = null;
+      $(this).removeClass('included');
     });
-    updateCategoryCount();
+    $('.tag-group-section').each(function() {
+      const tagGroupId = $(this).data('tag-group-id');
+      tagGroupStates[tagGroupId] = null;
+      $(this).removeClass('group-selected');
+    });
+    updateTagCount();
     loadItems(true);
   });
   
@@ -821,19 +1047,22 @@ function loadItems(reset = false) {
   $('#loading-indicator').show();
   $('#no-results').hide();
   
-  // Build category filter parameters
-  const includedCategories = [];
-  // const excludedCategories = [];  // COMMENTED OUT: Category exclude functionality
+  // Build tag filter parameters
+  const includedTags = [];
+  const includedTagGroups = [];
   
-  Object.keys(categoryStates).forEach(categoryId => {
-    const state = categoryStates[categoryId];
+  Object.keys(tagStates).forEach(tagId => {
+    const state = tagStates[tagId];
     if (state === 'include') {
-      includedCategories.push(categoryId);
+      includedTags.push(tagId);
     }
-    // COMMENTED OUT: Category exclude functionality
-    // else if (state === 'exclude') {
-    //   excludedCategories.push(categoryId);
-    // }
+  });
+  
+  Object.keys(tagGroupStates).forEach(tagGroupId => {
+    const state = tagGroupStates[tagGroupId];
+    if (state === 'include') {
+      includedTagGroups.push(tagGroupId);
+    }
   });
   
   // Collect filter parameters
@@ -847,14 +1076,13 @@ function loadItems(reset = false) {
     sort_order: $('#sort-order').val()
   };
   
-  // Add category filters
-  if (includedCategories.length > 0) {
-    params.categories = includedCategories.join(',');
+  // Add tag filters
+  if (includedTags.length > 0) {
+    params.tags = includedTags.join(',');
   }
-  // COMMENTED OUT: Category exclude functionality
-  // if (excludedCategories.length > 0) {
-  //   params.excluded_categories = excludedCategories.join(',');
-  // }
+  if (includedTagGroups.length > 0) {
+    params.tag_groups = includedTagGroups.join(',');
+  }
   
   // Remove empty parameters
   Object.keys(params).forEach(key => {
@@ -959,6 +1187,20 @@ function createItemTile(item) {
   const displayQuantity = getDisplayQuantity(item);
   const quantityText = getQuantityText();
   
+  // Create tags display
+  let tagsHtml = '';
+  if (item.tags && item.tags.length > 0) {
+    const tagBadges = item.tags.slice(0, 3).map(tag => 
+      `<span class="tag-badge" style="background-color: ${tag.color}; color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 4px;">${tag.name}</span>`
+    ).join('');
+    const moreCount = item.tags.length > 3 ? `<span class="text-muted">+${item.tags.length - 3} more</span>` : '';
+    tagsHtml = `<div class="tags-display mb-2">${tagBadges}${moreCount}</div>`;
+  } else if (item.category) {
+    // Fallback to legacy category display during transition
+    const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
+    tagsHtml = `<div class="category-display mb-2"><small class="text-muted">${categoryText}</small></div>`;
+  }
+  
   return $(`
     <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
       <div class="supply-card" onclick="window.location.href='/view/item/${item.id}/'">
@@ -968,6 +1210,7 @@ function createItemTile(item) {
         
         <h3 class="card-title">${item.name}</h3>
         ${manufacturerHtml}
+        ${tagsHtml}
         
         <div class="quantity-display">
           ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
@@ -996,10 +1239,21 @@ function createTableRow(item) {
   
   const statusBadge = getStatusBadge(item);
   const manufacturerText = item.manufacturer || '-';
-  const subcategoryText = item.subcategory ? ` / ${item.subcategory}` : '';
   const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '1 variant';
   const locationText = item.locations || 'No location';
   const displayQuantity = getDisplayQuantity(item);
+  
+  // Create tags display for table
+  let tagsText = '-';
+  if (item.tags && item.tags.length > 0) {
+    tagsText = item.tags.map(tag => tag.name).join(', ');
+    if (tagsText.length > 50) {
+      tagsText = tagsText.substring(0, 47) + '...';
+    }
+  } else if (item.category) {
+    // Fallback to legacy category display during transition
+    tagsText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
+  }
   
   return $(`
     <tr>
@@ -1009,7 +1263,7 @@ function createTableRow(item) {
         ${item.notes_public ? `<br><small class="text-muted">${item.notes_public}</small>` : ''}
       </td>
       <td>${manufacturerText}</td>
-      <td>${item.category}${subcategoryText}</td>
+      <td title="${item.tags_display || tagsText}">${tagsText}</td>
       <td>${displayQuantity}</td>
       <td>${variantText}</td>
       <td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>
