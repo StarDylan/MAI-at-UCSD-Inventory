@@ -128,6 +128,40 @@ class BarcodeScanner {
             this.container.style.border = '1px solid #ddd';
             this.container.style.borderRadius = '4px';
             
+            // Add CSS styles that will apply to video and canvas elements immediately
+            const style = document.createElement('style');
+            style.textContent = `
+                #${this.container.id || 'scanner-container'} video,
+                #${this.container.id || 'scanner-container'} canvas {
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    display: block !important;
+                }
+            `;
+            
+            // Give container a unique ID if it doesn't have one
+            if (!this.container.id) {
+                this.container.id = 'scanner-container-' + Date.now();
+            }
+            
+            // Update the style to use the actual ID
+            style.textContent = `
+                #${this.container.id} video,
+                #${this.container.id} canvas {
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    display: block !important;
+                }
+            `;
+            
+            // Add the style to the document head
+            document.head.appendChild(style);
+            
+            // Store style reference for cleanup
+            this.containerStyle = style;
+            
             // If a parent container was provided, we'll return the scanner container
             // to be appended to it, otherwise return the scanner container directly
             return this.container;
@@ -199,24 +233,6 @@ class BarcodeScanner {
                     // Start scanning
                     window.Quagga.start();
                     
-                    // Apply styles to ensure video fits in container
-                    setTimeout(() => {
-                        const video = this.container.querySelector('video');
-                        const canvas = this.container.querySelector('canvas');
-                        
-                        if (video) {
-                            video.style.width = '100%';
-                            video.style.height = '100%';
-                            video.style.objectFit = 'cover';
-                        }
-                        
-                        if (canvas) {
-                            canvas.style.width = '100%';
-                            canvas.style.height = '100%';
-                            canvas.style.objectFit = 'cover';
-                        }
-                    }, 100);
-                    
                     // Attach detection event listener
                     window.Quagga.onDetected((result) => {
                         if (this.onResult && result.codeResult) {
@@ -264,6 +280,12 @@ class BarcodeScanner {
                 // Clear container content
                 this.container.innerHTML = '';
                 this.container = null;
+            }
+            
+            // Clean up injected styles
+            if (this.containerStyle && this.containerStyle.parentNode) {
+                this.containerStyle.parentNode.removeChild(this.containerStyle);
+                this.containerStyle = null;
             }
         } catch (error) {
             console.error('Error stopping scanner:', error);
@@ -349,14 +371,9 @@ function createBarcodeScannerButton(gtinInput) {
                         </div>
                     </div>
                     <div id="${modalId}_error" class="alert alert-danger d-none"></div>
-                    <div class="mt-3">
-                        <label for="${modalId}_manual" class="form-label">Or enter barcode manually:</label>
-                        <input type="text" class="form-control" id="${modalId}_manual" placeholder="Enter barcode...">
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="${modalId}_use">Use Manual Entry</button>
                 </div>
             </div>
         </div>
@@ -371,7 +388,6 @@ function createBarcodeScannerButton(gtinInput) {
         // Reset modal state before showing
         const cameraDiv = document.getElementById(`${modalId}_camera`);
         const errorDiv = document.getElementById(`${modalId}_error`);
-        const manualInput = document.getElementById(`${modalId}_manual`);
         
         // Reset camera div to loading state
         cameraDiv.innerHTML = `
@@ -386,7 +402,6 @@ function createBarcodeScannerButton(gtinInput) {
         // Hide error and clear manual input
         errorDiv.classList.add('d-none');
         errorDiv.textContent = '';
-        manualInput.value = '';
         
         $('#' + modalId).modal('show');
         
@@ -419,15 +434,6 @@ function createBarcodeScannerButton(gtinInput) {
         }
     });
 
-    // Handle manual entry
-    document.getElementById(`${modalId}_use`).addEventListener('click', () => {
-        const manualInput = document.getElementById(`${modalId}_manual`);
-        if (manualInput.value.trim()) {
-            $('#' + modalId).modal('hide');
-            handleBarcodeResult(gtinInput, manualInput.value.trim());
-        }
-    });
-
     // Cleanup when modal is hidden
     $('#' + modalId).on('hidden.bs.modal', () => {
         scanner.stopScanning();
@@ -435,7 +441,6 @@ function createBarcodeScannerButton(gtinInput) {
         // Reset modal state for next use
         const cameraDiv = document.getElementById(`${modalId}_camera`);
         const errorDiv = document.getElementById(`${modalId}_error`);
-        const manualInput = document.getElementById(`${modalId}_manual`);
         
         // Reset to initial loading state
         cameraDiv.innerHTML = `
@@ -450,7 +455,6 @@ function createBarcodeScannerButton(gtinInput) {
         // Clear error and manual input
         errorDiv.classList.add('d-none');
         errorDiv.textContent = '';
-        manualInput.value = '';
     });
     
     // Also cleanup when modal is about to be shown (double safety)
