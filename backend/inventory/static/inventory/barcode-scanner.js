@@ -124,6 +124,9 @@ class BarcodeScanner {
             this.container.style.width = '100%';
             this.container.style.height = '300px';
             this.container.style.position = 'relative';
+            this.container.style.overflow = 'hidden';
+            this.container.style.border = '1px solid #ddd';
+            this.container.style.borderRadius = '4px';
             
             // If a parent container was provided, we'll return the scanner container
             // to be appended to it, otherwise return the scanner container directly
@@ -196,6 +199,24 @@ class BarcodeScanner {
                     // Start scanning
                     window.Quagga.start();
                     
+                    // Apply styles to ensure video fits in container
+                    setTimeout(() => {
+                        const video = this.container.querySelector('video');
+                        const canvas = this.container.querySelector('canvas');
+                        
+                        if (video) {
+                            video.style.width = '100%';
+                            video.style.height = '100%';
+                            video.style.objectFit = 'cover';
+                        }
+                        
+                        if (canvas) {
+                            canvas.style.width = '100%';
+                            canvas.style.height = '100%';
+                            canvas.style.objectFit = 'cover';
+                        }
+                    }, 100);
+                    
                     // Attach detection event listener
                     window.Quagga.onDetected((result) => {
                         if (this.onResult && result.codeResult) {
@@ -228,6 +249,21 @@ class BarcodeScanner {
                 
                 // Stop quagga2
                 window.Quagga.stop();
+            }
+            
+            // Clean up container
+            if (this.container) {
+                // Stop any media streams in the container
+                const video = this.container.querySelector('video');
+                if (video && video.srcObject) {
+                    const tracks = video.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    video.srcObject = null;
+                }
+                
+                // Clear container content
+                this.container.innerHTML = '';
+                this.container = null;
             }
         } catch (error) {
             console.error('Error stopping scanner:', error);
@@ -304,7 +340,7 @@ function createBarcodeScannerButton(gtinInput) {
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div id="${modalId}_camera" class="text-center" style="min-height: 300px;">
+                    <div id="${modalId}_camera" class="text-center" style="min-height: 300px; max-height: 400px; overflow: hidden; border: 1px solid #ddd; border-radius: 4px;">
                         <div class="mb-3">
                             <div class="spinner-border" role="status">
                                 <span class="sr-only">Loading scanner...</span>
@@ -332,10 +368,29 @@ function createBarcodeScannerButton(gtinInput) {
     
     // Handle scan button click
     scanButton.addEventListener('click', async () => {
+        // Reset modal state before showing
+        const cameraDiv = document.getElementById(`${modalId}_camera`);
+        const errorDiv = document.getElementById(`${modalId}_error`);
+        const manualInput = document.getElementById(`${modalId}_manual`);
+        
+        // Reset camera div to loading state
+        cameraDiv.innerHTML = `
+            <div class="mb-3">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">Loading scanner...</span>
+                </div>
+                <p class="mt-2">Initializing camera and scanner...</p>
+            </div>
+        `;
+        
+        // Hide error and clear manual input
+        errorDiv.classList.add('d-none');
+        errorDiv.textContent = '';
+        manualInput.value = '';
+        
         $('#' + modalId).modal('show');
         
         try {
-            const cameraDiv = document.getElementById(`${modalId}_camera`);
             const container = await scanner.initCamera(cameraDiv);
             
             // Clear loading message and set up container
@@ -343,6 +398,9 @@ function createBarcodeScannerButton(gtinInput) {
             
             // Safety check: only append if container is not the same as cameraDiv
             if (container && container !== cameraDiv && !cameraDiv.contains(container)) {
+                // Ensure container fits within the modal
+                container.style.maxWidth = '100%';
+                container.style.maxHeight = '300px';
                 cameraDiv.appendChild(container);
             }
             
@@ -353,12 +411,10 @@ function createBarcodeScannerButton(gtinInput) {
             });
             
         } catch (error) {
-            const errorDiv = document.getElementById(`${modalId}_error`);
             errorDiv.textContent = error.message;
             errorDiv.classList.remove('d-none');
             
             // Hide loading spinner on error
-            const cameraDiv = document.getElementById(`${modalId}_camera`);
             cameraDiv.innerHTML = '<p class="text-muted">Camera initialization failed. Please use manual entry below.</p>';
         }
     });
@@ -374,6 +430,32 @@ function createBarcodeScannerButton(gtinInput) {
 
     // Cleanup when modal is hidden
     $('#' + modalId).on('hidden.bs.modal', () => {
+        scanner.stopScanning();
+        
+        // Reset modal state for next use
+        const cameraDiv = document.getElementById(`${modalId}_camera`);
+        const errorDiv = document.getElementById(`${modalId}_error`);
+        const manualInput = document.getElementById(`${modalId}_manual`);
+        
+        // Reset to initial loading state
+        cameraDiv.innerHTML = `
+            <div class="mb-3">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">Loading scanner...</span>
+                </div>
+                <p class="mt-2">Initializing camera and scanner...</p>
+            </div>
+        `;
+        
+        // Clear error and manual input
+        errorDiv.classList.add('d-none');
+        errorDiv.textContent = '';
+        manualInput.value = '';
+    });
+    
+    // Also cleanup when modal is about to be shown (double safety)
+    $('#' + modalId).on('show.bs.modal', () => {
+        // Ensure any previous scanner instance is stopped
         scanner.stopScanning();
     });
 }
