@@ -37,10 +37,10 @@
      
         </div>
         
-        <!-- Filters Row -->
+        <!-- Filters and Sort Controls Row -->
         <div class="row">               
           <!-- Tag Filter -->
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label">Tag Filter</label>
             <div class="tag-dropdown">
               <button type="button" class="btn btn-outline-secondary w-100 tag-dropdown-btn" id="tag-dropdown-btn">
@@ -99,23 +99,8 @@
               </div>
             </div>
           </div>
-
-          <!-- View Mode Toggle -->
-          <div class="col-md-3 mb-3">
-            <label class="form-label">View Mode</label>
-            <div class="btn-group" role="group">
-              <button type="button" class="btn btn-outline-primary btn-sm" id="tile-view-btn">
-                <i class="material-icons">view_module</i> Tiles
-              </button>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="table-view-btn">
-                <i class="material-icons">view_list</i> Table
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Sort Controls -->
-        <div class="row">
+          
+          <!-- Sort By -->
           <div class="col-md-3">
             <label for="sort-by" class="form-label">Sort By</label>
             <select class="form-control" id="sort-by">
@@ -126,6 +111,8 @@
               <option value="quantity">Quantity</option>
             </select>
           </div>
+          
+          <!-- Sort Order -->
           <div class="col-md-2">
             <label for="sort-order" class="form-label">Order</label>
             <select class="form-control" id="sort-order">
@@ -133,9 +120,12 @@
               <option value="asc">Ascending</option>
             </select>
           </div>
-          <div class="col-md-2 d-flex align-items-end">
-            <button type="button" class="btn btn-secondary btn-sm" id="clear-filters">
-              Clear Filters
+          
+          <!-- Clear Filters Button -->
+          <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <button type="button" class="btn btn-secondary btn-sm d-flex align-items-center justify-content-center" id="clear-filters" style="width: 120px;">
+              <i class="material-icons me-2" style="font-size: 18px;">clear_all</i> Clear Filters
             </button>
           </div>
         </div>
@@ -147,8 +137,19 @@
 <!-- Results Info -->
 <div class="row mb-3">
   <div class="col-12">
-    <div id="results-info" class="text-muted small">
-      Loading items...
+    <div class="d-flex justify-content-between align-items-center">
+      <div id="results-info" class="text-muted small">
+        Loading items...
+      </div>
+      <!-- View Mode Toggle -->
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="tile-view-btn" title="Tile View">
+          <i class="material-icons" style="font-size: 18px;">view_module</i>
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="table-view-btn" title="Table View">
+          <i class="material-icons" style="font-size: 18px;">view_list</i>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -200,6 +201,22 @@
 </div>
 
 <style>
+.supply-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  height: 100%;
+}
+
+.supply-card-link:hover {
+  text-decoration: none;
+  color: inherit;
+}
+
+.supply-card-link:focus {
+  outline: none;
+}
+
 .supply-card {
   background: white;
   border: 1px solid #dee2e6;
@@ -1512,30 +1529,32 @@ function createItemTile(item) {
   
   return $(`
     <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <div class="supply-card" onclick="window.location.href='/view/item/${item.id}/'">
-        <div class="card-image-container">
-          ${imageHtml}
-        </div>
-        
-        <h3 class="card-title">${item.name}</h3>
-        ${manufacturerHtml}
-        
-        <div class="quantity-display">
-            ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
-        </div>
+      <a href="/view/item/${item.id}/" class="supply-card-link">
+        <div class="supply-card">
+          <div class="card-image-container">
+            ${imageHtml}
+          </div>
+          
+          <h3 class="card-title">${item.name}</h3>
+          ${manufacturerHtml}
+          
+          <div class="quantity-display">
+              ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
+          </div>
 
-        ${tagsHtml}
-        
-        <div class="bottom-section">
-          <div class="expiration-status ${statusInfo.class}">
-            <i class="${statusInfo.icon} mr-1">${statusInfo.iconText}</i>
-            ${statusInfo.text}
-          </div>
-          <div class="variants-info">
-            ${variantText}
+          ${tagsHtml}
+          
+          <div class="bottom-section">
+            <div class="expiration-status ${statusInfo.class}">
+              <i class="${statusInfo.icon} mr-1">${statusInfo.iconText}</i>
+              ${statusInfo.text}
+            </div>
+            <div class="variants-info">
+              ${variantText}
+            </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
   `);
 }

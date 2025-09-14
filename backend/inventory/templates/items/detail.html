@@ -1,7 +1,12 @@
 {% extends "shared/base.html" %} {% block body %}
 <div id="page">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">{{ item.name }}</h4>
+    <div class="d-flex align-items-center">
+      <button class="btn btn-link p-0 me-3" onclick="history.back()" title="Go back">
+        <i class="material-icons" style="font-size: 24px; color: #6c757d;">chevron_left</i>
+      </button>
+      <h4 class="mb-0">{{ item.name }}</h4>
+    </div>
     <div class="btn-group" role="group">
       {% if item.is_deleted %} 
         {% if perms.inventory.restore_deleteditem %}
