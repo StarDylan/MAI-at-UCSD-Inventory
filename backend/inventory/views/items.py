@@ -20,6 +20,7 @@ from inventory.forms import StockItemEditForm
 from inventory.forms_tags import TaggedItemForm, TaggedItemWithStockForm
 from inventory.models import Item, AuditEvent, StockItem, CheckOutItem, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
+from django.db.models import Prefetch
 
 def view_item_detail(request, uuid):
     """
@@ -745,7 +746,7 @@ def public_search_view(request):
     """
     # Get all active tag groups and their tags for filter dropdown
     tag_groups = models.TagGroup.objects.filter(is_active=True).prefetch_related(
-        models.Prefetch(
+        Prefetch(
             'tags',
             queryset=models.Tag.objects.filter(is_active=True).order_by('sort_order', 'name')
         )

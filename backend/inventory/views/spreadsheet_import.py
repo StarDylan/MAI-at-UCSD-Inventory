@@ -2,10 +2,9 @@
 Spreadsheet import views for bulk adding new inventory items.
 
 This module handles Excel import functionality for bulk item creation,
-including template generation and import processing.
+including template generation and import processing using the new tagging system.
 """
 
-import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import datetime, date
@@ -18,6 +17,31 @@ from decimal import Decimal, InvalidOperation
 
 from inventory.models import Item, StockItem, Organization, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
+
+
+def find_or_create_tag(tag_name, general_tag_group):
+    """
+    Find an existing tag by name (case-insensitive) or create a new one in the general group.
+    
+    Args:
+        tag_name: Name of the tag to find or create
+        general_tag_group: TagGroup to create new tags in
+        
+    Returns:
+        Tag: Found or created tag
+    """
+    # First try to find existing tag (case-insensitive)
+    existing_tag = Tag.objects.filter(name__iexact=tag_name, is_active=True).first()
+    if existing_tag:
+        return existing_tag
+    
+    # Create new tag in the general group
+    new_tag = Tag.objects.create(
+        name=tag_name.strip(),
+        tag_group=general_tag_group,
+        is_active=True
+    )
+    return new_tag
 
 
 @login_required
@@ -221,7 +245,6 @@ def upload_spreadsheet(request):
                 return render(request, 'spreadsheet_import/upload.html', context)
             
             # Process data rows
-            created_count = 0
             error_count = 0
             errors = []
             
@@ -408,7 +431,7 @@ def upload_spreadsheet(request):
                     elif not isinstance(date_received, date):
                         try:
                             date_received = date_received.date() if hasattr(date_received, 'date') else date.today()
-                        except:
+                        except Exception:
                             errors.append(f"Row {row_num}: Invalid Date Received format")
                             error_count += 1
                             continue
@@ -425,10 +448,18 @@ def upload_spreadsheet(request):
                         elif not isinstance(expiration_date, date):
                             try:
                                 expiration_date = expiration_date.date() if hasattr(expiration_date, 'date') else None
-                            except:
+                            except Exception:
                                 expiration_date = None
                     else:
                         expiration_date = None
+                    
+                    # Process tags
+                    tag_objects = []
+                    if tags_str:
+                        tag_names = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+                        for tag_name in tag_names:
+                            tag_obj = find_or_create_tag(tag_name, general_tag_group)
+                            tag_objects.append(tag_obj)
                     
                     # Determine where GTIN should be placed based on detail field
                     gtin_on_stock_item = bool(detail.strip())
@@ -451,7 +482,8 @@ def upload_spreadsheet(request):
                                 'url': url,
                                 'notes_public': public_notes,
                                 'notes_private': private_notes,
-                            }
+                            },
+                            'tags': tag_objects,
                         }
                     
                     # Store validated data for creation
@@ -470,6 +502,7 @@ def upload_spreadsheet(request):
                             'notes_public': public_notes,
                             'notes_private': private_notes,
                         },
+                        'tags': tag_objects,
                         'stock_data': {
                             'organization': organization,
                             'quantity': quantity,

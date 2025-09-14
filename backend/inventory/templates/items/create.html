@@ -1,19 +1,227 @@
-{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
+{% extends "shared/base.html" %} {% block body %}
 
 <h4>Create Item</h4>
 <form method="post" action="{% url 'create_item' %}" autocomplete="off">
   {% csrf_token %} 
   
-  <!-- Use crispy form for most fields -->
-  {% for field in form %}
-    {% if field.name != 'tags' %}
-      {{ field|crispy }}
+  <!-- Manually render form fields to avoid crispy forms compatibility issues -->
+  
+  <!-- Name field -->
+  <div class="form-group mb-3">
+    <label for="id_name" class="form-label">{{ form.name.label }}{% if form.name.field.required %} *{% endif %}</label>
+    {{ form.name }}
+    {% if form.name.help_text %}<div class="form-text">{{ form.name.help_text }}</div>{% endif %}
+    {% if form.name.errors %}
+      {% for error in form.name.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
     {% endif %}
-  {% endfor %}
+  </div>
+
+  <!-- Manufacturer field -->
+  <div class="form-group mb-3">
+    <label for="id_manufacturer" class="form-label">{{ form.manufacturer.label }}{% if form.manufacturer.field.required %} *{% endif %}</label>
+    {{ form.manufacturer }}
+    {% if form.manufacturer.help_text %}<div class="form-text">{{ form.manufacturer.help_text }}</div>{% endif %}
+    {% if form.manufacturer.errors %}
+      {% for error in form.manufacturer.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- GTIN field -->
+  <div class="form-group mb-3">
+    <label for="id_gtin" class="form-label">{{ form.gtin.label }}{% if form.gtin.field.required %} *{% endif %}</label>
+    {{ form.gtin }}
+    {% if form.gtin.help_text %}<div class="form-text">{{ form.gtin.help_text }}</div>{% endif %}
+    {% if form.gtin.errors %}
+      {% for error in form.gtin.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- GTIN applies to field -->
+  <div class="form-group mb-3">
+    <label class="form-label">{{ form.gtin_applies_to.label }}{% if form.gtin_applies_to.field.required %} *{% endif %}</label>
+    <div>
+      {% for choice in form.gtin_applies_to %}
+        <div class="form-check">
+          {{ choice.tag }}
+          <label class="form-check-label" for="{{ choice.id_for_label }}">
+            {{ choice.choice_label }}
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+    {% if form.gtin_applies_to.help_text %}<div class="form-text">{{ form.gtin_applies_to.help_text }}</div>{% endif %}
+    {% if form.gtin_applies_to.errors %}
+      {% for error in form.gtin_applies_to.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Detail field -->
+  <div class="form-group mb-3">
+    <label for="id_detail" class="form-label">{{ form.detail.label }}{% if form.detail.field.required %} *{% endif %}</label>
+    {{ form.detail }}
+    {% if form.detail.help_text %}<div class="form-text">{{ form.detail.help_text }}</div>{% endif %}
+    {% if form.detail.errors %}
+      {% for error in form.detail.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- URL field -->
+  <div class="form-group mb-3">
+    <label for="id_url" class="form-label">{{ form.url.label }}{% if form.url.field.required %} *{% endif %}</label>
+    {{ form.url }}
+    {% if form.url.help_text %}<div class="form-text">{{ form.url.help_text }}</div>{% endif %}
+    {% if form.url.errors %}
+      {% for error in form.url.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Organization field -->
+  <div class="form-group mb-3">
+    <label for="id_organization" class="form-label">{{ form.organization.label }}{% if form.organization.field.required %} *{% endif %}</label>
+    {{ form.organization }}
+    {% if form.organization.help_text %}<div class="form-text">{{ form.organization.help_text }}</div>{% endif %}
+    {% if form.organization.errors %}
+      {% for error in form.organization.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Quantity field -->
+  <div class="form-group mb-3">
+    <label for="id_quantity" class="form-label">{{ form.quantity.label }}{% if form.quantity.field.required %} *{% endif %}</label>
+    {{ form.quantity }}
+    {% if form.quantity.help_text %}<div class="form-text">{{ form.quantity.help_text }}</div>{% endif %}
+    {% if form.quantity.errors %}
+      {% for error in form.quantity.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Items per box field -->
+  <div class="form-group mb-3">
+    <label for="id_items_per_box" class="form-label">{{ form.items_per_box.label }}{% if form.items_per_box.field.required %} *{% endif %}</label>
+    {{ form.items_per_box }}
+    {% if form.items_per_box.help_text %}<div class="form-text">{{ form.items_per_box.help_text }}</div>{% endif %}
+    {% if form.items_per_box.errors %}
+      {% for error in form.items_per_box.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Cost per item field -->
+  <div class="form-group mb-3">
+    <label for="id_cost_per_item" class="form-label">{{ form.cost_per_item.label }}{% if form.cost_per_item.field.required %} *{% endif %}</label>
+    {{ form.cost_per_item }}
+    {% if form.cost_per_item.help_text %}<div class="form-text">{{ form.cost_per_item.help_text }}</div>{% endif %}
+    {% if form.cost_per_item.errors %}
+      {% for error in form.cost_per_item.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Stock location field -->
+  <div class="form-group mb-3">
+    <label for="id_stock_location" class="form-label">{{ form.stock_location.label }}{% if form.stock_location.field.required %} *{% endif %}</label>
+    {{ form.stock_location }}
+    {% if form.stock_location.help_text %}<div class="form-text">{{ form.stock_location.help_text }}</div>{% endif %}
+    {% if form.stock_location.errors %}
+      {% for error in form.stock_location.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Date received field -->
+  <div class="form-group mb-3">
+    <label for="id_date_received" class="form-label">{{ form.date_received.label }}{% if form.date_received.field.required %} *{% endif %}</label>
+    {{ form.date_received }}
+    {% if form.date_received.help_text %}<div class="form-text">{{ form.date_received.help_text }}</div>{% endif %}
+    {% if form.date_received.errors %}
+      {% for error in form.date_received.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Expiration date field -->
+  <div class="form-group mb-3">
+    <label for="id_expiration_date" class="form-label">{{ form.expiration_date.label }}{% if form.expiration_date.field.required %} *{% endif %}</label>
+    {{ form.expiration_date }}
+    {% if form.expiration_date.help_text %}<div class="form-text">{{ form.expiration_date.help_text }}</div>{% endif %}
+    {% if form.expiration_date.errors %}
+      {% for error in form.expiration_date.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Lot number field -->
+  <div class="form-group mb-3">
+    <label for="id_lot_number" class="form-label">{{ form.lot_number.label }}{% if form.lot_number.field.required %} *{% endif %}</label>
+    {{ form.lot_number }}
+    {% if form.lot_number.help_text %}<div class="form-text">{{ form.lot_number.help_text }}</div>{% endif %}
+    {% if form.lot_number.errors %}
+      {% for error in form.lot_number.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Stock notes field -->
+  <div class="form-group mb-3">
+    <label for="id_stock_notes" class="form-label">{{ form.stock_notes.label }}{% if form.stock_notes.field.required %} *{% endif %}</label>
+    {{ form.stock_notes }}
+    {% if form.stock_notes.help_text %}<div class="form-text">{{ form.stock_notes.help_text }}</div>{% endif %}
+    {% if form.stock_notes.errors %}
+      {% for error in form.stock_notes.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Notes public field -->
+  <div class="form-group mb-3">
+    <label for="id_notes_public" class="form-label">{{ form.notes_public.label }}{% if form.notes_public.field.required %} *{% endif %}</label>
+    {{ form.notes_public }}
+    {% if form.notes_public.help_text %}<div class="form-text">{{ form.notes_public.help_text }}</div>{% endif %}
+    {% if form.notes_public.errors %}
+      {% for error in form.notes_public.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Notes private field -->
+  <div class="form-group mb-3">
+    <label for="id_notes_private" class="form-label">{{ form.notes_private.label }}{% if form.notes_private.field.required %} *{% endif %}</label>
+    {{ form.notes_private }}
+    {% if form.notes_private.help_text %}<div class="form-text">{{ form.notes_private.help_text }}</div>{% endif %}
+    {% if form.notes_private.errors %}
+      {% for error in form.notes_private.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
   
   <!-- Custom tags section -->
   {% if form.tags.field.queryset %}
-  <div class="form-group">
+  <div class="form-group mb-3">
     <label class="form-label"><strong>Tags</strong></label>
     <div class="form-text mb-3">Select one or more tags that describe this item. Items can have multiple tags for flexible categorization.</div>
     
