@@ -157,8 +157,8 @@
         const moreText = item.gtins.length > 2 ? ` (+${item.gtins.length - 2} more)` : "";
         itemInfo += ` <span style='color: #28a745; font-size: 0.875rem;'>[GTIN(s): ${gtinDisplay}${moreText}]</span>`;
       }
-      if (item.category__name) {
-        itemInfo += ` <span style='color: #6c757d;'>${item.category__name} > ${item.subcategory__name}</span>`;
+      if (item.tags_display) {
+        itemInfo += ` <span style='color: #6c757d;'>[${item.tags_display}]</span>`;
       }
 
       li.innerHTML = `<div>${itemInfo}</div><button style='padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #0d6efd; color: #0d6efd; background-color: transparent; border-radius: 0.25rem; cursor: pointer;' class='checkin-btn'>Check In</button>`;

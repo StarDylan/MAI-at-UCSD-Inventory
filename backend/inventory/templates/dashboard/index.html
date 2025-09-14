@@ -5,7 +5,7 @@
   access all major functionality of the inventory system including:
   - Database viewing and management
   - Item creation and editing
-  - Category and subcategory management
+  - Tag and tag group management
   - User administration (for admins)
   - Search and quantity management
   
@@ -54,16 +54,13 @@
   <a href="{% url 'audit' %}" class="list-group-item list-group-item-action">View audit logs</a>
   {% endif %} {% if perms.inventory.view_deleteditem %}
   <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
-  {% endif %} {% if perms.inventory.add_category %}
-  <a href="{% url 'create_category' %}" class="list-group-item list-group-item-action">Create a new category</a>
-  {% endif %} {% if perms.inventory.add_subcategory %}
-  <a href="{% url 'create_subcategory' %}" class="list-group-item list-group-item-action">Create a new subcategory</a>
-  {% endif %} {% if perms.inventory.view_organization %}
+  {% endif %}
+  <a href="{% url 'tag_groups_list' %}" class="list-group-item list-group-item-action">Manage tag groups</a>
+  <a href="{% url 'tag_list' %}" class="list-group-item list-group-item-action">Manage tags</a>
+  <a href="{% url 'tag_group_create' %}" class="list-group-item list-group-item-action">Create a new tag group</a>
+  <a href="{% url 'tag_create' %}" class="list-group-item list-group-item-action">Create a new tag</a>
+  {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
-  {% endif %} {% if perms.inventory.delete_category %}
-  <a href="{% url 'delete_category_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a category</div></a>
-  {% endif %} {% if perms.inventory.delete_subcategory %}
-  <a href="{% url 'delete_subcategory_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete a subcategory</div></a>
   {% endif %} {% if perms.inventory.delete_image %}
   <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
   {% endif %}

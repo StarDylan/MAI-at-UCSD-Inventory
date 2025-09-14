@@ -82,8 +82,14 @@
     {% endif %}
 
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
-      <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">label</i> Tags</span>
+      <span class="flex-fill text-right">
+        {% for tag in item.tags.all %}
+          <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }};">{{ tag.name }}</span>
+        {% empty %}
+          <em>No tags assigned</em>
+        {% endfor %}
+      </span>
     </div>
 
     {% if item.manufacturer %}
