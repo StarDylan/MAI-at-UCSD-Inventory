@@ -888,14 +888,13 @@ def public_search_api(request):
     
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
-    location_query = request.GET.get('location', '').strip()
-    tag_group_ids = request.GET.get('tag_groups', '').strip()
+
     tag_ids = request.GET.get('tags', '').strip()
     excluded_tag_ids = request.GET.get('excluded_tags', '').strip()
+
     exclude_expired_param = request.GET.get('exclude_expired', 'false')
     exclude_expired = exclude_expired_param.lower() == 'true' if isinstance(exclude_expired_param, str) else bool(exclude_expired_param)
-    include_zero_qty_param = request.GET.get('include_zero_qty', 'false')
-    include_zero_qty = include_zero_qty_param.lower() == 'true' if isinstance(include_zero_qty_param, str) else bool(include_zero_qty_param)
+    
     sort_by = request.GET.get('sort_by', 'date_added')
     sort_order = request.GET.get('sort_order', 'desc' if sort_by == 'date_added' else 'asc')
     
@@ -905,7 +904,7 @@ def public_search_api(request):
     # Build the base queryset with tag prefetching
     items_query = models.Item.active_objects.prefetch_related(
         'tags__tag_group'
-    ).select_related()  # Remove category/subcategory as they will be deprecated
+    ).select_related()
     
     # Filter for permission-based access - only show surplus-approved items for public users
     if not has_internal_details_perm:
@@ -940,25 +939,8 @@ def public_search_api(request):
         if has_internal_details_perm:
             search_conditions |= Q(stock_items__location__icontains=search_query)
     
-    # Apply location filter (only for users with permission)
-    if location_query and len(location_query) >= 2 and has_internal_details_perm:
-        location_condition = Q(stock_items__location__icontains=location_query)
-        if search_conditions:
-            search_conditions &= location_condition
-        else:
-            search_conditions = location_condition
     
-    if search_conditions:
-        items_query = items_query.filter(search_conditions)
-    
-    # Apply tag group filter
-    if tag_group_ids:
-        try:
-            tag_group_list = [tg_id.strip() for tg_id in tag_group_ids.split(',') if tg_id.strip()]
-            if tag_group_list:
-                items_query = items_query.filter(tags__tag_group__id__in=tag_group_list)
-        except (ValueError, TypeError):
-            pass
+    items_query = items_query.filter(search_conditions)
     
     # Apply specific tag filter
     if tag_ids:
@@ -1017,11 +999,7 @@ def public_search_api(request):
             # Check actual stock items
             actual_total = sum(si.quantity for si in item.stock_items.filter(quantity__gt=0))
             print(f"DEBUG: Item {item.name} - Actual Stock Total: {actual_total}")
-    
-    # Apply quantity filter
-    if not include_zero_qty:
-        items_query = items_query.filter(annotated_total_stock_quantity__gt=0)
-    
+
     # Apply expiration filter
     if exclude_expired:
         # Only exclude items where ALL stock is expired (no valid stock remaining)
@@ -1039,9 +1017,6 @@ def public_search_api(request):
         sort_field = 'name'
     elif sort_by == 'manufacturer':
         sort_field = 'manufacturer'
-    elif sort_by == 'tags':
-        # Sort by tag group name, then tag name
-        sort_field = 'tags__tag_group__name'
     elif sort_by == 'quantity':
         sort_field = 'annotated_total_stock_quantity'
     
