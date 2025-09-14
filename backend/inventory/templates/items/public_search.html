@@ -14,22 +14,39 @@
   <div class="col-12">
     <div class="card">
       <div class="card-body">
-        <div class="row">
-          <!-- Search Input -->
-          <div class="col-md-4 mb-3">
-            <label for="search-input" class="form-label">Search Items</label>
+        <!-- Search and Tags Section -->
+        <div class="row mb-3">
+          <div class="col-md-9">
+            <label class="form-label">Search Items</label>
+            {% if perms.inventory.view_internalstockingdetails %}
+            <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, GTIN, or location...">
+            {% else %}
             <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN...">
+            {% endif %}
           </div>
-          
+
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Display Options</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="exclude-expired">
+              <label class="form-check-label" for="exclude-expired">
+                Exclude expired items
+              </label>
+            </div>
+          </div>
+     
+        </div>
+        
+        <!-- Filters Row -->
+        <div class="row">               
           <!-- Tag Filter -->
-          <div class="col-md-5 mb-3">
+          <div class="col-md-3">
             <label class="form-label">Tag Filter</label>
             <div class="tag-dropdown">
               <button type="button" class="btn btn-outline-secondary w-100 tag-dropdown-btn" id="tag-dropdown-btn">
                 <span class="dropdown-text">
                   <i class="material-icons">label</i>
                   <span id="tag-button-text">Select Tags</span>
-                </span>
                 <i class="material-icons dropdown-arrow">expand_more</i>
               </button>
               <div class="tag-dropdown-menu" id="tag-dropdown-menu">
@@ -42,7 +59,6 @@
                 <div class="tag-search-container mb-2">
                   <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
                   <div class="tag-actions mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="select-all-tags">Select All</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Clear All</button>
                     <span class="selected-count text-muted ms-2" id="tag-count">0 selected</span>
                   </div>
@@ -83,20 +99,9 @@
               </div>
             </div>
           </div>
-          
-          <!-- Filter Checkboxes -->
-          <div class="col-md-2 mb-3">
-            <label class="form-label">Display Options</label>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="exclude-expired">
-              <label class="form-check-label" for="exclude-expired">
-                Exclude expired items
-              </label>
-            </div>
-          </div>
-          
+
           <!-- View Mode Toggle -->
-          <div class="col-md-2 mb-3">
+          <div class="col-md-3 mb-3">
             <label class="form-label">View Mode</label>
             <div class="btn-group" role="group">
               <button type="button" class="btn btn-outline-primary btn-sm" id="tile-view-btn">
@@ -165,7 +170,9 @@
           <th>Tags</th>
           <th>Quantity</th>
           <th>Variants</th>
+          {% if perms.inventory.view_internalstockingdetails %}
           <th>Location</th>
+          {% endif %}
           <th>Expiration</th>
           <th>Actions</th>
         </tr>
@@ -987,6 +994,7 @@ let hasMore = true;
 let currentViewMode = 'tile'; // 'tile' or 'table'
 let searchTimeout = null;
 let loadedItems = []; // Store all loaded items
+let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %}true{% else %}false{% endif %}; // Django template variable
 
 // Tag filter state
 let tagStates = {}; // { tagId: 'include'|null }
@@ -1045,6 +1053,14 @@ function updateTagCount() {
 function initializeEventListeners() {
   // Search input with debouncing
   $('#search-input').on('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      loadItems(true);
+    }, 300);
+  });
+  
+  // Location search input with debouncing (for users with permission)
+  $('#location-input').on('input', function() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       loadItems(true);
@@ -1338,6 +1354,14 @@ function loadItems(reset = false) {
     sort_order: $('#sort-order').val()
   };
   
+  // Add location search if user has permission and field is visible
+  if ($('#location-search-container').is(':visible')) {
+    const locationQuery = $('#location-input').val().trim();
+    if (locationQuery) {
+      params.location = locationQuery;
+    }
+  }
+  
   // Add tag filters
   if (includedTags.length > 0) {
     params.tags = includedTags.join(',');
@@ -1361,6 +1385,7 @@ function loadItems(reset = false) {
     method: 'GET',
     data: params,
     success: function(data) {
+      // Handle user permissions (only on first load)
       if (reset || currentOffset === 0) {
         updateResultsInfo(data.total_count);
         loadedItems = [];
@@ -1454,11 +1479,30 @@ function createItemTile(item) {
   
   // Create tags display
   let tagsHtml = '';
-  if (item.tags && item.tags.length > 0) {
-    const tagBadges = item.tags.slice(0, 3).map(tag => 
+  let allTags = [...(item.tags || [])];
+  
+  // Add surplus tags if item has surplus status (for users with permission)
+  if (item.has_pending_surplus) {
+    allTags.push({
+      name: 'Needs Surplus Check',
+      color: '#ffc107',
+      text_color: '#212529'
+    });
+  }
+  
+  if (item.has_wanted_surplus) {
+    allTags.push({
+      name: 'Wanted by Surplus',
+      color: '#dc3545',
+      text_color: '#ffffff'
+    });
+  }
+  
+  if (allTags.length > 0) {
+    const tagBadges = allTags.slice(0, 3).map(tag => 
       `<span class="tag-badge" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 4px;">${tag.name}</span>`
     ).join('');
-    const moreCount = item.tags.length > 3 ? `<span class="text-muted">+${item.tags.length - 3} more</span>` : '';
+    const moreCount = allTags.length > 3 ? `<span class="text-muted">+${allTags.length - 3} more</span>` : '';
     tagsHtml = `<div class="tags-display mb-2">${tagBadges}${moreCount}</div>`;
   } else if (item.category) {
     // Fallback to legacy category display during transition
@@ -1511,17 +1555,40 @@ function createTableRow(item) {
   
   // Create tags display for table
   let tagsHtml = '<span class="text-muted">-</span>';
-  if (item.tags && item.tags.length > 0) {
-    const tagBadges = item.tags.slice(0, 3).map(tag => 
+  let allTags = [...(item.tags || [])];
+  
+  // Add surplus tags if item has surplus status (for users with permission)
+  if (item.has_pending_surplus) {
+    allTags.push({
+      name: 'Needs Surplus Check',
+      color: '#ffc107',
+      text_color: '#212529'
+    });
+  }
+  
+  if (item.has_wanted_surplus) {
+    allTags.push({
+      name: 'Wanted by Surplus',
+      color: '#dc3545',
+      text_color: '#ffffff'
+    });
+  }
+  
+  if (allTags.length > 0) {
+    const tagBadges = allTags.slice(0, 3).map(tag => 
       `<span class="badge badge-sm me-1" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 8px;">${tag.name}</span>`
     ).join('');
-    const moreCount = item.tags.length > 3 ? `<br><small class="text-muted">+${item.tags.length - 3} more</small>` : '';
+    const moreCount = allTags.length > 3 ? `<br><small class="text-muted">+${allTags.length - 3} more</small>` : '';
     tagsHtml = `${tagBadges}${moreCount}`;
   } else if (item.category) {
     // Fallback to legacy category display during transition
     const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
     tagsHtml = `<span class="text-muted">${categoryText}</span>`;
   }
+  
+  // Only show location if user has permission
+  const locationColumn = hasInternalPermission ? 
+    `<td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>` : '';
   
   return $(`
     <tr>
@@ -1534,7 +1601,7 @@ function createTableRow(item) {
       <td>${tagsHtml}</td>
       <td>${displayQuantity}</td>
       <td>${variantText}</td>
-      <td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>
+      ${locationColumn}
       <td>
         <div class="expiration-status ${statusInfo.class}" style="font-size: 0.8rem;">
           <i class="material-icons" style="font-size: 14px; margin-right: 2px;">${statusInfo.iconText}</i>

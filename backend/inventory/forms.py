@@ -98,6 +98,43 @@ class Search_QuantityAdd(forms.Form):
         if value and (value.year < 1900 or value.year > 3000):
             raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
         return value
+
+    def clean_gtin(self):
+        """Validates that the GTIN is unique across items if provided."""
+        gtin = self.cleaned_data.get('gtin', '').strip()
+
+        if gtin:
+            if len(gtin) > 14:
+                raise forms.ValidationError(
+                    "GTIN must be at most 14 characters long.",
+                    code='invalid_gtin_length'
+                )
+            
+            # Get the selected item for this check-in
+            selected_item = self.cleaned_data.get('item')
+            
+            # Check if GTIN exists on any OTHER item (not the current one)
+            existing_item = models.Item.objects.filter(gtin=gtin).first()
+            if existing_item and existing_item != selected_item:
+                raise forms.ValidationError(
+                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. GTINs must be unique across items.",
+                    code='duplicate_item_gtin'
+                )
+            
+            # Check if GTIN exists on stock items belonging to OTHER items
+            stock_filter = models.StockItem.objects.filter(gtin=gtin)
+            if selected_item:
+                stock_filter = stock_filter.exclude(item=selected_item)
+            
+            existing_stock = stock_filter.first()
+            if existing_stock:
+                raise forms.ValidationError(
+                    f"A stock item with GTIN '{gtin}' already exists for a different item: '{existing_stock.item.name}'. GTINs must be unique across items.",
+                    code='duplicate_cross_item_gtin'
+                )
+        
+        return gtin
+
     """Form for adding new stock (check-in) - creates new StockItem"""
     item = forms.ModelChoiceField(
         queryset=models.Item.active_objects.none(),  # Start with empty queryset for performance

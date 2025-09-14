@@ -179,7 +179,7 @@ class ItemWithStockForm(forms.Form):
 
     def clean_gtin(self):
         """
-        Validates that the GTIN is unique if provided.
+        Validates that the GTIN is unique across items if provided.
         """
         gtin = self.cleaned_data.get('gtin', '').strip()
 
@@ -191,19 +191,19 @@ class ItemWithStockForm(forms.Form):
                     code='invalid_gtin_length'
                 )
             # Check if GTIN exists on any item
-            if models.Item.objects.filter(gtin=gtin).exists():
-                existing_item = models.Item.objects.filter(gtin=gtin).first()
+            existing_item = models.Item.objects.filter(gtin=gtin).first()
+            if existing_item:
                 raise forms.ValidationError(
-                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'.",
+                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. GTINs must be unique across items.",
                     code='duplicate_item_gtin'
                 )
             
-            # Check if GTIN exists on any stock item
-            if models.StockItem.objects.filter(gtin=gtin).exists():
-                existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
+            # Check if GTIN exists on any stock item (for new item creation, any existing stock GTIN belongs to another item)
+            existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
+            if existing_stock:
                 raise forms.ValidationError(
-                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'.",
-                    code='duplicate_stock_gtin'
+                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'. GTINs must be unique across items.",
+                    code='duplicate_cross_item_gtin'
                 )
         
         return gtin

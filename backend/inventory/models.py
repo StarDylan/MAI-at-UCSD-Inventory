@@ -285,13 +285,8 @@ class StockItem(models.Model):
             ("download_surplus_report", "Can download surplus reports"),
             ("upload_surplus_report", "Can upload surplus reports"),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=['gtin'], 
-                condition=models.Q(gtin__gt=''),
-                name='unique_stockitem_gtin'
-            )
-        ]
+        # Removed unique constraint on GTIN to allow duplicate GTINs within stock items
+        # GTINs should only be unique across different items, not within stock items
 
     
     def __str__(self):
