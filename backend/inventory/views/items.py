@@ -901,16 +901,16 @@ def public_search_api(request):
     # Check user permissions
     has_internal_details_perm = request.user.has_perm('inventory.view_internalstockingdetails')
     
-    # Build the base queryset with tag prefetching
-    items_query = models.Item.active_objects.prefetch_related(
-        'tags__tag_group'
-    ).select_related()
+    # Start with stock items queryset and filter based on permissions
+    stock_items_query = models.StockItem.objects.select_related('item').filter(
+        item__is_deleted=False  # Only active items
+    )
     
     # Filter for permission-based access - only show surplus-approved items for public users
     if not has_internal_details_perm:
-        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+        stock_items_query = stock_items_query.filter(surplus_status__in=['not_wanted'])
     
-    # Apply search filter (now includes tags and location for permitted users)
+    # Apply search filter to stock items and their related items
     search_conditions = Q()
     if search_query and len(search_query) >= 2:
         print(f"DEBUG: Search query: '{search_query}'")
@@ -922,32 +922,32 @@ def public_search_api(request):
             # For GTIN searches, only search GTIN fields to avoid duplicates
             print("DEBUG: Detected GTIN search pattern")
             search_conditions = (
-                Q(gtin__exact=search_query) |  # Exact match for item-level GTIN
-                Q(stock_items__gtin__exact=search_query)  # Exact match for stock item GTIN
+                Q(item__gtin__exact=search_query) |  # Exact match for item-level GTIN
+                Q(gtin__exact=search_query)  # Exact match for stock item GTIN
             )
         else:
             # For non-GTIN searches, search all text fields
             search_conditions = (
-                Q(name__icontains=search_query) | 
-                Q(manufacturer__icontains=search_query) |
-                Q(tags__name__icontains=search_query) |  # Search in tag names
-                Q(tags__tag_group__name__icontains=search_query)  # Search in tag group names
+                Q(item__name__icontains=search_query) | 
+                Q(item__manufacturer__icontains=search_query) |
+                Q(item__tags__name__icontains=search_query) |  # Search in tag names
+                Q(item__tags__tag_group__name__icontains=search_query)  # Search in tag group names
             )
         
         print(f"DEBUG: Search conditions: {search_conditions}")
         # Add location search only for users with internal details permission
         if has_internal_details_perm:
-            search_conditions |= Q(stock_items__location__icontains=search_query)
+            search_conditions |= Q(location__icontains=search_query)
     
     
-    items_query = items_query.filter(search_conditions)
+    stock_items_query = stock_items_query.filter(search_conditions)
     
     # Apply specific tag filter
     if tag_ids:
         try:
             tag_list = [tag_id.strip() for tag_id in tag_ids.split(',') if tag_id.strip()]
             if tag_list:
-                items_query = items_query.filter(tags__id__in=tag_list)
+                stock_items_query = stock_items_query.filter(item__tags__id__in=tag_list)
         except (ValueError, TypeError):
             pass
     
@@ -956,9 +956,19 @@ def public_search_api(request):
         try:
             excluded_tag_list = [tag_id.strip() for tag_id in excluded_tag_ids.split(',') if tag_id.strip()]
             if excluded_tag_list:
-                items_query = items_query.exclude(tags__id__in=excluded_tag_list)
+                stock_items_query = stock_items_query.exclude(item__tags__id__in=excluded_tag_list)
         except (ValueError, TypeError):
             pass
+    
+    # Get unique item IDs from the filtered stock items
+    item_ids = stock_items_query.values_list('item_id', flat=True).distinct()
+    
+    # Now build the items query from the filtered item IDs with proper prefetching
+    items_query = models.Item.active_objects.filter(
+        id__in=item_ids
+    ).prefetch_related(
+        'tags__tag_group'
+    ).select_related()
     
     # Add distinct to prevent duplicates when joining with stock_items, tags, etc.
     if search_conditions:
