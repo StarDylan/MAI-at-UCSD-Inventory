@@ -170,6 +170,46 @@ class TagCreateView(LoginRequiredMixin, CreateView):
     template_name = 'tags/tag_form.html'
     success_url = reverse_lazy('tag_list')
     
+    def get_initial(self):
+        """Pre-populate form with tag_group if provided in URL"""
+        initial = super().get_initial()
+        
+        # Check if tag_group is provided in URL parameters
+        tag_group_id = self.request.GET.get('tag_group')
+        if tag_group_id:
+            try:
+                tag_group = TagGroup.objects.get(id=tag_group_id, is_active=True)
+                initial['tag_group'] = tag_group
+            except TagGroup.DoesNotExist:
+                pass  # Invalid tag group ID, ignore
+        
+        return initial
+    
+    def get_context_data(self, **kwargs):
+        """Add tag group context if creating tag for specific group"""
+        context = super().get_context_data(**kwargs)
+        
+        tag_group_id = self.request.GET.get('tag_group')
+        if tag_group_id:
+            try:
+                tag_group = TagGroup.objects.get(id=tag_group_id, is_active=True)
+                context['creating_for_tag_group'] = tag_group
+            except TagGroup.DoesNotExist:
+                pass
+        
+        return context
+    
+    def get_success_url(self):
+        """Return to tag group list if came from there, otherwise go to tag list"""
+        tag_group_id = self.request.GET.get('tag_group')
+        if tag_group_id:
+            try:
+                TagGroup.objects.get(id=tag_group_id, is_active=True)
+                return reverse_lazy('tag_groups_list')
+            except TagGroup.DoesNotExist:
+                pass
+        return self.success_url
+    
     def form_valid(self, form):
         # Save the changes
         response = super().form_valid(form)

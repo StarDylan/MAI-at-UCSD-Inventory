@@ -1,7 +1,7 @@
 {% extends "shared/base.html" %}
 {% load crispy_forms_tags %}
 
-{% block title %}Create Tag{% endblock %}
+{% block title %}{% if object %}Edit Tag{% else %}Create Tag{% endif %}{% endblock %}
 
 {% block body %}
 <div class="container">
@@ -9,7 +9,7 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h3>Create New Tag</h3>
+                    <h3>{% if object %}Edit Tag{% else %}Create New Tag{% endif %}</h3>
                 </div>
                 <div class="card-body">
                     <form method="post">
@@ -17,11 +17,17 @@
                         {{ form|crispy }}
                         <div class="form-group">
                             <button type="submit" class="btn btn-primary">
-                                <i class="material-icons">save</i> Create Tag
+                                <i class="material-icons">save</i> {% if object %}Update Tag{% else %}Create Tag{% endif %}
                             </button>
-                            <a href="{% url 'tag_list' %}" class="btn btn-secondary">
-                                <i class="material-icons">cancel</i> Cancel
-                            </a>
+                            {% if creating_for_tag_group %}
+                                <a href="{% url 'tag_groups_list' %}" class="btn btn-secondary">
+                                    <i class="material-icons">cancel</i> Cancel
+                                </a>
+                            {% else %}
+                                <a href="{% url 'tag_list' %}" class="btn btn-secondary">
+                                    <i class="material-icons">cancel</i> Cancel
+                                </a>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
