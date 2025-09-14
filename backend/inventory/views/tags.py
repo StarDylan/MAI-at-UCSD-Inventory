@@ -39,16 +39,14 @@ class TagGroupCreateView(LoginRequiredMixin, CreateView):
     model = TagGroup
     form_class = TagGroupForm
     template_name = 'tags/tag_group_form.html'
-    success_url = reverse_lazy('tag_group_list')
+    success_url = reverse_lazy('tag_groups_list')
     
     def form_valid(self, form):
         messages.success(self.request, f'Tag group "{form.instance.name}" created successfully.')
         audit_log_event(
             self.request.user,
-            'tag_group',
-            form.instance.id,
-            'create',
-            '',  # before (empty for new objects)
+            f'Create tag_group {form.instance.name}',
+            audit_log_state(None),
             audit_log_state(form.instance)
         )
         return super().form_valid(form)
@@ -59,7 +57,7 @@ class TagGroupUpdateView(LoginRequiredMixin, UpdateView):
     model = TagGroup
     form_class = TagGroupForm
     template_name = 'tags/tag_group_form.html'
-    success_url = reverse_lazy('tag_group_list')
+    success_url = reverse_lazy('tag_groups_list')
     
     def form_valid(self, form):
         before_state = audit_log_state(self.get_object())
@@ -106,7 +104,7 @@ def tag_group_delete_view(request, uuid):
             
             messages.success(request, f'Tag group "{tag_group.name}" deleted successfully.')
         
-        return redirect('tag_group_list')
+        return redirect('tag_groups_list')
     
     # Check dependencies for confirmation
     active_tags = tag_group.tags.filter(is_active=True)
