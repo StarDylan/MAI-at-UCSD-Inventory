@@ -159,11 +159,11 @@ def upload_spreadsheet(request):
         if 'excel_file' not in request.FILES:
             messages.error(request, 'No file was uploaded.')
             # Prepare context for the template
-            categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
-                'categories': categories,
+                'tag_groups': tag_groups,
                 'organizations': organizations,
             }
             return render(request, 'spreadsheet_import/upload.html', context)
@@ -173,11 +173,11 @@ def upload_spreadsheet(request):
         if not excel_file.name.endswith(('.xlsx', '.xls')):
             messages.error(request, 'Please upload a valid Excel file (.xlsx or .xls).')
             # Prepare context for the template
-            categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
-                'categories': categories,
+                'tag_groups': tag_groups,
                 'organizations': organizations,
             }
             return render(request, 'spreadsheet_import/upload.html', context)
@@ -189,7 +189,7 @@ def upload_spreadsheet(request):
             
             # Validate headers
             expected_headers = [
-                'Item Name', 'Manufacturer', 'GTIN', 'Category', 'Subcategory', 
+                'Item Name', 'Manufacturer', 'GTIN', 'Tags', 
                 'Items Per Box', 'Cost Per Item', 'URL', 'Public Notes', 'Private Notes',
                 'Organization', 'Quantity', 'Location', 'Detail', 'Date Received', 
                 'Expiration Date', 'Lot Number', 'Stock Notes'
