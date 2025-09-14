@@ -19,18 +19,17 @@ from inventory.models import Item, StockItem, Organization, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
 
 
-def find_or_create_tag(tag_name, general_tag_group, tags_dict=None):
+def find_tag(tag_name, tags_dict=None):
     """
-    Find an existing tag by name (case-insensitive) or create a new one in the general group.
+    Find an existing tag by name (case-insensitive).
     Tags are globally unique across all tag groups.
     
     Args:
-        tag_name: Name of the tag to find or create
-        general_tag_group: TagGroup to create new tags in
+        tag_name: Name of the tag to find
         tags_dict: Optional dictionary to cache tags for faster lookups
         
     Returns:
-        Tag: Found or created tag
+        Tag: Found tag or None if not found
     """
     # Check cache first if provided
     if tags_dict:
@@ -46,18 +45,7 @@ def find_or_create_tag(tag_name, general_tag_group, tags_dict=None):
             tags_dict[tag_name.lower()] = existing_tag
         return existing_tag
     
-    # Create new tag in the general group
-    new_tag = Tag.objects.create(
-        name=tag_name.strip(),
-        tag_group=general_tag_group,
-        is_active=True
-    )
-    
-    # Update cache if provided
-    if tags_dict is not None:
-        tags_dict[tag_name.lower()] = new_tag
-    
-    return new_tag
+    return None
 
 
 @login_required
@@ -135,7 +123,7 @@ def download_import_template(request):
         "Tags Information:",
         "- Use comma-separated tag names: 'PPE, Disposable, Medical'",
         "- Tag names are case-insensitive and will be automatically matched",
-        "- If a tag doesn't exist, it will be created in the 'General' tag group",
+        "- All tags must already exist in the system - new tags will NOT be created automatically",
         "- Multiple items can share the same tags",
         "",
         "Important Notes:",
@@ -269,17 +257,6 @@ def upload_spreadsheet(request):
             # Create tag lookup dictionary: {tag_name_lower: tag_obj}
             tags_dict = {tag.name.lower(): tag for tag in Tag.objects.all()}
             
-            # Get or create a "General" tag group for new tags
-            general_tag_group, created = TagGroup.objects.get_or_create(
-                name='General',
-                defaults={
-                    'description': 'General tags created from imports',
-                    'color': '#6c757d',
-                    'sort_order': 999,
-                    'is_active': True
-                }
-            )
-            
             # First pass: validate all data
             items_to_create = []
             # Track items being created in this import to handle duplicates within the same file
@@ -390,25 +367,22 @@ def upload_spreadsheet(request):
                                 error_count += 1
                                 continue
                     
-                    # Validate and collect tags (create missing ones during processing)
+                    # Validate and collect tags - throw error if any tag doesn't exist
                     valid_tags = []
                     for tag_name in tag_names:
                         tag = tags_dict.get(tag_name.lower())
                         if not tag:
-                            # Tag will be created during processing phase
-                            # We'll validate the name format here
-                            if not tag_name.strip():
-                                errors.append(f"Row {row_num}: Empty tag name not allowed")
+                            # Check if it exists in database but not in cache
+                            tag = find_tag(tag_name, tags_dict)
+                            if not tag:
+                                errors.append(f"Row {row_num}: Tag '{tag_name}' does not exist. Please create the tag first or use an existing tag.")
                                 error_count += 1
                                 continue
-                            if len(tag_name.strip()) > 100:
-                                errors.append(f"Row {row_num}: Tag name '{tag_name}' is too long (max 100 characters)")
-                                error_count += 1
-                                continue
-                        else:
-                            valid_tags.append(tag)
+                        valid_tags.append(tag)
                     
                     # Skip this row if any tag validation failed
+                    if error_count > 0 and any(f"Row {row_num}:" in error for error in errors[-len(tag_names):]):
+                        continue
                     
                     # Validate organization using pre-fetched dictionary
                     organization = organizations_dict.get(organization_name.lower())
@@ -484,12 +458,15 @@ def upload_spreadsheet(request):
                     else:
                         expiration_date = None
                     
-                    # Process tags
+                    # Process tags - all tags must exist
                     tag_objects = []
                     if tags_str:
                         tag_names = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
                         for tag_name in tag_names:
-                            tag_obj = find_or_create_tag(tag_name, general_tag_group, tags_dict)
+                            tag_obj = find_tag(tag_name, tags_dict)
+                            if not tag_obj:
+                                # This should not happen since we validated earlier, but just in case
+                                raise ValueError(f"Tag '{tag_name}' not found")
                             tag_objects.append(tag_obj)
                     
                     # Determine where GTIN should be placed based on detail field
