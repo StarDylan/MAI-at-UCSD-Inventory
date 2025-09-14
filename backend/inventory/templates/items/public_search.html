@@ -1210,11 +1210,12 @@ function createItemTile(item) {
         
         <h3 class="card-title">${item.name}</h3>
         ${manufacturerHtml}
-        ${tagsHtml}
         
         <div class="quantity-display">
-          ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
+            ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
         </div>
+
+        ${tagsHtml}
         
         <div class="bottom-section">
           <div class="expiration-status ${statusInfo.class}">
@@ -1334,7 +1335,7 @@ function getStatusInfo(item) {
         class: 'status-valid',
         icon: 'material-icons',
         iconText: 'check_circle',
-        text: 'All Not Expired'
+        text: 'All Unexpired'
       };
     }
   }

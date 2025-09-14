@@ -52,12 +52,20 @@ class TagGroupAdmin(admin.ModelAdmin):
 
 @admin.register(models.Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "tag_group", "color", "sort_order", "is_active")
+    list_display = ("id", "name", "tag_group", "color_display", "sort_order", "is_active")
     list_filter = ("tag_group", "is_active")
     search_fields = ("id", "name", "description", "tag_group__name")
     ordering = ("tag_group__sort_order", "tag_group__name", "sort_order", "name")
     autocomplete_fields = ("tag_group",)
     list_per_page = 25
+    
+    def color_display(self, obj):
+        """Display color information, showing when using group color"""
+        if obj.color:
+            return f"{obj.color} (custom)"
+        else:
+            return f"{obj.tag_group.color} (from group)"
+    color_display.short_description = "Color"
 
 
 @admin.register(models.Item)

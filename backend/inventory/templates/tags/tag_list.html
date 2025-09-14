@@ -47,8 +47,12 @@
                                         </td>
                                         <td>{{ tag.description|default:"-" }}</td>
                                         <td>
-                                            <div class="color-swatch" style="background-color: {{ tag.display_color }}; width: 30px; height: 20px; border: 1px solid #ccc; display: inline-block;"></div>
-                                            <small class="text-muted ml-2">{{ tag.display_color }}</small>
+                                            {% if tag.color %}
+                                                <div class="color-swatch" style="background-color: {{ tag.display_color }}; width: 30px; height: 20px; border: 1px solid #ccc; display: inline-block;"></div>
+                                                <small class="text-muted ml-2">{{ tag.display_color }}</small>
+                                            {% else %}
+                                                <small class="text-muted"><em>Using group color</em></small>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             <span class="badge badge-info">{{ tag.items.count }} items</span>
