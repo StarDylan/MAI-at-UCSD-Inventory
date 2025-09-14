@@ -120,13 +120,6 @@ class TaggedItemForm(forms.ModelForm):
             self.fields['gtin'].disabled = True
             self.fields['gtin'].help_text = "GTIN is disabled because one or more stock items already have GTIN values."
 
-    def save(self, commit=True):
-        item = super().save(commit=commit)
-        if commit:
-            # Handle many-to-many relationship for tags
-            self.save_m2m()
-        return item
-
 
 class TaggedItemWithStockForm(forms.Form):
     """Combined form for creating both Item with tags and initial StockItem"""

@@ -453,6 +453,74 @@
   // Run auto-search check on page load
   document.addEventListener("DOMContentLoaded", checkForAutoSearch);
 
+  // URL updating functionality
+  function updateUrlWithFormData() {
+    const url = new URL(window.location);
+    const organizationSelect = document.getElementById("id_organization");
+    const dateReceivedInput = document.getElementById("id_date_received");
+    const stockLocationInput = document.getElementById("id_stock_location");
+    const quantityInput = document.getElementById("id_quantity");
+    
+    // Update organization parameter
+    if (organizationSelect && organizationSelect.value) {
+      const selectedOption = organizationSelect.options[organizationSelect.selectedIndex];
+      if (selectedOption && selectedOption.text && selectedOption.text !== "Select an organization") {
+        url.searchParams.set('organization', selectedOption.text);
+      }
+    } else {
+      url.searchParams.delete('organization');
+    }
+    
+    // Update date_received parameter
+    if (dateReceivedInput && dateReceivedInput.value) {
+      url.searchParams.set('date_received', dateReceivedInput.value);
+    } else {
+      url.searchParams.delete('date_received');
+    }
+    
+    // Update stock_location parameter
+    if (stockLocationInput && stockLocationInput.value.trim()) {
+      url.searchParams.set('stock_location', stockLocationInput.value.trim());
+    } else {
+      url.searchParams.delete('stock_location');
+    }
+    
+    // Update URL without reloading the page
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  // Add event listeners for URL updating
+  document.addEventListener("DOMContentLoaded", function () {
+    const organizationSelect = document.getElementById("id_organization");
+    const dateReceivedInput = document.getElementById("id_date_received");
+    const stockLocationInput = document.getElementById("id_stock_location");
+    
+    if (organizationSelect) {
+      organizationSelect.addEventListener("change", updateUrlWithFormData);
+    }
+    
+    if (dateReceivedInput) {
+      dateReceivedInput.addEventListener("change", updateUrlWithFormData);
+    }
+    
+    if (stockLocationInput) {
+      stockLocationInput.addEventListener("input", debounce(updateUrlWithFormData, 500));
+    }
+  });
+
+  // Debounce function for input fields that update frequently
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
   itemsList.addEventListener("click", function (e) {
     if (e.target.classList.contains("checkin-btn")) {
       const itemId = e.target.closest("li").getAttribute("data-id");
