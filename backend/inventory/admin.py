@@ -127,8 +127,9 @@ class ImageAdmin(admin.ModelAdmin):
     
     @admin.display(description="Thumbnail Preview")
     def thumbnail_preview(self, obj):
-        if obj.thumbnail_url:
-            return format_html('<img src="{}" style="max-width: 50px; max-height: 50px; object-fit: contain;" />', obj.thumbnail_url)
+        thumbnail_url = obj.get_thumbnail_url(width=50, height=50)
+        if thumbnail_url:
+            return format_html('<img src="{}" style="max-width: 50px; max-height: 50px; object-fit: contain;" />', thumbnail_url)
         return "No thumbnail"
 
 

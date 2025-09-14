@@ -343,6 +343,42 @@ class Image(models.Model):
 
     def __str__(self):
         return self.image_url
+    
+    def get_thumbnail_url(self, width=150, height=150):
+        """
+        Get thumbnail URL using Cloudinary transformations.
+        Falls back to stored thumbnail_url or original image_url if transformations fail.
+        
+        Args:
+            width: Thumbnail width (default: 150)
+            height: Thumbnail height (default: 150)
+            
+        Returns:
+            Thumbnail URL string
+        """
+        # If we have a stored thumbnail_url, use it
+        if self.thumbnail_url:
+            return self.thumbnail_url
+            
+        # If we have a public_id, generate thumbnail URL via Cloudinary transformations
+        if self.public_id:
+            try:
+                from cloudinary.utils import cloudinary_url
+                thumbnail_url, _ = cloudinary_url(
+                    self.public_id,
+                    width=width,
+                    height=height,
+                    crop="fill",
+                    quality="auto",
+                    fetch_format="auto"
+                )
+                return thumbnail_url
+            except Exception:
+                # Fall back to original image if transformation fails
+                pass
+                
+        # Final fallback to original image
+        return self.image_url
 
 
 class CheckOut(models.Model):
