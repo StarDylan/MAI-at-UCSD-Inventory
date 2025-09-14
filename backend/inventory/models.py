@@ -79,7 +79,7 @@ class Tag(models.Model):
         db_table = "tag"
         ordering = ['tag_group__sort_order', 'tag_group__name', 'sort_order', 'name']
         constraints = [
-            models.UniqueConstraint(fields=['name', 'tag_group'], name='unique_tag_name_per_group')
+            models.UniqueConstraint(fields=['name'], name='unique_tag_name_global')
         ]
 
     def __str__(self):
