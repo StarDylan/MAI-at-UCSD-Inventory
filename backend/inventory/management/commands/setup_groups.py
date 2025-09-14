@@ -22,14 +22,14 @@ class Command(BaseCommand):
 
         # Get ContentType for your models
         audit_event_ct = ContentType.objects.get_for_model(model=models.AuditEvent)
-        category_ct = ContentType.objects.get_for_model(model=models.Category)
-        subcategory_ct = ContentType.objects.get_for_model(model=models.Subcategory)
         user_ct = ContentType.objects.get_for_model(model=models.User)
         item_ct = ContentType.objects.get_for_model(model=models.Item)
         image_ct = ContentType.objects.get_for_model(model=models.Image)
         organization_ct = ContentType.objects.get_for_model(model=models.Organization)
         stockitem_ct = ContentType.objects.get_for_model(model=models.StockItem)
         checkout_ct = ContentType.objects.get_for_model(model=models.CheckOut)
+        tag_ct = ContentType.objects.get_for_model(model=models.Tag)
+        taggroup_ct = ContentType.objects.get_for_model(model=models.TagGroup)
 
         user_permissions = []
 
@@ -65,13 +65,18 @@ class Command(BaseCommand):
             Permission.objects.get(codename='view_user', content_type=user_ct),
             Permission.objects.get(codename='restore_user', content_type=user_ct),
 
+            # Tag permissions
+            Permission.objects.get(codename='add_tag', content_type=tag_ct),
+            Permission.objects.get(codename='change_tag', content_type=tag_ct),
+            Permission.objects.get(codename='delete_tag', content_type=tag_ct),
+            Permission.objects.get(codename='view_tag', content_type=tag_ct),
+            Permission.objects.get(codename='hide_tag', content_type=tag_ct),
 
-            Permission.objects.get(codename='add_category', content_type=category_ct),
-            Permission.objects.get(codename='add_subcategory', content_type=subcategory_ct),
-            Permission.objects.get(codename='change_category', content_type=category_ct),
-            Permission.objects.get(codename='delete_category', content_type=category_ct),
-            Permission.objects.get(codename='change_subcategory', content_type=subcategory_ct),
-            Permission.objects.get(codename='delete_subcategory', content_type=subcategory_ct),
+            # TagGroup permissions
+            Permission.objects.get(codename='add_taggroup', content_type=taggroup_ct),
+            Permission.objects.get(codename='change_taggroup', content_type=taggroup_ct),
+            Permission.objects.get(codename='delete_taggroup', content_type=taggroup_ct),
+            Permission.objects.get(codename='view_taggroup', content_type=taggroup_ct),
 
             Permission.objects.get(codename='view_deleteditem', content_type=item_ct),
             Permission.objects.get(codename='restore_deleteditem', content_type=item_ct),

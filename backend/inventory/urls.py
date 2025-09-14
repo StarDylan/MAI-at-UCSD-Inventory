@@ -62,8 +62,6 @@ urlpatterns = [
     path('api/items/search/', items.items_search_api, name='items_search_api'),
     path('api/public-search/', items.public_search_api, name='public_search_api'),
     path('api/items/<uuid:item_uuid>/stock-items/', bulk_checkout.get_stock_items_api, name='get_stock_items_api'),
-    path('api/tags/autocomplete/', tags.tag_autocomplete_api, name='tag_autocomplete_api'),
-    path('api/tag-groups/autocomplete/', tags.tag_group_autocomplete_api, name='tag_group_autocomplete_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
@@ -104,8 +102,6 @@ urlpatterns = [
     path('api/tags/check-dependencies/<uuid:uuid>/', tags.check_tag_dependencies, name='check_tag_dependencies'),
     path('api/tag-groups/check-dependencies/<uuid:uuid>/', tags.check_tag_group_dependencies, name='check_tag_group_dependencies'),
     path('api/tags/hide/<uuid:uuid>/', tags.hide_tag, name='hide_tag'),
-    path('api/tags/dependencies/<uuid:tag_id>/', tags.api_check_tag_dependencies, name='api_check_tag_dependencies'),
-    path('api/tag-groups/dependencies/<uuid:tag_group_id>/', tags.api_check_tag_group_dependencies, name='api_check_tag_group_dependencies'),
     path('api/tags/hidden/', tags.api_hidden_tags, name='api_hidden_tags'),
     path('api/tags/restore/<uuid:tag_id>/', tags.api_restore_tag, name='api_restore_tag'),
     path('tags/', tags.TagListView.as_view(), name='tag_list'),

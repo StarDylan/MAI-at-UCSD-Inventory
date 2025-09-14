@@ -20,6 +20,7 @@ from .utils import audit_log_state, audit_log_event
 
 @login_required
 @require_GET
+@permission_required("inventory.delete_tag", raise_exception=True)
 def check_tag_dependencies(request, uuid):
     """API endpoint to check if a tag can be deleted"""
     try:
@@ -38,6 +39,7 @@ def check_tag_dependencies(request, uuid):
 
 @login_required
 @require_GET
+@permission_required("inventory.delete_taggroup", raise_exception=True)
 def check_tag_group_dependencies(request, uuid):
     """API endpoint to check if a tag group can be deleted"""
     try:
@@ -76,6 +78,7 @@ def check_tag_group_dependencies(request, uuid):
 
 @login_required
 @require_POST
+@permission_required("inventory.hide_tag", raise_exception=True)
 def hide_tag(request, uuid):
     """Hide a tag (soft delete by setting is_active=False)"""
     try:
@@ -97,35 +100,13 @@ def hide_tag(request, uuid):
         return JsonResponse({'error': str(e)}, status=400)
 
 
-@login_required
-@require_POST
-def hide_tag_group(request, uuid):
-    """Hide a tag group (soft delete by setting is_active=False)"""
-    try:
-        tag_group = get_object_or_404(TagGroup, id=uuid)
-        
-        before_state = audit_log_state(tag_group)
-        tag_group.is_active = False
-        tag_group.save()
-        
-        audit_log_event(
-            request.user,
-            f'Hidden tag group "{tag_group.name}"',
-            before_state,
-            audit_log_state(tag_group)
-        )
-        
-        return JsonResponse({'success': True, 'message': f'Tag group "{tag_group.name}" hidden successfully.'})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-class TagGroupListView(LoginRequiredMixin, ListView):
+class TagGroupListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """List all tag groups with their associated tags"""
     model = TagGroup
     template_name = 'tags/tag_group_list.html'
     context_object_name = 'tag_groups'
     ordering = ['sort_order', 'name']
+    permission_required = "inventory.view_tag"
     
     def get_queryset(self):
         return TagGroup.objects.prefetch_related(
@@ -141,12 +122,13 @@ class TagGroupListView(LoginRequiredMixin, ListView):
         return context
 
 
-class TagGroupCreateView(LoginRequiredMixin, CreateView):
+class TagGroupCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """Create a new tag group"""
     model = TagGroup
     form_class = TagGroupForm
     template_name = 'tags/tag_group_form.html'
     success_url = reverse_lazy('tag_groups_list')
+    permission_required = "inventory.add_taggroup"
     
     def form_valid(self, form):
         # Save the changes
@@ -164,12 +146,13 @@ class TagGroupCreateView(LoginRequiredMixin, CreateView):
         return response
 
 
-class TagGroupUpdateView(LoginRequiredMixin, UpdateView):
+class TagGroupUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """Edit an existing tag group"""
     model = TagGroup
     form_class = TagGroupForm
     template_name = 'tags/tag_group_form.html'
     success_url = reverse_lazy('tag_groups_list')
+    permission_required = "inventory.change_taggroup"
     
     def form_valid(self, form):
         # Get the current state before changes for audit logging
@@ -193,6 +176,7 @@ class TagGroupUpdateView(LoginRequiredMixin, UpdateView):
 
 
 @login_required
+@permission_required("inventory.delete_taggroup", raise_exception=True)
 def tag_group_delete_view(request, uuid):
     """Delete a tag group (HARD DELETE - actually removes from database)"""
     tag_group = get_object_or_404(TagGroup, id=uuid)
@@ -237,11 +221,13 @@ def tag_group_delete_view(request, uuid):
     return HttpResponse(template.render(context, request))
 
 
-class TagListView(LoginRequiredMixin, ListView):
+class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """List all tags organized by tag group"""
     model = Tag
     template_name = 'tags/tag_list.html'
     context_object_name = 'tags'
+    permission_required = "inventory.view_tag"
+    
     
     def get_queryset(self):
         return Tag.objects.select_related('tag_group').filter(
@@ -283,12 +269,13 @@ class TagListView(LoginRequiredMixin, ListView):
         return context
 
 
-class TagCreateView(LoginRequiredMixin, CreateView):
+class TagCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """Create a new tag"""
     model = Tag
     form_class = TagForm
     template_name = 'tags/tag_form.html'
     success_url = reverse_lazy('tag_list')
+    permission_required = "inventory.add_tag"
     
     def get_initial(self):
         """Pre-populate form with tag_group if provided in URL"""
@@ -357,13 +344,14 @@ class TagCreateView(LoginRequiredMixin, CreateView):
         return response
 
 
-class TagUpdateView(LoginRequiredMixin, UpdateView):
+class TagUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """Edit an existing tag"""
     model = Tag
     form_class = TagForm
     template_name = 'tags/tag_form.html'
     success_url = reverse_lazy('tag_list')
-    
+    permission_required = "inventory.change_tag"
+
     def get_context_data(self, **kwargs):
         """Add tag groups data for JavaScript access"""
         context = super().get_context_data(**kwargs)
@@ -403,6 +391,7 @@ class TagUpdateView(LoginRequiredMixin, UpdateView):
 
 
 @login_required
+@permission_required("inventory.delete_tag", raise_exception=True)
 def tag_delete_view(request, uuid):
     """Delete a tag (HARD DELETE - actually removes from database)"""
     tag = get_object_or_404(Tag, id=uuid)
@@ -450,6 +439,7 @@ def tag_delete_view(request, uuid):
 
 
 @login_required
+@permission_required("inventory.add_tag", raise_exception=True)
 def tag_bulk_create_view(request):
     """Bulk create tags within a tag group"""
     if request.method == 'POST':
@@ -514,105 +504,8 @@ def tag_bulk_create_view(request):
     template = loader.get_template('tags/tag_bulk_create.html')
     return HttpResponse(template.render(context, request))
 
-
-def tag_autocomplete_api(request):
-    """API endpoint for tag autocomplete in forms"""
-    query = request.GET.get('q', '').strip()
-    tag_group_id = request.GET.get('tag_group', '')
-    
-    tags_query = Tag.objects.filter(is_active=True, tag_group__is_active=True)
-    
-    if query:
-        tags_query = tags_query.filter(name__icontains=query)
-    
-    if tag_group_id:
-        try:
-            tags_query = tags_query.filter(tag_group__id=tag_group_id)
-        except (ValueError, TypeError):
-            pass
-    
-    tags = tags_query.select_related('tag_group').order_by(
-        'tag_group__sort_order', 
-        'tag_group__name', 
-        'sort_order', 
-        'name'
-    )[:20]  # Limit results
-    
-    results = []
-    for tag in tags:
-        results.append({
-            'id': str(tag.id),
-            'name': tag.name,
-            'tag_group': {
-                'id': str(tag.tag_group.id),
-                'name': tag.tag_group.name,
-                'color': tag.tag_group.color,
-            },
-            'color': tag.display_color,
-            'text_color': tag.text_color,
-        })
-    
-    return JsonResponse({'results': results})
-
-
-def tag_group_autocomplete_api(request):
-    """API endpoint for tag group autocomplete in forms"""
-    query = request.GET.get('q', '').strip()
-    
-    tag_groups_query = TagGroup.objects.filter(is_active=True)
-    
-    if query:
-        tag_groups_query = tag_groups_query.filter(name__icontains=query)
-    
-    tag_groups = tag_groups_query.order_by('sort_order', 'name')[:20]
-    
-    results = []
-    for tag_group in tag_groups:
-        results.append({
-            'id': str(tag_group.id),
-            'name': tag_group.name,
-            'color': tag_group.color,
-            'tag_count': tag_group.tags.filter(is_active=True).count(),
-        })
-    
-    return JsonResponse({'results': results})
-
-
 @login_required
-def api_check_tag_dependencies(request, tag_id):
-    """API endpoint to check tag dependencies"""
-    try:
-        tag = Tag.objects.get(id=tag_id)
-        items_count = tag.items.count()
-        
-        return JsonResponse({
-            'success': True,
-            'can_delete': items_count == 0,
-            'items_count': items_count,
-            'tag_name': tag.name
-        })
-    except Tag.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Tag not found'}, status=404)
-
-
-@login_required
-def api_check_tag_group_dependencies(request, tag_group_id):
-    """API endpoint to check tag group dependencies"""
-    try:
-        tag_group = TagGroup.objects.get(id=tag_group_id)
-        tags_count = tag_group.tags.count()
-        
-        return JsonResponse({
-            'success': True,
-            'can_delete': tags_count == 0,
-            'tags_count': tags_count,
-            'tag_group_name': tag_group.name
-        })
-    except TagGroup.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Tag group not found'}, status=404)
-
-
-@login_required
+@permission_required("inventory.view_tag", raise_exception=True)
 def api_hidden_tags(request):
     """API endpoint to get hidden tags"""
     hidden_tags = Tag.objects.filter(is_active=False).annotate(
@@ -636,6 +529,7 @@ def api_hidden_tags(request):
 
 
 @login_required
+@permission_required("inventory.hide_tag", raise_exception=True)
 def api_restore_tag(request, tag_id):
     """API endpoint to restore a hidden tag"""
     if request.method != 'POST':

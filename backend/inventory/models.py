@@ -81,6 +81,9 @@ class Tag(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['name'], name='unique_tag_name_global')
         ]
+        permissions = [
+            ("hide_tag", "Can hide tags")
+        ]
 
     def __str__(self):
         return f"{self.tag_group.name}: {self.name}"
