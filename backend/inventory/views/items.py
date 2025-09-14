@@ -550,6 +550,7 @@ def items_search_api(request):
     name_query = request.GET.get('name', '').strip()
     manufacturer_query = request.GET.get('manufacturer', '').strip()
     gtin_query = request.GET.get('gtin', '').strip()
+    include_zero_stock = request.GET.get('include_zero_stock', 'false').lower() == 'true'
     
     # Get limit parameter with default value
     try:
@@ -606,9 +607,13 @@ def items_search_api(request):
                             output_field=IntegerField()
                         )
                     )
-                )
-                .filter(annotated_total_stock_quantity__gt=0)  # Only return items with stock
-                .values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity'))
+                ))
+                
+    # Apply stock quantity filter based on parameter
+    if not include_zero_stock:
+        items_qs = items_qs.filter(annotated_total_stock_quantity__gt=0)  # Only return items with stock
+        
+    items_qs = items_qs.values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
     # Also search by stock item GTINs if GTIN queries are provided
     # These items must also match other non-GTIN criteria
     stock_item_matches = []
@@ -669,10 +674,13 @@ def items_search_api(request):
                 output_field=IntegerField()
                 )
             )
-            )
-            .filter(annotated_total_stock_quantity__gt=0)
-            .values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
-        )
+            ))
+            
+        # Apply stock quantity filter based on parameter
+        if not include_zero_stock:
+            additional_items = additional_items.filter(annotated_total_stock_quantity__gt=0)
+            
+        additional_items = additional_items.values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
         
         # Combine results and remove duplicates
         items_qs = items_qs.union(additional_items)

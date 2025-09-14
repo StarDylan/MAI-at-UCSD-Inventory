@@ -156,7 +156,7 @@
           <th>Quantity</th>
           <th>Variants</th>
           <th>Location</th>
-          <th>Status</th>
+          <th>Expiration</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -734,6 +734,41 @@
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+/* Table-specific styles */
+.table .badge-sm {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  margin-right: 2px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Status badges for table */
+.expired-badge {
+  background-color: #dc3545;
+  color: white;
+}
+
+.zero-stock-badge {
+  background-color: #6c757d;
+  color: white;
+}
+
+.low-stock-badge {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.in-stock-badge {
+  background-color: #28a745;
+  color: white;
+}
 </style>
 
 <script>
@@ -1238,22 +1273,24 @@ function createTableRow(item) {
          <i class="material-icons" style="font-size: 20px; color: #6c757d;">image</i>
        </div>`;
   
-  const statusBadge = getStatusBadge(item);
+  const statusInfo = getStatusInfo(item);
   const manufacturerText = item.manufacturer || '-';
   const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '1 variant';
   const locationText = item.locations || 'No location';
   const displayQuantity = getDisplayQuantity(item);
   
   // Create tags display for table
-  let tagsText = '-';
+  let tagsHtml = '<span class="text-muted">-</span>';
   if (item.tags && item.tags.length > 0) {
-    tagsText = item.tags.map(tag => tag.name).join(', ');
-    if (tagsText.length > 50) {
-      tagsText = tagsText.substring(0, 47) + '...';
-    }
+    const tagBadges = item.tags.slice(0, 3).map(tag => 
+      `<span class="badge badge-sm me-1" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 8px;">${tag.name}</span>`
+    ).join('');
+    const moreCount = item.tags.length > 3 ? `<br><small class="text-muted">+${item.tags.length - 3} more</small>` : '';
+    tagsHtml = `${tagBadges}${moreCount}`;
   } else if (item.category) {
     // Fallback to legacy category display during transition
-    tagsText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
+    const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
+    tagsHtml = `<span class="text-muted">${categoryText}</span>`;
   }
   
   return $(`
@@ -1264,11 +1301,16 @@ function createTableRow(item) {
         ${item.notes_public ? `<br><small class="text-muted">${item.notes_public}</small>` : ''}
       </td>
       <td>${manufacturerText}</td>
-      <td title="${item.tags_display || tagsText}">${tagsText}</td>
+      <td>${tagsHtml}</td>
       <td>${displayQuantity}</td>
       <td>${variantText}</td>
       <td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>
-      <td>${statusBadge}</td>
+      <td>
+        <div class="expiration-status ${statusInfo.class}" style="font-size: 0.8rem;">
+          <i class="material-icons" style="font-size: 14px; margin-right: 2px;">${statusInfo.iconText}</i>
+          ${statusInfo.text}
+        </div>
+      </td>
       <td>
         <a href="/view/item/${item.id}/" class="btn btn-sm btn-outline-primary">
           <i class="material-icons" style="font-size: 16px;">visibility</i>
@@ -1338,20 +1380,6 @@ function getStatusInfo(item) {
         text: 'All Unexpired'
       };
     }
-  }
-}
-
-function getStatusBadge(item) {
-  const displayQuantity = getDisplayQuantity(item);
-  
-  if (item.has_expired_stock) {
-    return `<span class="badge expired-badge">Expired Stock</span>`;
-  } else if (displayQuantity === 0) {
-    return `<span class="badge zero-stock-badge">Out of Stock</span>`;
-  } else if (displayQuantity <= 5) {
-    return `<span class="badge low-stock-badge">Low Stock (${displayQuantity})</span>`;
-  } else {
-    return `<span class="badge in-stock-badge">In Stock (${displayQuantity})</span>`;
   }
 }
 </script>

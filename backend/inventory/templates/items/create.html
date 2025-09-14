@@ -404,6 +404,9 @@
 
     // Add limit parameter for top 5 results
     queryParams.append("limit", "5");
+    
+    // Include items with 0 stock for check-in functionality
+    queryParams.append("include_zero_stock", "true");
 
     // Fetch search results from API
     fetch(`/api/items/search/?${queryParams.toString()}`)

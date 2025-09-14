@@ -71,7 +71,8 @@
         data: function (params) {
           return {
             q: params.term,
-            page: params.page || 1
+            page: params.page || 1,
+            include_zero_stock: true  // Include items with 0 stock for check-in
           };
         },
         processResults: function (data, params) {
