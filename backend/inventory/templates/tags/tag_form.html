@@ -15,6 +15,19 @@
                     <form method="post">
                         {% csrf_token %}
                         {{ form|crispy }}
+                        
+                        <!-- Tag Preview -->
+                        <div class="form-group">
+                            <label>Preview:</label>
+                            <div id="tag-preview">
+                                <span id="preview-badge" class="badge" style="background-color: #6c757d; color: #ffffff;">
+                                    <span id="preview-text">Preview Tag</span>
+                                </span>
+                                <small id="color-info" class="text-muted ml-2"></small>
+                            </div>
+                            <small class="text-muted">This shows how your tag will look</small>
+                        </div>
+                        
                         <div class="form-group">
                             <button type="submit" class="btn btn-primary">
                                 <i class="material-icons">save</i> {% if object %}Update Tag{% else %}Create Tag{% endif %}
@@ -35,4 +48,88 @@
         </div>
     </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    const useDefaultCheckbox = $('#id_use_default_color');
+    const colorField = $('#id_color');
+    const colorContainer = colorField.closest('.form-group');
+    const nameField = $('#id_name');
+    const tagGroupField = $('#id_tag_group');
+    const previewBadge = $('#preview-badge');
+    const previewText = $('#preview-text');
+    const colorInfo = $('#color-info');
+    
+    // Tag groups data from Django context
+    const tagGroupsData = JSON.parse('{{ tag_groups_data_json|escapejs }}');
+    
+    // Function to calculate text color based on luminance
+    function calculateTextColor(bgColor) {
+        const hex = bgColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const luminance = (r * 0.299 + g * 0.587 + b * 0.114);
+        return luminance > 186 ? '#000000' : '#ffffff';
+    }
+    
+    // Function to get tag group color
+    function getTagGroupColor() {
+        const selectedTagGroupId = tagGroupField.val();
+        if (selectedTagGroupId && tagGroupsData[selectedTagGroupId]) {
+            return tagGroupsData[selectedTagGroupId].color;
+        }
+        return '#6c757d'; // fallback color
+    }
+    
+    function updatePreview() {
+        const tagName = nameField.val() || 'Preview Tag';
+        const useDefault = useDefaultCheckbox.is(':checked');
+        const customColor = colorField.val() || '#6c757d';
+        const effectiveColor = useDefault ? getTagGroupColor() : customColor;
+        const textColor = calculateTextColor(effectiveColor);
+        
+        previewText.text(tagName);
+        previewBadge.css({
+            'background-color': effectiveColor,
+            'color': textColor
+        });
+        
+        // Update color info text
+        if (useDefault) {
+            const selectedTagGroupId = tagGroupField.val();
+            if (selectedTagGroupId && tagGroupsData[selectedTagGroupId]) {
+                colorInfo.text(`Using ${tagGroupsData[selectedTagGroupId].name} group color`);
+            } else {
+                colorInfo.text('Using tag group color');
+            }
+        } else {
+            colorInfo.text(`Custom color: ${effectiveColor}`);
+        }
+    }
+    
+    function toggleColorField() {
+        if (useDefaultCheckbox.is(':checked')) {
+            colorContainer.hide();
+            colorField.val(''); // Clear the color value
+        } else {
+            colorContainer.show();
+            // Set a default color if empty
+            if (!colorField.val()) {
+                colorField.val('#6c757d');
+            }
+        }
+        updatePreview();
+    }
+    
+    // Initial state
+    toggleColorField();
+    
+    // Event handlers
+    useDefaultCheckbox.on('change', toggleColorField);
+    colorField.on('input change', updatePreview);
+    nameField.on('input', updatePreview);
+    tagGroupField.on('change', updatePreview);
+});
+</script>
 {% endblock %}

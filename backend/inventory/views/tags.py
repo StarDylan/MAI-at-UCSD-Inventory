@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib import messages
 from django.views.generic import UpdateView, CreateView, ListView, DeleteView
+import json
 
 from inventory import models
 from inventory.forms_tags import TagGroupForm, TagForm, TagBulkCreateForm
@@ -189,6 +190,17 @@ class TagCreateView(LoginRequiredMixin, CreateView):
         """Add tag group context if creating tag for specific group"""
         context = super().get_context_data(**kwargs)
         
+        # Add all active tag groups for the JavaScript to access their colors
+        tag_groups = TagGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+        tag_groups_data = {}
+        for tg in tag_groups:
+            tag_groups_data[str(tg.id)] = {
+                'name': tg.name,
+                'color': tg.color,
+                'text_color': tg.text_color
+            }
+        context['tag_groups_data_json'] = json.dumps(tag_groups_data)
+        
         tag_group_id = self.request.GET.get('tag_group')
         if tag_group_id:
             try:
@@ -232,6 +244,23 @@ class TagUpdateView(LoginRequiredMixin, UpdateView):
     form_class = TagForm
     template_name = 'tags/tag_form.html'
     success_url = reverse_lazy('tag_list')
+    
+    def get_context_data(self, **kwargs):
+        """Add tag groups data for JavaScript access"""
+        context = super().get_context_data(**kwargs)
+        
+        # Add all active tag groups for the JavaScript to access their colors
+        tag_groups = TagGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+        tag_groups_data = {}
+        for tg in tag_groups:
+            tag_groups_data[str(tg.id)] = {
+                'name': tg.name,
+                'color': tg.color,
+                'text_color': tg.text_color
+            }
+        context['tag_groups_data_json'] = json.dumps(tag_groups_data)
+        
+        return context
     
     def form_valid(self, form):
         # Get the current state before changes for audit logging

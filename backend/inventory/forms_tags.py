@@ -34,6 +34,13 @@ class TagGroupForm(forms.ModelForm):
 class TagForm(forms.ModelForm):
     """Form for creating and editing individual tags"""
     
+    use_default_color = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Use tag group default color",
+        help_text="Check this to use the tag group's color instead of a custom color"
+    )
+    
     class Meta:
         model = Tag
         fields = ['name', 'tag_group', 'description', 'color', 'sort_order']
@@ -45,13 +52,27 @@ class TagForm(forms.ModelForm):
             'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'})
         }
         help_texts = {
-            'color': 'Optional: Override the tag group color for this specific tag',
+            'color': 'Custom color for this tag',
             'sort_order': 'Order within the tag group (lower numbers appear first)'
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['tag_group'].queryset = TagGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+        
+        # If editing an existing tag with no custom color, check the "use default" option
+        if self.instance and self.instance.pk and not self.instance.color:
+            self.fields['use_default_color'].initial = True
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        use_default_color = cleaned_data.get('use_default_color', False)
+        
+        # If "use default color" is checked, clear the color field
+        if use_default_color:
+            cleaned_data['color'] = ''
+        
+        return cleaned_data
 
 
 class TaggedItemForm(forms.ModelForm):
