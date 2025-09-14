@@ -47,6 +47,215 @@ class StockItemForm(forms.ModelForm):
         self.fields['notes'].help_text = "Public Notes specific to this stock entry"
 
 
+class ItemWithStockForm(forms.Form):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
+    """Combined form for creating both Item and initial StockItem"""
+    # Item fields
+    name = forms.CharField(max_length=255, label="Item Name")
+    manufacturer = forms.CharField(
+        max_length=255, 
+        required=False, 
+        label="Manufacturer",
+        help_text="Product manufacturer or brand name",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Samsung, Apple, 3M'})
+    )
+    
+    # Single GTIN field with toggle
+    gtin = forms.CharField(
+        required=False, 
+        label="GTIN (Global Trade Item Number)",
+        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1234567890123'})
+    )
+    gtin_applies_to = forms.ChoiceField(
+        choices=[
+            ('item', 'Entire Item (only one size/variant)'),
+            ('variant', 'This Specific Variant Only'),
+        ],
+        initial='item',
+        widget=forms.RadioSelect,
+        label="GTIN applies to",
+    )
+    
+    detail = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Variant Detail (Optional)",
+        help_text="Additional details like size, color, variant, etc.",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Size L, Red, 16oz"}),
+    )
+    subcategory = forms.ModelChoiceField(
+        queryset=models.Subcategory.objects.all(),
+        label="Category"
+    )
+    url = forms.URLField(required=False, label="URL")
+    
+    # StockItem fields
+    organization = forms.ModelChoiceField(
+        queryset=Organization.objects.all(),
+        label="Received From Organization",
+        empty_label="Select an organization"
+    )
+    quantity = forms.IntegerField(min_value=1, initial=1, label=" Quantity")
+    items_per_box = forms.IntegerField(
+        min_value=1,
+        required=False,
+        label="Items Per Box (Optional)",
+        help_text="Number of individual items in a single box/package",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
+    )
+    cost_per_item = forms.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        required=False,
+        label="Value per Qty (Optional)",
+        help_text="Value in dollars ($) per individual item",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
+    )
+    stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
+    date_received = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        label="Date Received"
+    )
+    expiration_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False,
+        label="Expiration Date (optional for non-perishable items)"
+    )
+    lot_number = forms.CharField(max_length=100, required=False, label="Lot Number")
+    
+    stock_notes = forms.CharField(
+        widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}), 
+        required=False, 
+        label="Stock Notes",
+        help_text="Public Notes specific to this stock entry",
+    )
+    notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Item Notes", help_text="Notes visible to all users")
+    notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Item Notes", help_text="Notes visible only to MAI members")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Set up subcategory choices grouped by category (show all categories)
+        categories = models.Category.objects.all().order_by('name')
+        grouped_choices = []
+        for category in categories:
+            subcategories = models.Subcategory.objects.filter(category=category).order_by('name')
+            subcat_choices = [(sub.pk, sub.name) for sub in subcategories]
+            # Optionally, only show categories with subcategories:
+            if subcat_choices:
+                grouped_choices.append((category.name, subcat_choices))
+            else:
+                grouped_choices.append((category.name, []))
+
+        self.fields['subcategory'].choices = grouped_choices
+        self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+    def clean_name(self):
+        """
+        Validates that the item name is unique.
+        """
+        # Get the cleaned data for this specific field
+        name = self.cleaned_data['name']
+
+        # Check if an Item with this name already exists (case-insensitive)
+        if models.Item.objects.filter(name__iexact=name).exists():
+            raise forms.ValidationError(
+                "An item with this name already exists. Please choose a different name.",
+                code='duplicate_name'
+            )
+
+        # Always return the cleaned data for this field
+        return name
+
+    def clean_gtin(self):
+        """
+        Validates that the GTIN is unique if provided.
+        """
+        gtin = self.cleaned_data.get('gtin', '').strip()
+
+
+        if gtin:
+            if len(gtin) > 14:
+                raise forms.ValidationError(
+                    "GTIN must be at most 14 characters long.",
+                    code='invalid_gtin_length'
+                )
+            # Check if GTIN exists on any item
+            if models.Item.objects.filter(gtin=gtin).exists():
+                existing_item = models.Item.objects.filter(gtin=gtin).first()
+                raise forms.ValidationError(
+                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'.",
+                    code='duplicate_item_gtin'
+                )
+            
+            # Check if GTIN exists on any stock item
+            if models.StockItem.objects.filter(gtin=gtin).exists():
+                existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
+                raise forms.ValidationError(
+                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'.",
+                    code='duplicate_stock_gtin'
+                )
+        
+        return gtin
+
+    def save(self, commit=True):
+        """Create both Item and initial StockItem"""
+        # The cleaned_data from the form is used to create both objects
+        data = self.cleaned_data
+
+        # Determine where to place the GTIN based on the toggle
+        gtin = data.get('gtin', '').strip()
+        gtin_applies_to = data.get('gtin_applies_to', 'item')
+        
+        item_gtin = gtin if gtin_applies_to == 'item' else ''
+        stock_gtin = gtin if gtin_applies_to == 'variant' else ''
+
+        # Create Item
+        selected_subcategory = data['subcategory']
+        item = models.Item(
+            name=data['name'],
+            manufacturer=data['manufacturer'],
+            gtin=item_gtin,
+            items_per_box=data.get('items_per_box'),
+            cost_per_item=data.get('cost_per_item'),
+            category=selected_subcategory.category,
+            subcategory=selected_subcategory,
+            url=data['url'],
+            notes_public=data['notes_public'],
+            notes_private=data['notes_private']
+        )
+        
+        if commit:
+            item.save()
+            
+            # Create initial StockItem
+            stock_item = StockItem(
+                item=item,
+                organization=data['organization'],
+                quantity=data['quantity'],
+                location=data['stock_location'],
+                gtin=stock_gtin,
+                detail=data['detail'],
+                date_received=data['date_received'],
+                expiration_date=data['expiration_date'],
+                lot_number=data['lot_number'],
+                notes=data['stock_notes']
+            )
+            stock_item.save()
+            return item, stock_item
+        
+        return item, None
+
 class ItemWithLocationChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: models.Item):
         # Get all locations from the stock items

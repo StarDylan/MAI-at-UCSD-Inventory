@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth.models import User
 from datetime import date, timedelta
-from .models import Category, Subcategory, Item, Organization, StockItem, CheckOut, CheckOutItem
+from .models import Item, Organization, StockItem, CheckOut, CheckOutItem, Tag, TagGroup
 
 
 class OrganizationModelTest(TestCase):

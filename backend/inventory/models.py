@@ -71,36 +71,7 @@ class Tag(models.Model):
         return self.color or self.tag_group.color
 
 
-class Category(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    name = models.CharField(max_length=100)
 
-    class Meta:
-        db_table = "category"
-
-        constraints = [
-            models.UniqueConstraint(fields=['name'], name='unique_active_category_name')
-        ]
-
-    def __str__(self):
-        return self.name
-
-class Subcategory(models.Model):
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    category = models.ForeignKey(
-        Category,
-        related_name="subcategories",
-        on_delete=models.PROTECT,
-    )
-    name = models.CharField(max_length=100)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['name', 'category'], name='unique_active_subcategory_name')
-        ]
-
-    def __str__(self):
-        return f"{self.category.name} / {self.name}"
 
 
 class Organization(models.Model):
@@ -122,25 +93,8 @@ class Organization(models.Model):
 
 class Item(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    category = models.ForeignKey(
-        Category,
-        related_name="items",
-        on_delete=models.PROTECT,
-        db_column="category_id",
-        blank=True,
-        null=True,
-        help_text="Legacy category field - will be deprecated in favor of tags"
-    )
-    subcategory = models.ForeignKey(
-        Subcategory,
-        related_name="items",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        db_column="subcategory_id",
-    )
     
-    # New tagging system - items can have multiple tags
+    # Tagging system - items can have multiple tags
     tags = models.ManyToManyField(
         Tag,
         related_name="items",

@@ -14,7 +14,6 @@ from inventory.views import (
     audit_api,
     auth,
     bulk_checkout,
-    categories,
     dashboard,
     images,
     items,
@@ -22,7 +21,6 @@ from inventory.views import (
     search,
     spreadsheet_import,
     surplus_reports,
-    subcategories,
     tags,
     users
 )
@@ -33,10 +31,6 @@ urlpatterns = [
     path("dashboard/", dashboard.dashboard_view, name="dashboard"),
     
     # Database and Items Views
-    path("view_database/", items.view_database, name="view_database"),
-    path('view/', items.view_database, name='view_database'),
-    path('view/category/<uuid:uuid>/', items.view_category_items, name='view_category'),
-    path('view/subcategory/<uuid:uuid>/', items.view_subcategory_items, name='view_subcategory'),
     path('view/item/<uuid:uuid>/', items.view_item_detail, name='view_item'),
     path('view/deleted_items', items.view_deleted_items, name='view_deleted_items'),
     
@@ -45,17 +39,6 @@ urlpatterns = [
     
     # Audit Logging
     path("view/audit/", audit.AuditLogListView.as_view(), name="audit"),
-    
-    # Category Management
-    path('delete/category/', categories.category_delete_list_view, name='delete_category_list_view'),
-    path('delete/category/<uuid:uuid>/', categories.category_delete_view, name='delete_category'),
-    path('edit/category/<uuid:pk>/', categories.CategoryUpdateView.as_view(), name='edit_category'),
-    path('create/category/', categories.CategoryCreateView.as_view(), name='create_category'),
-    
-    # Subcategory Management  
-    path('delete/subcategory/', subcategories.subcategory_delete_list_view, name='delete_subcategory_list_view'),
-    path('delete/subcategory/<uuid:uuid>/', subcategories.subcategory_delete_view, name='delete_subcategory'),
-    path('create/subcategory/', subcategories.SubcategoryCreateView.as_view(), name='create_subcategory'),
     
     # Item Management
     path('edit/item/<uuid:pk>/', items.ItemUpdateView.as_view(), name='edit_item'),

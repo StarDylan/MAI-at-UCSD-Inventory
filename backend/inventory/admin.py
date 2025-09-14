@@ -41,23 +41,22 @@ class StockItemInline(admin.TabularInline):
 
 # ---------- Core data models ----------
 
-@admin.register(models.Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name")
-    search_fields = ("id", "name")
-    ordering = ("name",)
-    actions = (mark_deleted, restore_deleted)
+@admin.register(models.TagGroup)
+class TagGroupAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "color", "sort_order", "is_active")
+    search_fields = ("id", "name", "description")
+    ordering = ("sort_order", "name")
+    list_filter = ("is_active",)
     list_per_page = 25
 
 
-@admin.register(models.Subcategory)
-class SubcategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "category")
-    list_filter = ("category",)
-    search_fields = ("id", "name", "category__name")
-    ordering = ("category__name", "name")
-    autocomplete_fields = ("category",)
-    actions = (mark_deleted, restore_deleted)
+@admin.register(models.Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "tag_group", "color", "sort_order", "is_active")
+    list_filter = ("tag_group", "is_active")
+    search_fields = ("id", "name", "description", "tag_group__name")
+    ordering = ("tag_group__sort_order", "tag_group__name", "sort_order", "name")
+    autocomplete_fields = ("tag_group",)
     list_per_page = 25
 
 
@@ -66,24 +65,23 @@ class ItemAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "name",
-        "category",
-        "subcategory",
+        "tags_display_admin",
         "total_stock_display",
         "is_deleted",
         "url_link",
     )
-    list_filter = ("is_deleted", "category", "subcategory")
+    list_filter = ("is_deleted", "tags__tag_group", "tags")
     search_fields = (
         "id",
         "name",
         "url",
         "notes_public",
         "notes_private",
-        "category__name",
-        "subcategory__name",
+        "tags__name",
+        "tags__tag_group__name",
     )
     ordering = ("name",)
-    autocomplete_fields = ("category", "subcategory")
+    filter_horizontal = ("tags",)
     inlines = [ItemImageInline, StockItemInline]
     list_per_page = 25
 
@@ -96,6 +94,10 @@ class ItemAdmin(admin.ModelAdmin):
     @admin.display(description="Stock Items Total")
     def total_stock_display(self, obj):
         return obj.total_stock_quantity
+    
+    @admin.display(description="Tags")
+    def tags_display_admin(self, obj):
+        return obj.tags_display
 
 
 @admin.register(models.Image)
