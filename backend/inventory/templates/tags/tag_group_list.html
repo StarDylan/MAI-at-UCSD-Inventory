@@ -19,7 +19,7 @@
                         <div class="col-md-6 col-lg-4 mb-4">
                             <div class="card">
                                 <div class="card-header d-flex justify-content-between align-items-center" 
-                                     style="background-color: {{ tag_group.color }}; color: white;">
+                                     style="background-color: {{ tag_group.color }}; color: {{ tag_group.text_color }};">
                                     <h5 class="mb-0">{{ tag_group.name }}</h5>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-light" type="button" data-toggle="dropdown">
@@ -42,7 +42,7 @@
                                     
                                     <h6>Tags ({{ tag_group.tags.count }}):</h6>
                                     {% for tag in tag_group.tags.all %}
-                                        <span class="badge mr-1 mb-1" style="background-color: {{ tag.display_color }};">
+                                        <span class="badge mr-1 mb-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
                                             {{ tag.name }}
                                         </span>
                                     {% empty %}

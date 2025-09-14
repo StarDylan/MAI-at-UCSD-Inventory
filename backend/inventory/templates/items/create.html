@@ -21,7 +21,7 @@
       {% regroup form.tags.field.queryset by tag_group as tag_groups %}
       {% for tag_group in tag_groups %}
         <div class="tag-group-section mb-3">
-          <div class="tag-group-header" style="background-color: {{ tag_group.grouper.color }}; color: white; padding: 8px 15px; border-radius: 5px 5px 0 0; font-weight: bold;">
+          <div class="tag-group-header" style="background-color: {{ tag_group.grouper.color }}; color: {{ tag_group.grouper.text_color }}; padding: 8px 15px; border-radius: 5px 5px 0 0; font-weight: bold;">
             {{ tag_group.grouper.name }}
             {% if tag_group.grouper.description %}
               <small class="ms-2" style="opacity: 0.9;">{{ tag_group.grouper.description }}</small>
@@ -34,7 +34,7 @@
                   <div class="form-check">
                     <input type="checkbox" name="tags" value="{{ tag.id }}" id="tag_{{ tag.id }}" class="form-check-input">
                     <label for="tag_{{ tag.id }}" class="form-check-label">
-                      <span class="badge" style="background-color: {% if tag.color %}{{ tag.color }}{% else %}{{ tag_group.grouper.color }}{% endif %}; color: white;">
+                      <span class="badge" style="background-color: {% if tag.color %}{{ tag.color }}{% else %}{{ tag_group.grouper.color }}{% endif %}; color: {{ tag.text_color }};">
                         {{ tag.name }}
                       </span>
                       {% if tag.description %}

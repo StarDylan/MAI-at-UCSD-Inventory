@@ -16,7 +16,7 @@
                         <p><strong>This action cannot be undone.</strong></p>
                         
                         <p>
-                            Tag Group: <span class="badge" style="background-color: {{ tag.tag_group.color }};">{{ tag.tag_group.name }}</span>
+                            Tag Group: <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">{{ tag.tag_group.name }}</span>
                         </p>
                         
                         {% if tag.items.count > 0 %}

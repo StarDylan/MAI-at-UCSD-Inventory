@@ -30,6 +30,26 @@ class TagGroup(models.Model):
 
     def __str__(self):
         return self.name
+    
+    @property
+    def text_color(self):
+        """Calculate text color based on background luminance for optimal readability."""
+        hex_color = self.color.lstrip('#')
+        
+        # Convert hex to RGB
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+        except (ValueError, IndexError):
+            # Fallback for invalid color values
+            return '#000000'
+        
+        # Calculate luminance using the provided formula
+        luminance = (r * 0.299 + g * 0.587 + b * 0.114)
+        
+        # Return black text for light backgrounds, white text for dark backgrounds
+        return '#000000' if luminance > 186 else '#ffffff'
 
 
 class Tag(models.Model):
@@ -69,6 +89,26 @@ class Tag(models.Model):
     def display_color(self):
         """Get the display color, falling back to tag group color if not set."""
         return self.color or self.tag_group.color
+    
+    @property
+    def text_color(self):
+        """Calculate text color based on background luminance for optimal readability."""
+        hex_color = self.display_color.lstrip('#')
+        
+        # Convert hex to RGB
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+        except (ValueError, IndexError):
+            # Fallback for invalid color values
+            return '#000000'
+        
+        # Calculate luminance using the provided formula
+        luminance = (r * 0.299 + g * 0.587 + b * 0.114)
+        
+        # Return black text for light backgrounds, white text for dark backgrounds
+        return '#000000' if luminance > 186 else '#ffffff'
 
 
 

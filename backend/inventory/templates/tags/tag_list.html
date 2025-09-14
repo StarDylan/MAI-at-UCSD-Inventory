@@ -36,12 +36,12 @@
                                 {% for tag in tags %}
                                     <tr>
                                         <td>
-                                            <span class="badge" style="background-color: {{ tag.tag_group.color }};">
+                                            <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">
                                                 {{ tag.tag_group.name }}
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge" style="background-color: {{ tag.display_color }};">
+                                            <span class="badge" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
                                                 {{ tag.name }}
                                             </span>
                                         </td>

@@ -32,7 +32,7 @@
         {% endif %}
         <p class="mb-1"><strong>Tags:</strong> 
           {% for tag in item.tags.all %}
-            <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }};">{{ tag.name }}</span>
+            <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">{{ tag.name }}</span>
           {% empty %}
             <em>No tags assigned</em>
           {% endfor %}

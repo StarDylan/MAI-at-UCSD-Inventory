@@ -58,7 +58,7 @@
                       <div class="tags-in-group">
                         {% for tag in tag_group.tags.all %}
                           <div class="tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name|lower }}" data-tag-group-id="{{ tag_group.id }}">
-                            <span class="tag-badge" style="background-color: {{ tag.display_color }};">
+                            <span class="tag-badge" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
                               {{ tag.name }}
                             </span>
                             <button type="button" class="btn btn-xs tag-btn include-btn" data-action="include">
@@ -1191,7 +1191,7 @@ function createItemTile(item) {
   let tagsHtml = '';
   if (item.tags && item.tags.length > 0) {
     const tagBadges = item.tags.slice(0, 3).map(tag => 
-      `<span class="tag-badge" style="background-color: ${tag.color}; color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 4px;">${tag.name}</span>`
+      `<span class="tag-badge" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 4px;">${tag.name}</span>`
     ).join('');
     const moreCount = item.tags.length > 3 ? `<span class="text-muted">+${item.tags.length - 3} more</span>` : '';
     tagsHtml = `<div class="tags-display mb-2">${tagBadges}${moreCount}</div>`;

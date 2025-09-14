@@ -359,6 +359,7 @@ def tag_autocomplete_api(request):
                 'color': tag.tag_group.color,
             },
             'color': tag.display_color,
+            'text_color': tag.text_color,
         })
     
     return JsonResponse({'results': results})

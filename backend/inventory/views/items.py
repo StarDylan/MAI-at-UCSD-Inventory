@@ -930,10 +930,12 @@ def public_search_api(request):
                 'id': str(tag.id),
                 'name': tag.name,
                 'color': tag.display_color,
+                'text_color': tag.text_color,
                 'tag_group': {
                     'id': str(tag.tag_group.id),
                     'name': tag.tag_group.name,
-                    'color': tag.tag_group.color
+                    'color': tag.tag_group.color,
+                    'text_color': tag.tag_group.text_color
                 }
             }
             item_tags.append(tag_info)
