@@ -1,11 +1,7 @@
 """
 Views for tag and tag group management.
-
-This module handles CRUD operations for tags and tag groups,
-including creation, viewing, editing, and deletion of both
-tag groups and individual tags.
 """
-
+    
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
@@ -14,14 +10,13 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib import messages
 from django.views.generic import UpdateView, CreateView, ListView, DeleteView
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
+from django.db.models import Count
 import json
 
-from inventory import models
-from inventory.forms_tags import TagGroupForm, TagForm, TagBulkCreateForm
 from inventory.models import Tag, TagGroup
+from inventory.forms_tags import TagGroupForm, TagForm, TagBulkCreateForm
 from .utils import audit_log_state, audit_log_event
-
 
 @login_required
 @require_GET
@@ -47,14 +42,80 @@ def check_tag_group_dependencies(request, uuid):
     """API endpoint to check if a tag group can be deleted"""
     try:
         tag_group = get_object_or_404(TagGroup, id=uuid)
-        active_tags_count = tag_group.tags.filter(is_active=True).count()  # Use related_name
+        
+        # Count all tags (both active and hidden)
+        total_tags_count = tag_group.tags.count()
+        active_tags_count = tag_group.tags.filter(is_active=True).count()
+        hidden_tags_count = total_tags_count - active_tags_count
+        
+        # Cannot delete if there are ANY tags (active or hidden)
+        can_delete = total_tags_count == 0
+        
+        # Build detailed message
+        if total_tags_count > 0:
+            if active_tags_count > 0 and hidden_tags_count > 0:
+                message = f'Cannot delete tag group "{tag_group.name}" because it has {active_tags_count} active tags and {hidden_tags_count} hidden tags. Please delete or move all tags first.'
+            elif active_tags_count > 0:
+                message = f'Cannot delete tag group "{tag_group.name}" because it has {active_tags_count} active tags. Please delete or move the tags first.'
+            else:
+                message = f'Cannot delete tag group "{tag_group.name}" because it has {hidden_tags_count} hidden tags. Please delete the hidden tags first.'
+        else:
+            message = None
         
         return JsonResponse({
-            'can_delete': active_tags_count == 0,
+            'can_delete': can_delete,
+            'total_tags_count': total_tags_count,
             'active_tags_count': active_tags_count,
+            'hidden_tags_count': hidden_tags_count,
             'tag_group_name': tag_group.name,
-            'message': f'Cannot delete tag group "{tag_group.name}" because it has {active_tags_count} active tags. Please delete or move the tags first.' if active_tags_count > 0 else None
+            'message': message
         })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def hide_tag(request, uuid):
+    """Hide a tag (soft delete by setting is_active=False)"""
+    try:
+        tag = get_object_or_404(Tag, id=uuid)
+        
+        before_state = audit_log_state(tag)
+        tag.is_active = False
+        tag.save()
+        
+        audit_log_event(
+            request.user,
+            f'Hidden tag "{tag.name}"',
+            before_state,
+            audit_log_state(tag)
+        )
+        
+        return JsonResponse({'success': True, 'message': f'Tag "{tag.name}" hidden successfully.'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def hide_tag_group(request, uuid):
+    """Hide a tag group (soft delete by setting is_active=False)"""
+    try:
+        tag_group = get_object_or_404(TagGroup, id=uuid)
+        
+        before_state = audit_log_state(tag_group)
+        tag_group.is_active = False
+        tag_group.save()
+        
+        audit_log_event(
+            request.user,
+            f'Hidden tag group "{tag_group.name}"',
+            before_state,
+            audit_log_state(tag_group)
+        )
+        
+        return JsonResponse({'success': True, 'message': f'Tag group "{tag_group.name}" hidden successfully.'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
@@ -69,7 +130,15 @@ class TagGroupListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return TagGroup.objects.prefetch_related(
             'tags'
-        ).order_by('sort_order', 'name')
+        ).filter(is_active=True).order_by('sort_order', 'name')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add tag counts for each tag group
+        for tag_group in context['tag_groups']:
+            tag_group.active_tags_count = tag_group.tags.filter(is_active=True).count()
+            tag_group.hidden_tags_count = tag_group.tags.filter(is_active=False).count()
+        return context
 
 
 class TagGroupCreateView(LoginRequiredMixin, CreateView):
@@ -125,7 +194,7 @@ class TagGroupUpdateView(LoginRequiredMixin, UpdateView):
 
 @login_required
 def tag_group_delete_view(request, uuid):
-    """Delete a tag group (soft delete by setting is_active=False)"""
+    """Delete a tag group (HARD DELETE - actually removes from database)"""
     tag_group = get_object_or_404(TagGroup, id=uuid)
     
     if request.method == 'POST':
@@ -139,17 +208,19 @@ def tag_group_delete_view(request, uuid):
             )
         else:
             before_state = audit_log_state(tag_group)
-            tag_group.is_active = False
-            tag_group.save()
+            tag_group_name = tag_group.name  # Store name before deletion
+            
+            # HARD DELETE - actually remove from database
+            tag_group.delete()
             
             audit_log_event(
                 request.user,
-                f'Deleted tag group "{tag_group.name}"',
+                f'Permanently deleted tag group "{tag_group_name}"',
                 before_state,
-                audit_log_state(tag_group)
+                audit_log_state(None)
             )
             
-            messages.success(request, f'Tag group "{tag_group.name}" deleted successfully.')
+            messages.success(request, f'Tag group "{tag_group_name}" permanently deleted.')
         
         return redirect('tag_groups_list')
     
@@ -198,6 +269,11 @@ class TagListView(LoginRequiredMixin, ListView):
             tags_by_group[group_name]['tags'].append(tag)
         
         context['tags_by_group'] = tags_by_group
+        
+        # Add hidden tags to context
+        context['hidden_tags'] = Tag.objects.select_related('tag_group').filter(
+            is_active=False
+        ).order_by('tag_group__name', 'name')
         
         # Check if we should focus on a specific tag group
         focus_group = self.request.GET.get('focus_group')
@@ -328,7 +404,7 @@ class TagUpdateView(LoginRequiredMixin, UpdateView):
 
 @login_required
 def tag_delete_view(request, uuid):
-    """Delete a tag (soft delete by setting is_active=False)"""
+    """Delete a tag (HARD DELETE - actually removes from database)"""
     tag = get_object_or_404(Tag, id=uuid)
     
     if request.method == 'POST':
@@ -342,17 +418,19 @@ def tag_delete_view(request, uuid):
             )
         else:
             before_state = audit_log_state(tag)
-            tag.is_active = False
-            tag.save()
+            tag_name = tag.name  # Store name before deletion
+            
+            # HARD DELETE - actually remove from database
+            tag.delete()
             
             audit_log_event(
                 request.user,
-                f'Deleted tag "{tag.name}"',
+                f'Permanently deleted tag "{tag_name}"',
                 before_state,
-                audit_log_state(tag)
+                audit_log_state(None)
             )
             
-            messages.success(request, f'Tag "{tag.name}" deleted successfully.')
+            messages.success(request, f'Tag "{tag_name}" permanently deleted.')
         
         return redirect('tag_list')
     
@@ -498,3 +576,79 @@ def tag_group_autocomplete_api(request):
         })
     
     return JsonResponse({'results': results})
+
+
+@login_required
+def api_check_tag_dependencies(request, tag_id):
+    """API endpoint to check tag dependencies"""
+    try:
+        tag = Tag.objects.get(id=tag_id)
+        items_count = tag.items.count()
+        
+        return JsonResponse({
+            'success': True,
+            'can_delete': items_count == 0,
+            'items_count': items_count,
+            'tag_name': tag.name
+        })
+    except Tag.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Tag not found'}, status=404)
+
+
+@login_required
+def api_check_tag_group_dependencies(request, tag_group_id):
+    """API endpoint to check tag group dependencies"""
+    try:
+        tag_group = TagGroup.objects.get(id=tag_group_id)
+        tags_count = tag_group.tags.count()
+        
+        return JsonResponse({
+            'success': True,
+            'can_delete': tags_count == 0,
+            'tags_count': tags_count,
+            'tag_group_name': tag_group.name
+        })
+    except TagGroup.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Tag group not found'}, status=404)
+
+
+@login_required
+def api_hidden_tags(request):
+    """API endpoint to get hidden tags"""
+    hidden_tags = Tag.objects.filter(is_active=False).annotate(
+        items_count=Count('items')
+    ).order_by('name')
+    
+    tags_data = []
+    for tag in hidden_tags:
+        tags_data.append({
+            'id': str(tag.id),
+            'name': tag.name,
+            'display_color': tag.display_color,
+            'text_color': tag.text_color,
+            'items_count': tag.items_count
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'tags': tags_data
+    })
+
+
+@login_required
+def api_restore_tag(request, tag_id):
+    """API endpoint to restore a hidden tag"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    try:
+        tag = Tag.objects.get(id=tag_id)
+        tag.is_active = True
+        tag.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Tag "{tag.name}" has been restored.'
+        })
+    except Tag.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Tag not found'}, status=404)

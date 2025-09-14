@@ -226,7 +226,7 @@ def upload_spreadsheet(request):
             if ws.max_row < 1:
                 messages.error(request, 'The uploaded file appears to be empty.')
                 # Prepare context for the template
-                tag_groups = TagGroup.objects.prefetch_related('tags').all().order_by('sort_order', 'name')
+                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
                 organizations = Organization.objects.all().order_by('name')
                 
                 context = {
@@ -239,7 +239,7 @@ def upload_spreadsheet(request):
             if actual_headers != expected_headers:
                 messages.error(request, 'Invalid file format. Please use the template from the download function.')
                 # Prepare context for the template
-                tag_groups = TagGroup.objects.prefetch_related('tags').all().order_by('sort_order', 'name')
+                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
                 organizations = Organization.objects.all().order_by('name')
                 
                 context = {
@@ -609,7 +609,7 @@ def upload_spreadsheet(request):
         except Exception as e:
             messages.error(request, f'Error processing file: {str(e)}')
             # Prepare context for the template
-            tag_groups = TagGroup.objects.prefetch_related('tags').all().order_by('sort_order', 'name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
@@ -619,7 +619,7 @@ def upload_spreadsheet(request):
             return render(request, 'spreadsheet_import/upload.html', context)
     
     # Prepare context for the template
-    tag_groups = TagGroup.objects.prefetch_related('tags').all().order_by('sort_order', 'name')
+    tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
     organizations = Organization.objects.all().order_by('name')
     
     context = {

@@ -3,6 +3,7 @@
 {% block title %}Tag Groups{% endblock %}
 
 {% block body %}
+{% csrf_token %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -34,8 +35,9 @@
                                             <a class="dropdown-item" href="{% url 'tag_group_edit' tag_group.pk %}">
                                                 <i class="material-icons">edit</i> Edit
                                             </a>
+                                            <div class="dropdown-divider"></div>
                                             <button class="dropdown-item text-danger" onclick="checkTagGroupDependencies('{{ tag_group.pk }}', '{{ tag_group.name|escapejs }}')" style="border: none; background: none; width: 100%; text-align: left;">
-                                                <i class="material-icons">delete</i> Delete
+                                                <i class="material-icons">delete_forever</i> Delete
                                             </button>
                                         </div>
                                     </div>
@@ -44,12 +46,16 @@
                                     {% if tag_group.description %}
                                         <p class="card-text text-muted">{{ tag_group.description }}</p>
                                     {% endif %}
-                                    
-                                    <h6>Tags ({{ tag_group.tags.count }}):</h6>
                                     {% for tag in tag_group.tags.all %}
-                                        <span class="badge mr-1 mb-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
-                                            {{ tag.name }}
-                                        </span>
+                                        {% if tag.is_active %}
+                                            <span class="badge mr-1 mb-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
+                                                {{ tag.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge mr-1 mb-1 hidden-tag" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }}; opacity: 0.4; text-decoration: line-through;" title="This tag is hidden">
+                                                {{ tag.name }}
+                                            </span>
+                                        {% endif %}
                                     {% empty %}
                                         <p class="text-muted"><em>No tags in this group yet</em></p>
                                     {% endfor %}
@@ -88,9 +94,28 @@
 .tag-group-title-link:hover h5 {
     transform: translateX(2px);
 }
+
+.hidden-tag {
+    position: relative;
+    filter: grayscale(50%);
+}
+
+.hidden-tag:hover {
+    opacity: 0.7 !important;
+    filter: grayscale(30%);
+}
+
+.hidden-tag .material-icons {
+    vertical-align: middle;
+    margin-left: 2px;
+}
 </style>
 
 <script>
+function confirmDeleteTagGroup(tagGroupId, tagGroupName) {
+    window.location.href = `/tags/groups/delete/${tagGroupId}/`;
+}
+
 function checkTagGroupDependencies(tagGroupId, tagGroupName) {
     fetch(`/api/tag-groups/check-dependencies/${tagGroupId}/`)
         .then(response => response.json())
@@ -101,10 +126,10 @@ function checkTagGroupDependencies(tagGroupId, tagGroupName) {
             }
             
             if (!data.can_delete) {
-                // Show error modal
+                // Show error modal - cannot hard delete
                 showErrorModal('Cannot Delete Tag Group', data.message);
             } else {
-                // Proceed to delete confirmation
+                // Proceed to hard delete confirmation
                 window.location.href = `/tags/groups/delete/${tagGroupId}/`;
             }
         })
@@ -133,8 +158,7 @@ function showErrorModal(title, message) {
                         <div class="alert alert-info">
                             <strong>To delete this tag group:</strong>
                             <ol class="mb-0">
-                                <li>First delete or move all tags from this group</li>
-                                <li>Go to <a href="{% url 'tag_list' %}" target="_blank">Tags List</a> to manage individual tags</li>
+                                <li>First delete or move all tags from this group (<a href="{% url 'tag_list' %}" target="_blank">Tag List</a>)</li>
                                 <li>Return here to delete the empty tag group</li>
                             </ol>
                         </div>

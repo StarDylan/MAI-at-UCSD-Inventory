@@ -3,6 +3,7 @@
 {% block title %}Tags{% endblock %}
 
 {% block body %}
+{% csrf_token %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -36,9 +37,11 @@
                                 {% for tag in tags %}
                                     <tr id="tag-group-{{ tag.tag_group.name|slugify }}">
                                         <td>
-                                            <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">
-                                                {{ tag.tag_group.name }}
-                                            </span>
+                                            <a href="{% url 'tag_groups_list' %}" class="text-decoration-none">
+                                                <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">
+                                                    {{ tag.tag_group.name }}
+                                                </span>
+                                            </a>
                                         </td>
                                         <td>
                                             <span class="badge" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
@@ -62,8 +65,11 @@
                                                 <a href="{% url 'tag_edit' tag.pk %}" class="btn btn-sm btn-outline-primary">
                                                     <i class="material-icons" style="font-size: 16px;">edit</i>
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="checkTagDependencies('{{ tag.pk }}', '{{ tag.name|escapejs }}')">
-                                                    <i class="material-icons" style="font-size: 16px;">delete</i>
+                                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="hideTag('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Hide tag (soft delete)">
+                                                    <i class="material-icons" style="font-size: 16px;">visibility_off</i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="checkTagDependencies('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Delete tag permanently">
+                                                    <i class="material-icons" style="font-size: 16px;">delete_forever</i>
                                                 </button>
                                             </div>
                                         </td>
@@ -80,6 +86,76 @@
                     <div>
                         <a href="{% url 'tag_create' %}" class="btn btn-primary">Create First Tag</a>
                         <a href="{% url 'tag_groups_list' %}" class="btn btn-secondary">Manage Tag Groups</a>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Hidden Tags Section -->
+            {% if hidden_tags %}
+                <div class="mt-5">
+                    <h3 class="text-muted mb-3">
+                        <i class="material-icons">visibility_off</i> Hidden Tags
+                    </h3>
+                    
+                    <div class="card border-warning">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Tag Group</th>
+                                        <th>Tag Name</th>
+                                        <th>Description</th>
+                                        <th>Color</th>
+                                        <th>Items</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tag in hidden_tags %}
+                                        <tr style="opacity: 0.7;">
+                                            <td>
+                                                <a href="{% url 'tag_groups_list' %}" class="text-decoration-none">
+                                                    <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">
+                                                        {{ tag.tag_group.name }}
+                                                    </span>
+                                                </a>
+                                                {% if not tag.tag_group.is_active %}
+                                                    <small class="text-muted">(Hidden Group)</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
+                                                    {{ tag.name }}
+                                                </span>
+                                                <small class="text-muted">(Hidden)</small>
+                                            </td>
+                                            <td>{{ tag.description|default:"-" }}</td>
+                                            <td>
+                                                {% if tag.color %}
+                                                    <div class="color-swatch" style="background-color: {{ tag.display_color }}; width: 30px; height: 20px; border: 1px solid #ccc; display: inline-block;"></div>
+                                                    <small class="text-muted ml-2">{{ tag.display_color }}</small>
+                                                {% else %}
+                                                    <small class="text-muted"><em>Using group color</em></small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-info">{{ tag.items.count }} items</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="restoreTag('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Restore tag">
+                                                        <i class="material-icons" style="font-size: 16px;">visibility</i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteTag('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Delete tag permanently">
+                                                        <i class="material-icons" style="font-size: 16px;">delete_forever</i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             {% endif %}
@@ -111,6 +187,30 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 
+function hideTag(tagId, tagName) {
+    if (confirm(`Are you sure you want to hide the tag "${tagName}"? It will no longer appear in lists or be available for new items, but existing assignments will be preserved.`)) {
+        fetch(`/api/tags/hide/${tagId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error hiding tag: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error hiding tag. Please try again.');
+        });
+    }
+}
+
 function checkTagDependencies(tagId, tagName) {
     fetch(`/api/tags/check-dependencies/${tagId}/`)
         .then(response => response.json())
@@ -121,10 +221,10 @@ function checkTagDependencies(tagId, tagName) {
             }
             
             if (!data.can_delete) {
-                // Show error modal or alert
-                showErrorModal('Cannot Delete Tag', data.message);
+                // Show error modal - cannot hard delete
+                showErrorModal('Cannot Delete Tag', data.message + ' Use "Hide" instead to keep the data but remove it from the interface.');
             } else {
-                // Proceed to delete confirmation
+                // Proceed to hard delete confirmation
                 window.location.href = `/tags/delete/${tagId}/`;
             }
         })
@@ -180,6 +280,34 @@ function showErrorModal(title, message) {
     
     // Show modal
     $('#errorModal').modal('show');
+}
+
+function restoreTag(tagId, tagName) {
+    if (confirm(`Are you sure you want to restore the tag "${tagName}"? It will become visible again in all lists.`)) {
+        fetch(`/api/tags/restore/${tagId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error restoring tag: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error restoring tag. Please try again.');
+        });
+    }
+}
+
+function confirmDeleteTag(tagId, tagName) {
+    window.location.href = `/tags/delete/${tagId}/`;
 }
 </script>
 
