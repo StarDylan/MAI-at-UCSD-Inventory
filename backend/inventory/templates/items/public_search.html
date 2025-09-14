@@ -33,6 +33,12 @@
                 <i class="material-icons dropdown-arrow">expand_more</i>
               </button>
               <div class="tag-dropdown-menu" id="tag-dropdown-menu">
+                <div class="tag-menu-header d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Filter by Tags</h6>
+                  <button type="button" class="btn btn-sm btn-outline-secondary close-tag-filter" id="close-tag-filter">
+                    <i class="material-icons">close</i>
+                  </button>
+                </div>
                 <div class="tag-search-container mb-2">
                   <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
                   <div class="tag-actions mt-2">
@@ -627,14 +633,93 @@
   border: 1px solid #dee2e6;
   border-radius: 0.375rem;
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  max-height: 400px;
+  max-height: 60vh;
   overflow-y: auto;
   padding: 1rem;
   display: none;
+  min-width: 600px;
+}
+
+/* Mobile responsive design for tag filter */
+@media (max-width: 768px) {
+  .tag-dropdown-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 100vh;
+    min-width: unset;
+    border-radius: 0;
+    z-index: 1050;
+    padding: 1rem;
+    overflow-y: auto;
+  }
+  
+  .tag-dropdown-menu.mobile-overlay {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .tag-menu-header {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+    padding: 1rem 0 0.5rem 0;
+    margin-bottom: 1rem;
+  }
+  
+  .tag-search-container {
+    position: sticky;
+    top: 4rem;
+    background: white;
+    z-index: 9;
+    padding-bottom: 1rem;
+    margin-bottom: 0;
+  }
+  
+  .tag-groups-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  body.tag-filter-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
 }
 
 .tag-dropdown.open .tag-dropdown-menu {
   display: block;
+}
+
+.tag-menu-header {
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.close-tag-filter {
+  padding: 0.25rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+}
+
+.close-tag-filter:hover {
+  background-color: #f8f9fa;
+}
+
+/* Mobile-specific styles for close button */
+@media (max-width: 768px) {
+  .close-tag-filter {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+  }
 }
 
 .tag-group-section {
@@ -642,6 +727,18 @@
   border: 1px solid #e9ecef;
   border-radius: 0.375rem;
   overflow: hidden;
+}
+
+/* Desktop layout improvements */
+@media (min-width: 769px) {
+  .tag-group-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .tag-groups-list {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
 }
 
 .tag-group-header {
@@ -663,10 +760,20 @@
 
 .tags-in-group {
   padding: 0.75rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
   background-color: white;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Mobile layout for tags */
+@media (max-width: 768px) {
+  .tags-in-group {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
 }
 
 .tag-item {
@@ -848,12 +955,34 @@ function initializeEventListeners() {
   $('#tag-dropdown-btn').on('click', function(e) {
     e.preventDefault();
     $('.tag-dropdown').toggleClass('open');
+    
+    // Handle mobile overlay and scroll prevention
+    if (window.innerWidth <= 768) {
+      if ($('.tag-dropdown').hasClass('open')) {
+        $('.tag-dropdown-menu').addClass('mobile-overlay');
+        $('body').addClass('tag-filter-open');
+      } else {
+        $('.tag-dropdown-menu').removeClass('mobile-overlay');
+        $('body').removeClass('tag-filter-open');
+      }
+    }
+  });
+  
+  // Close tag filter button
+  $('#close-tag-filter').on('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $('.tag-dropdown').removeClass('open');
+    $('.tag-dropdown-menu').removeClass('mobile-overlay');
+    $('body').removeClass('tag-filter-open');
   });
   
   // Close dropdown when clicking outside
   $(document).on('click', function(e) {
     if (!$(e.target).closest('.tag-dropdown').length) {
       $('.tag-dropdown').removeClass('open');
+      $('.tag-dropdown-menu').removeClass('mobile-overlay');
+      $('body').removeClass('tag-filter-open');
     }
   });
   
@@ -998,6 +1127,17 @@ function initializeEventListeners() {
   // Other filter controls
   $('#exclude-expired, #include-zero-qty, #sort-by, #sort-order').on('change', function() {
     loadItems(true);
+  });
+  
+  // Handle window resize for mobile overlay
+  $(window).on('resize', function() {
+    if (window.innerWidth > 768 && $('.tag-dropdown').hasClass('open')) {
+      $('.tag-dropdown-menu').removeClass('mobile-overlay');
+      $('body').removeClass('tag-filter-open');
+    } else if (window.innerWidth <= 768 && $('.tag-dropdown').hasClass('open')) {
+      $('.tag-dropdown-menu').addClass('mobile-overlay');
+      $('body').addClass('tag-filter-open');
+    }
   });
   
   // View mode buttons
