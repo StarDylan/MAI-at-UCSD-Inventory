@@ -28,9 +28,9 @@
         </a>
       {% endif %}
     {% elif checkout.is_completed and perms.inventory.undo_checkout %}
-      <form method="post" action="{% url 'checkout_undo' checkout.id %}" style="display: block; margin-bottom: 8px;" onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');">
+      <form method="post" action="{% url 'checkout_undo' checkout.id %}" style="display: inline-block; margin-left: 8px;" onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');">
         {% csrf_token %}
-        <button type="submit" class="btn btn-warning" style="width: 100%;">
+        <button type="submit" class="btn btn-warning mb-2">
           <i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout
         </button>
       </form>
