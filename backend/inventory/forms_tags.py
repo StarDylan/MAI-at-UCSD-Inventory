@@ -314,6 +314,31 @@ class TaggedItemWithStockForm(forms.Form):
         return item, None
 
 
+class TagBulkCreateForm(forms.Form):
+    """Form for bulk creating tags within a tag group"""
+    
+    tag_group = forms.ModelChoiceField(
+        queryset=TagGroup.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label="Tag Group",
+        help_text="Select the tag group where all new tags will be created"
+    )
+    
+    tag_names = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 10,
+            'placeholder': 'Enter tag names, one per line or comma-separated:\n\nPPE\nMedical Supplies\nDisposable, Electronics\nSafety Equipment'
+        }),
+        label="Tag Names",
+        help_text="Enter one tag name per line or separate multiple names with commas"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['tag_group'].queryset = TagGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+
+
 class TagFilterForm(forms.Form):
     """Form for filtering items by tags in search interfaces"""
     

@@ -57,8 +57,6 @@
   {% endif %}
   <a href="{% url 'tag_groups_list' %}" class="list-group-item list-group-item-action">Manage tag groups</a>
   <a href="{% url 'tag_list' %}" class="list-group-item list-group-item-action">Manage tags</a>
-  <a href="{% url 'tag_group_create' %}" class="list-group-item list-group-item-action">Create a new tag group</a>
-  <a href="{% url 'tag_create' %}" class="list-group-item list-group-item-action">Create a new tag</a>
   {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
   {% endif %} {% if perms.inventory.delete_image %}

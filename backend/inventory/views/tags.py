@@ -16,7 +16,7 @@ from django.contrib import messages
 from django.views.generic import UpdateView, CreateView, ListView, DeleteView
 
 from inventory import models
-from inventory.forms_tags import TagGroupForm, TagForm
+from inventory.forms_tags import TagGroupForm, TagForm, TagBulkCreateForm
 from inventory.models import Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
 
@@ -42,14 +42,19 @@ class TagGroupCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('tag_groups_list')
     
     def form_valid(self, form):
-        messages.success(self.request, f'Tag group "{form.instance.name}" created successfully.')
+        # Save the changes
+        response = super().form_valid(form)
+        
+        # Log the create event
         audit_log_event(
             self.request.user,
-            f'Create tag_group {form.instance.name}',
+            f'Created tag group "{form.instance.name}"',
             audit_log_state(None),
             audit_log_state(form.instance)
         )
-        return super().form_valid(form)
+        
+        messages.success(self.request, f'Tag group "{form.instance.name}" created successfully.')
+        return response
 
 
 class TagGroupUpdateView(LoginRequiredMixin, UpdateView):
@@ -60,17 +65,23 @@ class TagGroupUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('tag_groups_list')
     
     def form_valid(self, form):
-        before_state = audit_log_state(self.get_object())
-        messages.success(self.request, f'Tag group "{form.instance.name}" updated successfully.')
+        # Get the current state before changes for audit logging
+        before_model = TagGroup.objects.get(pk=form.instance.pk)
+        before_state = audit_log_state(before_model)
+        
+        # Save the changes
         response = super().form_valid(form)
+        
+        # Log the update event
+        after_state = audit_log_state(form.instance)
         audit_log_event(
             self.request.user,
-            'tag_group',
-            form.instance.id,
-            'update',
+            f'Updated tag group "{before_model.name}"',
             before_state,
-            audit_log_state(form.instance)
+            after_state
         )
+        
+        messages.success(self.request, f'Tag group "{form.instance.name}" updated successfully.')
         return response
 
 
@@ -95,9 +106,7 @@ def tag_group_delete_view(request, uuid):
             
             audit_log_event(
                 request.user,
-                'tag_group',
-                tag_group.id,
-                'soft_delete',
+                f'Deleted tag group "{tag_group.name}"',
                 before_state,
                 audit_log_state(tag_group)
             )
@@ -162,16 +171,19 @@ class TagCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('tag_list')
     
     def form_valid(self, form):
-        messages.success(self.request, f'Tag "{form.instance.name}" created successfully.')
+        # Save the changes
+        response = super().form_valid(form)
+        
+        # Log the create event
         audit_log_event(
             self.request.user,
-            'tag',
-            form.instance.id,
-            'create',
-            '',  # before (empty for new objects)
+            f'Created tag "{form.instance.name}"',
+            audit_log_state(None),
             audit_log_state(form.instance)
         )
-        return super().form_valid(form)
+        
+        messages.success(self.request, f'Tag "{form.instance.name}" created successfully.')
+        return response
 
 
 class TagUpdateView(LoginRequiredMixin, UpdateView):
@@ -182,17 +194,23 @@ class TagUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('tag_list')
     
     def form_valid(self, form):
-        before_state = audit_log_state(self.get_object())
-        messages.success(self.request, f'Tag "{form.instance.name}" updated successfully.')
+        # Get the current state before changes for audit logging
+        before_model = Tag.objects.get(pk=form.instance.pk)
+        before_state = audit_log_state(before_model)
+        
+        # Save the changes
         response = super().form_valid(form)
+        
+        # Log the update event
+        after_state = audit_log_state(form.instance)
         audit_log_event(
             self.request.user,
-            'tag',
-            form.instance.id,
-            'update',
+            f'Updated tag "{before_model.name}"',
             before_state,
-            audit_log_state(form.instance)
+            after_state
         )
+        
+        messages.success(self.request, f'Tag "{form.instance.name}" updated successfully.')
         return response
 
 
@@ -217,9 +235,7 @@ def tag_delete_view(request, uuid):
             
             audit_log_event(
                 request.user,
-                'tag',
-                tag.id,
-                'soft_delete',
+                f'Deleted tag "{tag.name}"',
                 before_state,
                 audit_log_state(tag)
             )
@@ -247,73 +263,62 @@ def tag_delete_view(request, uuid):
 def tag_bulk_create_view(request):
     """Bulk create tags within a tag group"""
     if request.method == 'POST':
-        tag_group_id = request.POST.get('tag_group')
-        tag_names = request.POST.get('tag_names', '').strip()
-        
-        if not tag_group_id or not tag_names:
-            messages.error(request, 'Please select a tag group and provide tag names.')
-            return redirect('tag_bulk_create')
-        
-        try:
-            tag_group = TagGroup.objects.get(id=tag_group_id, is_active=True)
-        except TagGroup.DoesNotExist:
-            messages.error(request, 'Invalid tag group selected.')
-            return redirect('tag_bulk_create')
-        
-        # Parse tag names (one per line or comma-separated)
-        names = []
-        for line in tag_names.split('\n'):
-            line_names = [name.strip() for name in line.split(',') if name.strip()]
-            names.extend(line_names)
-        
-        created_count = 0
-        skipped_count = 0
-        errors = []
-        
-        for i, name in enumerate(names):
-            if not name:
-                continue
-                
-            # Check if tag already exists in this group
-            if Tag.objects.filter(name__iexact=name, tag_group=tag_group).exists():
-                skipped_count += 1
-                continue
+        form = TagBulkCreateForm(request.POST)
+        if form.is_valid():
+            tag_group = form.cleaned_data['tag_group']
+            tag_names = form.cleaned_data['tag_names'].strip()
             
-            try:
-                tag = Tag.objects.create(
-                    name=name,
-                    tag_group=tag_group,
-                    sort_order=i * 10  # Space them out for easy reordering
-                )
+            # Parse tag names (one per line or comma-separated)
+            names = []
+            for line in tag_names.split('\n'):
+                line_names = [name.strip() for name in line.split(',') if name.strip()]
+                names.extend(line_names)
+            
+            created_count = 0
+            skipped_count = 0
+            errors = []
+            
+            for i, name in enumerate(names):
+                if not name:
+                    continue
+                    
+                # Check if tag already exists in this group
+                if Tag.objects.filter(name__iexact=name, tag_group=tag_group).exists():
+                    skipped_count += 1
+                    continue
                 
-                audit_log_event(
-                    request.user,
-                    'tag',
-                    tag.id,
-                    'bulk_create',
-                    '',
-                    audit_log_state(tag)
-                )
-                
-                created_count += 1
-            except Exception as e:
-                errors.append(f'Error creating tag "{name}": {str(e)}')
-        
-        # Show results
-        if created_count > 0:
-            messages.success(request, f'Created {created_count} tags in "{tag_group.name}".')
-        if skipped_count > 0:
-            messages.info(request, f'Skipped {skipped_count} duplicate tags.')
-        for error in errors:
-            messages.error(request, error)
-        
-        return redirect('tag_list')
-    
-    # GET request - show form
-    active_tag_groups = TagGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+                try:
+                    tag = Tag.objects.create(
+                        name=name,
+                        tag_group=tag_group,
+                        sort_order=i * 10  # Space them out for easy reordering
+                    )
+                    
+                    audit_log_event(
+                        request.user,
+                        f'Created tag "{tag.name}" via bulk create',
+                        audit_log_state(None),
+                        audit_log_state(tag)
+                    )
+                    
+                    created_count += 1
+                except Exception as e:
+                    errors.append(f'Error creating tag "{name}": {str(e)}')
+            
+            # Show results
+            if created_count > 0:
+                messages.success(request, f'Created {created_count} tags in "{tag_group.name}".')
+            if skipped_count > 0:
+                messages.info(request, f'Skipped {skipped_count} duplicate tags.')
+            for error in errors:
+                messages.error(request, error)
+            
+            return redirect('tag_list')
+    else:
+        form = TagBulkCreateForm()
     
     context = {
-        'tag_groups': active_tag_groups,
+        'form': form,
     }
     
     template = loader.get_template('tags/tag_bulk_create.html')
