@@ -43,7 +43,7 @@ def view_item_detail(request, uuid):
     """
     # Use all_objects manager to include deleted items
     item = get_object_or_404(
-        Item.objects.select_related('category', 'subcategory'),
+        Item.objects,
         id=uuid
     )
 
@@ -201,7 +201,7 @@ def view_deleted_items(request):
     )
     
     context = {
-        'category': {"name": "Deleted Items"}, 
+        'page_title': "Deleted Items", 
         'items': deleted_items
     }
     
@@ -591,7 +591,7 @@ def items_search_api(request):
     
     
     # Build the base queryset similar to view_subcategory_items
-    items_query = models.Item.active_objects.select_related('category', 'subcategory')
+    items_query = models.Item.active_objects
     if not request.user.has_perm('inventory.view_internalstockingdetails'):
         items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
 
@@ -608,7 +608,7 @@ def items_search_api(request):
                     )
                 )
                 .filter(annotated_total_stock_quantity__gt=0)  # Only return items with stock
-                .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'annotated_total_stock_quantity'))
+                .values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity'))
     # Also search by stock item GTINs if GTIN queries are provided
     # These items must also match other non-GTIN criteria
     stock_item_matches = []
@@ -641,7 +641,7 @@ def items_search_api(request):
                 )
             
             stock_item_matches = (models.StockItem.objects
-                                 .select_related('item', 'item__category', 'item__subcategory')
+                                 .select_related('item')
                                  .filter(stock_gtin_conditions, additional_item_conditions, item__is_deleted=False)
                                  .values_list('item_id', flat=True)
                                  .distinct())
@@ -654,7 +654,7 @@ def items_search_api(request):
             pass  # No-op, as subcategory is not available in this context
 
         # Build items_query as in view_subcategory_items
-        items_query = models.Item.active_objects.select_related('category', 'subcategory')
+        items_query = models.Item.active_objects
         if not request.user.has_perm('inventory.view_internalstockingdetails'):
             items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
 
@@ -671,7 +671,7 @@ def items_search_api(request):
             )
             )
             .filter(annotated_total_stock_quantity__gt=0)
-            .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'annotated_total_stock_quantity')
+            .values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
         )
         
         # Combine results and remove duplicates
@@ -713,8 +713,6 @@ def items_search_api(request):
             'name': item['name'],
             'manufacturer': item['manufacturer'],
             'gtins': gtins,
-            'category__name': item['category__name'],
-            'subcategory__name': item['subcategory__name'],
             'total_stock_quantity': item['annotated_total_stock_quantity'] or 0,
             'location': location_str,
         })
@@ -952,9 +950,6 @@ def public_search_api(request):
             'id': str(item.id),
             'name': item.name,
             'manufacturer': item.manufacturer,
-            # Keep legacy fields for backward compatibility during transition
-            'category': getattr(item.category, 'name', '') if hasattr(item, 'category') and item.category else '',
-            'subcategory': getattr(item.subcategory, 'name', '') if hasattr(item, 'subcategory') and item.subcategory else '',
             # New tag-based fields
             'tags': item_tags,
             'tags_display': item.tags_display,
