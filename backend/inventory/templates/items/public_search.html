@@ -1016,11 +1016,91 @@ let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %
 let tagStates = {}; // { tagId: 'include'|null }
 let tagGroupStates = {}; // { tagGroupId: 'include'|null }
 
+// URL parameter management functions
+function updateURLParams(params) {
+  const url = new URL(window.location);
+  
+  // Clear existing search parameters
+  url.searchParams.delete('search');
+  url.searchParams.delete('tags');
+  url.searchParams.delete('excluded_tags');
+  url.searchParams.delete('exclude_expired');
+  url.searchParams.delete('sort_by');
+  url.searchParams.delete('sort_order');
+  url.searchParams.delete('location');
+  url.searchParams.delete('offset');
+  
+  // Add new parameters
+  Object.keys(params).forEach(key => {
+    if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+      // Skip offset for initial searches to keep URLs clean
+      if (key === 'offset' && params[key] === 0) return;
+      // Skip limit parameter from URL (keep it only for API calls)
+      if (key === 'limit') return;
+      url.searchParams.set(key, params[key]);
+    }
+  });
+  
+  // Update URL without reloading the page
+  window.history.replaceState({}, '', url);
+}
+
+function getURLParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return {
+    search: urlParams.get('search') || '',
+    tags: urlParams.get('tags') || '',
+    excluded_tags: urlParams.get('excluded_tags') || '',
+    exclude_expired: urlParams.get('exclude_expired') === 'true',
+    sort_by: urlParams.get('sort_by') || 'date_added',
+    sort_order: urlParams.get('sort_order') || 'desc',
+    location: urlParams.get('location') || '',
+  };
+}
+
+function initializeFromURL() {
+  const params = getURLParams();
+  
+  // Set form values from URL parameters
+  $('#search-input').val(params.search);
+  $('#exclude-expired').prop('checked', params.exclude_expired);
+  $('#sort-by').val(params.sort_by);
+  $('#sort-order').val(params.sort_order);
+  
+  // Set location search if available and user has permission
+  if ($('#location-input').length) {
+    $('#location-input').val(params.location);
+  }
+  
+  // Set tag states from URL parameters
+  if (params.tags) {
+    params.tags.split(',').forEach(tagId => {
+      if (tagId.trim()) {
+        tagStates[tagId.trim()] = 'include';
+      }
+    });
+  }
+  if (params.excluded_tags) {
+    params.excluded_tags.split(',').forEach(tagId => {
+      if (tagId.trim()) {
+        tagStates[tagId.trim()] = 'exclude';
+      }
+    });
+  }
+}
+
 // Initialize the page
 $(document).ready(function() {
   initializeTagFilter();
   initializeEventListeners();
   setViewMode('tile');
+  
+  // Initialize from URL parameters
+  initializeFromURL();
+  
+  // Update tag filter UI based on URL parameters
+  updateTagFilterUI();
+  
   loadItems(true); // Reset and load initial items
 });
 
@@ -1064,6 +1144,35 @@ function updateTagCount() {
   
   $('#tag-count').text(text);
   $('#tag-button-text').text(buttonText);
+}
+
+function updateTagFilterUI() {
+  // Update individual tag items based on their state
+  $('.tag-item').each(function() {
+    const tagId = $(this).data('tag-id');
+    const state = tagStates[tagId];
+    
+    $(this).removeClass('included excluded');
+    if (state === 'include') {
+      $(this).addClass('included');
+    } else if (state === 'exclude') {
+      $(this).addClass('excluded');
+    }
+  });
+  
+  // Update tag group selections
+  $('.tag-group-section').each(function() {
+    const tagGroupId = $(this).data('tag-group-id');
+    const state = tagGroupStates[tagGroupId];
+    
+    $(this).removeClass('group-selected');
+    if (state === 'include') {
+      $(this).addClass('group-selected');
+    }
+  });
+  
+  // Update the tag count display
+  updateTagCount();
 }
 
 function initializeEventListeners() {
@@ -1223,7 +1332,7 @@ function initializeEventListeners() {
   });
   
   // Other filter controls
-  $('#exclude-expired, #include-zero-qty, #sort-by, #sort-order').on('change', function() {
+  $('#exclude-expired, #sort-by, #sort-order').on('change', function() {
     loadItems(true);
   });
   
@@ -1273,7 +1382,6 @@ function initializeEventListeners() {
     }
     
     $('#exclude-expired').prop('checked', false);
-    $('#include-zero-qty').prop('checked', false);
     $('#sort-by').val('date_added');
     $('#sort-order').val('desc');
     
@@ -1365,7 +1473,6 @@ function loadItems(reset = false) {
     limit: 20,
     search: $('#search-input').val().trim(),
     exclude_expired: $('#exclude-expired').is(':checked'),
-    include_zero_qty: $('#include-zero-qty').is(':checked'),
     sort_by: $('#sort-by').val(),
     sort_order: $('#sort-order').val()
   };
@@ -1395,6 +1502,11 @@ function loadItems(reset = false) {
       delete params[key];
     }
   });
+  
+  // Update URL with search parameters (only on new searches, not pagination)
+  if (reset) {
+    updateURLParams(params);
+  }
   
   $.ajax({
     url: '/api/public-search/',

@@ -863,7 +863,6 @@ def public_search_api(request):
         tag_groups: Comma-separated list of tag group IDs to filter by
         tags: Comma-separated list of tag IDs to filter by
         exclude_expired: Exclude expired items (true/false, default: false)
-        include_zero_qty: Include items with zero quantity (true/false, default: false)
         sort_by: Sort field (date_added, name, manufacturer, tags, quantity)
         sort_order: Sort order (asc/desc, default: desc for date_added, asc for others)
         
@@ -903,7 +902,8 @@ def public_search_api(request):
     
     # Start with stock items queryset and filter based on permissions
     stock_items_query = models.StockItem.objects.select_related('item').filter(
-        item__is_deleted=False  # Only active items
+        item__is_deleted=False,  # Only active items
+        quantity__gt=0
     )
     
     # Filter for permission-based access - only show surplus-approved items for public users
