@@ -55,21 +55,25 @@
                         {% if tag_group.description %}
                           <small class="text-muted">{{ tag_group.description }}</small>
                         {% endif %}
-                        <div class="tag-group-actions mt-1">
-                          <button type="button" class="btn btn-xs btn-outline-primary tag-group-btn" data-action="select-group">
-                            <i class="material-icons">add</i> Select Group
-                          </button>
-                        </div>
                       </div>
                       <div class="tags-in-group">
                         {% for tag in tag_group.tags.all %}
-                          <div class="tag-item" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name|lower }}" data-tag-group-id="{{ tag_group.id }}">
-                            <span class="tag-badge" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
-                              {{ tag.name }}
-                            </span>
-                            <button type="button" class="btn btn-xs tag-btn include-btn" data-action="include">
-                              <i class="material-icons">add</i>
-                            </button>
+                          <div class="tag-item" 
+                               data-tag-id="{{ tag.id }}" 
+                               data-tag-name="{{ tag.name|lower }}" 
+                               data-tag-group-id="{{ tag_group.id }}"
+                               data-tag-color="{{ tag.display_color }}"
+                               data-tag-text-color="{{ tag.text_color }}"
+                               style="background-color: {{ tag.display_color }}; border-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
+                            <span class="tag-name">{{ tag.name }}</span>
+                            <div class="tag-actions">
+                              <button type="button" class="tag-btn include-btn" data-action="include" title="Include items with this tag">
+                                <i class="material-icons">add</i>
+                              </button>
+                              <button type="button" class="tag-btn exclude-btn" data-action="exclude" title="Exclude items with this tag">
+                                <i class="material-icons">remove</i>
+                              </button>
+                            </div>
                           </div>
                         {% endfor %}
                       </div>
@@ -773,62 +777,146 @@
   .tags-in-group {
     grid-template-columns: 1fr;
     max-height: none;
+    gap: 0.75rem;
+  }
+  
+  .tag-item {
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .tag-name {
+    font-size: 0.9rem;
+  }
+  
+  .tag-actions {
+    gap: 0.5rem;
+  }
+  
+  .tag-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
   }
 }
 
 .tag-item {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 1rem;
-  border: 1px solid #dee2e6;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 2px solid;
   transition: all 0.2s ease;
   font-size: 0.8rem;
+  font-weight: 500;
+  position: relative;
 }
 
 .tag-item:hover {
-  background-color: #e9ecef;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  filter: brightness(0.95);
 }
 
 .tag-item.included {
-  background-color: #d1ecf1;
-  border-color: #b6d4de;
+  border-width: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.tag-item.excluded {
+  border-width: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  opacity: 0.7;
+  filter: grayscale(0.3);
+}
+
+.tag-item.included::after {
+  content: '✓';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #28a745;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid white;
+}
+
+.tag-item.excluded::after {
+  content: '✕';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid white;
+}
+
+.tag-name {
+  flex: 1;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tag-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tag-btn {
+  padding: 0.25rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.9);
+  color: #666;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.tag-btn:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 1);
+}
+
+.tag-btn.include-btn:hover {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.tag-btn.exclude-btn:hover {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
 }
 
 .tag-group-section.group-selected .tag-group-header {
   background-color: #d1ecf1;
-}
-
-.tag-btn, .tag-group-btn {
-  padding: 0.125rem 0.375rem;
-  font-size: 0.7rem;
-  border-radius: 0.75rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.tag-btn.include-btn {
-  background-color: #17a2b8;
-  color: white;
-}
-
-.tag-btn.include-btn:hover {
-  background-color: #138496;
-}
-
-.tag-group-btn {
-  background-color: #007bff;
-  color: white;
-}
-
-.tag-group-btn:hover {
-  background-color: #0056b3;
 }
 
 .tag-search-container {
@@ -916,23 +1004,21 @@ function initializeTagFilter() {
 
 function updateTagCount() {
   const includedTags = Object.values(tagStates).filter(state => state === 'include').length;
+  const excludedTags = Object.values(tagStates).filter(state => state === 'exclude').length;
   const includedTagGroups = Object.values(tagGroupStates).filter(state => state === 'include').length;
-  const total = includedTags + includedTagGroups;
+  const total = includedTags + excludedTags + includedTagGroups;
   
   let text = `${total} selected`;
   let buttonText = 'Select Tags';
   
   if (total > 0) {
-    if (includedTagGroups > 0 && includedTags > 0) {
-      text = `${includedTagGroups} groups, ${includedTags} tags`;
-      buttonText = `${includedTagGroups} groups, ${includedTags} tags selected`;
-    } else if (includedTagGroups > 0) {
-      text = `${includedTagGroups} groups`;
-      buttonText = `${includedTagGroups} tag groups selected`;
-    } else {
-      text = `${includedTags} tags`;
-      buttonText = `${includedTags} tags selected`;
-    }
+    let parts = [];
+    if (includedTagGroups > 0) parts.push(`${includedTagGroups} groups`);
+    if (includedTags > 0) parts.push(`${includedTags} included`);
+    if (excludedTags > 0) parts.push(`${excludedTags} excluded`);
+    
+    text = parts.join(', ');
+    buttonText = `${total} filters active`;
   } else {
     text = '0 selected';
     buttonText = 'Select Tags';
@@ -1042,13 +1128,15 @@ function initializeEventListeners() {
     if (tagStates[tagId] === action) {
       // Clicking the same action - deselect
       tagStates[tagId] = null;
-      tagItem.removeClass('included');
+      tagItem.removeClass('included excluded');
     } else {
       // Set new state
       tagStates[tagId] = action;
-      tagItem.removeClass('included');
+      tagItem.removeClass('included excluded');
       if (action === 'include') {
         tagItem.addClass('included');
+      } else if (action === 'exclude') {
+        tagItem.addClass('excluded');
       }
     }
     
@@ -1056,48 +1144,12 @@ function initializeEventListeners() {
     loadItems(true);
   });
   
-  // Tag group filter controls
-  $(document).on('click', '.tag-group-btn', function(e) {
-    e.preventDefault();
-    const tagGroupSection = $(this).closest('.tag-group-section');
-    const tagGroupId = tagGroupSection.data('tag-group-id');
-    const action = $(this).data('action');
-    
-    if (action === 'select-group') {
-      // Toggle all tags in this group
-      const anyTagsSelected = tagGroupSection.find('.tag-item.included').length > 0;
-      
-      if (anyTagsSelected) {
-        // Deselect all tags in this group
-        tagGroupSection.find('.tag-item').each(function() {
-          const tagId = $(this).data('tag-id');
-          tagStates[tagId] = null;
-          $(this).removeClass('included');
-        });
-        tagGroupStates[tagGroupId] = null;
-        tagGroupSection.removeClass('group-selected');
-      } else {
-        // Select all tags in this group
-        tagGroupSection.find('.tag-item').each(function() {
-          const tagId = $(this).data('tag-id');
-          tagStates[tagId] = 'include';
-          $(this).addClass('included');
-        });
-        tagGroupStates[tagGroupId] = 'include';
-        tagGroupSection.addClass('group-selected');
-      }
-      
-      updateTagCount();
-      loadItems(true);
-    }
-  });
-  
   // Select all tags
   $('#select-all-tags').on('click', function() {
     $('.tag-item:not(.hidden)').each(function() {
       const tagId = $(this).data('tag-id');
       tagStates[tagId] = 'include';
-      $(this).addClass('included');
+      $(this).removeClass('excluded').addClass('included');
     });
     $('.tag-group-section:not(.hidden)').each(function() {
       const tagGroupId = $(this).data('tag-group-id');
@@ -1113,7 +1165,7 @@ function initializeEventListeners() {
     $('.tag-item').each(function() {
       const tagId = $(this).data('tag-id');
       tagStates[tagId] = null;
-      $(this).removeClass('included');
+      $(this).removeClass('included excluded');
     });
     $('.tag-group-section').each(function() {
       const tagGroupId = $(this).data('tag-group-id');
@@ -1152,22 +1204,40 @@ function initializeEventListeners() {
   // Clear filters
   $('#clear-filters').on('click', function() {
     $('#search-input').val('');
-    $('#category-search').val('');
     
-    // Clear category states
-    $('.category-item').each(function() {
-      const categoryId = $(this).data('category-id');
-      categoryStates[categoryId] = null;
-      $(this).removeClass('included hidden'); // removed 'excluded' since we commented out exclude functionality
-    });
+    // Clear tag states by resetting the objects
+    if (typeof tagStates !== 'undefined') {
+      $('.tag-item').each(function() {
+        const tagId = $(this).data('tag-id');
+        if (tagId) {
+          delete tagStates[tagId];
+        }
+        $(this).removeClass('included excluded');
+      });
+    }
+    
+    if (typeof tagGroupStates !== 'undefined') {
+      $('.tag-group-section').each(function() {
+        const tagGroupId = $(this).data('tag-group-id');
+        if (tagGroupId) {
+          delete tagGroupStates[tagGroupId];
+        }
+        $(this).removeClass('group-selected');
+      });
+    }
     
     $('#exclude-expired').prop('checked', false);
     $('#include-zero-qty').prop('checked', false);
     $('#sort-by').val('date_added');
     $('#sort-order').val('desc');
     
-    updateCategoryCount();
-    loadItems(true);
+    // Update counts and reload items
+    if (typeof updateTagCount === 'function') {
+      updateTagCount();
+    }
+    if (typeof loadItems === 'function') {
+      loadItems(true);
+    }
   });
   
   // Infinite scroll
@@ -1224,12 +1294,15 @@ function loadItems(reset = false) {
   
   // Build tag filter parameters
   const includedTags = [];
+  const excludedTags = [];
   const includedTagGroups = [];
   
   Object.keys(tagStates).forEach(tagId => {
     const state = tagStates[tagId];
     if (state === 'include') {
       includedTags.push(tagId);
+    } else if (state === 'exclude') {
+      excludedTags.push(tagId);
     }
   });
   
@@ -1254,6 +1327,9 @@ function loadItems(reset = false) {
   // Add tag filters
   if (includedTags.length > 0) {
     params.tags = includedTags.join(',');
+  }
+  if (excludedTags.length > 0) {
+    params.excluded_tags = excludedTags.join(',');
   }
   if (includedTagGroups.length > 0) {
     params.tag_groups = includedTagGroups.join(',');

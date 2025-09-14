@@ -869,6 +869,7 @@ def public_search_api(request):
     search_query = request.GET.get('search', '').strip()
     tag_group_ids = request.GET.get('tag_groups', '').strip()
     tag_ids = request.GET.get('tags', '').strip()
+    excluded_tag_ids = request.GET.get('excluded_tags', '').strip()
     exclude_expired_param = request.GET.get('exclude_expired', 'false')
     exclude_expired = exclude_expired_param.lower() == 'true' if isinstance(exclude_expired_param, str) else bool(exclude_expired_param)
     include_zero_qty_param = request.GET.get('include_zero_qty', 'false')
@@ -911,6 +912,15 @@ def public_search_api(request):
             tag_list = [tag_id.strip() for tag_id in tag_ids.split(',') if tag_id.strip()]
             if tag_list:
                 items_query = items_query.filter(tags__id__in=tag_list)
+        except (ValueError, TypeError):
+            pass
+    
+    # Apply excluded tag filter
+    if excluded_tag_ids:
+        try:
+            excluded_tag_list = [tag_id.strip() for tag_id in excluded_tag_ids.split(',') if tag_id.strip()]
+            if excluded_tag_list:
+                items_query = items_query.exclude(tags__id__in=excluded_tag_list)
         except (ValueError, TypeError):
             pass
     
