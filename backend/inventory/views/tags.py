@@ -161,6 +161,12 @@ class TagListView(LoginRequiredMixin, ListView):
             tags_by_group[group_name]['tags'].append(tag)
         
         context['tags_by_group'] = tags_by_group
+        
+        # Check if we should focus on a specific tag group
+        focus_group = self.request.GET.get('focus_group')
+        if focus_group:
+            context['focus_group'] = focus_group
+        
         return context
 
 

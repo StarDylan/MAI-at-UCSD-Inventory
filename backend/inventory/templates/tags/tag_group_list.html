@@ -20,7 +20,12 @@
                             <div class="card">
                                 <div class="card-header d-flex justify-content-between align-items-center" 
                                      style="background-color: {{ tag_group.color }}; color: {{ tag_group.text_color }};">
-                                    <h5 class="mb-0">{{ tag_group.name }}</h5>
+                                    <a href="{% url 'tag_list' %}?focus_group={{ tag_group.name|urlencode }}" 
+                                       class="btn btn-link p-0 text-decoration-none tag-group-title-link"
+                                       style="color: {{ tag_group.text_color }}; font-weight: 500;"
+                                       title="Click to view this tag group in the tags list">
+                                        <h5 class="mb-0">{{ tag_group.name }}</h5>
+                                    </a>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-light" type="button" data-toggle="dropdown">
                                             <i class="material-icons">more_vert</i>
@@ -69,4 +74,20 @@
         </div>
     </div>
 </div>
+
+<style>
+.tag-group-title-link:hover {
+    text-decoration: underline !important;
+    opacity: 0.9;
+}
+
+.tag-group-title-link h5 {
+    transition: all 0.2s ease;
+}
+
+.tag-group-title-link:hover h5 {
+    transform: translateX(2px);
+}
+</style>
+
 {% endblock %}

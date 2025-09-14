@@ -34,7 +34,7 @@
                             </thead>
                             <tbody>
                                 {% for tag in tags %}
-                                    <tr>
+                                    <tr id="tag-group-{{ tag.tag_group.name|slugify }}">
                                         <td>
                                             <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">
                                                 {{ tag.tag_group.name }}
@@ -86,4 +86,30 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we need to focus on a specific tag group
+    {% if focus_group %}
+    const focusGroupName = "{{ focus_group|slugify }}";
+    const targetElement = document.getElementById('tag-group-' + focusGroupName);
+    
+    if (targetElement) {
+        // Scroll to the element and highlight it
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add a highlight effect
+        targetElement.style.backgroundColor = '#fff3cd';
+        targetElement.style.border = '2px solid #ffc107';
+        
+        // Remove highlight after 3 seconds
+        setTimeout(function() {
+            targetElement.style.backgroundColor = '';
+            targetElement.style.border = '';
+        }, 3000);
+    }
+    {% endif %}
+});
+</script>
+
 {% endblock %}
