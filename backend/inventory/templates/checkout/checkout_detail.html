@@ -141,22 +141,22 @@
         </thead>
         <tbody>
           {% for item in checkout_items %}
-          <tr {% if item.stock_item.surplus_status != 'not_wanted' %}class="table-warning"{% endif %}>
+          {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
+          <tr class="table-danger">
+          {% elif item.stock_item.surplus_status == 'pending' %}
+          <tr class="table-warning">
+          {% else %}
+          <tr>
+          {% endif %}
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none"> {{ item.stock_item.item.name }} </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
               {% endif %}
               {% if item.stock_item.surplus_status == 'wanted' %}
-              <br /><small class="text-dark">
-                <i class="material-icons" style="font-size: 14px; vertical-align: middle;">warning</i>
-                <strong>This item is WANTED by surplus</strong>
-              </small>
+              <br /><span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
               {% elif item.stock_item.surplus_status == 'pending' %}
-              <br /><small class="text-dark">
-                <i class="material-icons" style="font-size: 14px; vertical-align: middle;">warning</i>
-                <strong>This item is pending surplus review</strong>
-              </small>
+              <br /><span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
               {% endif %}
             </td>
             <td>
@@ -500,21 +500,31 @@
         quantityInput.value = Math.min(1, maxQuantity);
         quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
         
-        // Show warning for non-approved surplus items
+        // Show warning for surplus items based on checkout type
         if (surplusStatus !== 'not_wanted') {
-          const warningDiv = document.createElement('div');
-          warningDiv.className = 'alert alert-warning mt-2 surplus-warning';
+          const isDonation = {{ checkout.is_donation|yesno:"true,false" }};
+          let shouldWarn = false;
           let warningText = '';
-          if (surplusStatus === 'wanted') {
-            warningText = '<strong>Warning:</strong> This item is WANTED by surplus. Please confirm before adding to checkout.';
+          let alertClass = 'alert-warning';
+          
+          if (surplusStatus === 'wanted' && isDonation) {
+            shouldWarn = true;
+            alertClass = 'alert-danger';
+            warningText = '<strong>Warning:</strong> This item is WANTED by surplus. Please confirm before adding to donation checkout.';
           } else if (surplusStatus === 'pending') {
+            shouldWarn = true;
             warningText = '<strong>Warning:</strong> This item is pending surplus review. Please confirm before adding to checkout.';
           }
-          warningDiv.innerHTML = `
-            <i class="material-icons" style="vertical-align: middle; font-size: 16px;">warning</i>
-            ${warningText}
-          `;
-          selectedOption.parentNode.parentNode.appendChild(warningDiv);
+          
+          if (shouldWarn) {
+            const warningDiv = document.createElement('div');
+            warningDiv.className = `alert ${alertClass} mt-2 surplus-warning`;
+            warningDiv.innerHTML = `
+              <i class="material-icons" style="vertical-align: middle; font-size: 16px;">warning</i>
+              ${warningText}
+            `;
+            selectedOption.parentNode.parentNode.appendChild(warningDiv);
+          }
         }
       } else {
         quantityInput.max = "";

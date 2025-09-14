@@ -464,22 +464,30 @@ def checkout_complete_view(request, checkout_id):
     else:
         form = CheckOutCompleteForm(checkout=checkout)
     
-    # Check for non-approved surplus items in the checkout
+    # Check for problematic surplus items based on checkout type
     checkout_items = checkout.checkout_items.select_related('stock_item__item').all()
-    has_surplus_items = any(
-        item.stock_item.surplus_status != 'not_wanted' 
-        for item in checkout_items
-    )
-    surplus_items = [
-        item for item in checkout_items 
-        if item.stock_item.surplus_status != 'not_wanted'
-    ]
+    
+    # For donations: warn about wanted items (since they shouldn't be donated)
+    # For non-donations: only warn about pending items (wanted items are fine for non-donations)
+    if checkout.is_donation:
+        problematic_items = [
+            item for item in checkout_items 
+            if item.stock_item.surplus_status in ['wanted', 'pending']
+        ]
+    else:
+        # Non-donation: only warn about pending items
+        problematic_items = [
+            item for item in checkout_items 
+            if item.stock_item.surplus_status == 'pending'
+        ]
+    
+    has_surplus_items = len(problematic_items) > 0
     
     return render(request, 'checkout/checkout_complete.html', {
         'checkout': checkout,
         'form': form,
         'has_surplus_items': has_surplus_items,
-        'surplus_items': surplus_items,
+        'surplus_items': problematic_items,
     })
 
 
