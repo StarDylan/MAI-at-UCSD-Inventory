@@ -17,6 +17,7 @@ from django.views.generic import UpdateView, CreateView
 
 from inventory import models
 from inventory.forms import ItemForm, ItemWithStockForm, StockItemEditForm
+from inventory.forms_tags import TaggedItemForm, TaggedItemWithStockForm
 from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem, CheckOutItem, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
 
@@ -329,7 +330,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     with proper audit logging of changes.
     """
     model = models.Item
-    form_class = ItemForm
+    form_class = TaggedItemForm
     template_name = "items/edit.html"
     permission_required = 'inventory.change_item'
 
@@ -380,7 +381,7 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     stock information including organization, expiration date, and quantity.
     """
     model = models.Item
-    form_class = ItemWithStockForm
+    form_class = TaggedItemWithStockForm
     template_name = "items/create.html"
     permission_required = 'inventory.add_item'
 

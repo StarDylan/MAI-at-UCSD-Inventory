@@ -127,6 +127,9 @@ class Item(models.Model):
         related_name="items",
         on_delete=models.PROTECT,
         db_column="category_id",
+        blank=True,
+        null=True,
+        help_text="Legacy category field - will be deprecated in favor of tags"
     )
     subcategory = models.ForeignKey(
         Subcategory,

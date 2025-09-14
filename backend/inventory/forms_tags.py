@@ -275,16 +275,13 @@ class TaggedItemWithStockForm(forms.Form):
         item_gtin = gtin if gtin_applies_to == 'item' else ''
         stock_gtin = gtin if gtin_applies_to == 'variant' else ''
 
-        # Create Item without tags first (for legacy fields compatibility)
+        # Create Item with only tags - no legacy category fields
         item = models.Item(
             name=data['name'],
             manufacturer=data['manufacturer'],
             gtin=item_gtin,
             items_per_box=data.get('items_per_box'),
             cost_per_item=data.get('cost_per_item'),
-            # Keep legacy fields empty for now - will be handled by migration
-            category=None,
-            subcategory=None,
             url=data['url'],
             notes_public=data['notes_public'],
             notes_private=data['notes_private']

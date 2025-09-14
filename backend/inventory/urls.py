@@ -21,8 +21,9 @@ from inventory.views import (
     organizations,
     search,
     spreadsheet_import,
-    subcategories,
     surplus_reports,
+    subcategories,
+    tags,
     users
 )
 
@@ -78,6 +79,8 @@ urlpatterns = [
     path('api/items/search/', items.items_search_api, name='items_search_api'),
     path('api/public-search/', items.public_search_api, name='public_search_api'),
     path('api/items/<uuid:item_uuid>/stock-items/', bulk_checkout.get_stock_items_api, name='get_stock_items_api'),
+    path('api/tags/autocomplete/', tags.tag_autocomplete_api, name='tag_autocomplete_api'),
+    path('api/tag-groups/autocomplete/', tags.tag_group_autocomplete_api, name='tag_group_autocomplete_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
@@ -109,6 +112,17 @@ urlpatterns = [
     # Spreadsheet Import
     path('import/spreadsheet/', spreadsheet_import.upload_spreadsheet, name='spreadsheet_import_upload'),
     path('import/template/', spreadsheet_import.download_import_template, name='download_import_template'),
+    
+    # Tag Management
+    path('tags/groups/', tags.TagGroupListView.as_view(), name='tag_groups_list'),
+    path('tags/groups/create/', tags.TagGroupCreateView.as_view(), name='tag_group_create'),
+    path('tags/groups/edit/<uuid:pk>/', tags.TagGroupUpdateView.as_view(), name='tag_group_edit'),
+    path('tags/groups/delete/<uuid:uuid>/', tags.tag_group_delete_view, name='tag_group_delete'),
+    path('tags/', tags.TagListView.as_view(), name='tag_list'),
+    path('tags/create/', tags.TagCreateView.as_view(), name='tag_create'),
+    path('tags/edit/<uuid:pk>/', tags.TagUpdateView.as_view(), name='tag_edit'),
+    path('tags/delete/<uuid:uuid>/', tags.tag_delete_view, name='tag_delete'),
+    path('tags/bulk-create/', tags.tag_bulk_create_view, name='tag_bulk_create'),
     
     # User Management
     path('manage/users/', users.manage_users_view, name='manage_users'),

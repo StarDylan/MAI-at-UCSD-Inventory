@@ -16,7 +16,7 @@ from django.shortcuts import render, redirect
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
 
-from inventory.models import Item, StockItem, Organization, Category, Subcategory
+from inventory.models import Item, StockItem, Organization, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
 
 
@@ -36,7 +36,7 @@ def download_import_template(request):
     
     # Headers for import
     headers = [
-        'Item Name', 'Manufacturer', 'GTIN', 'Category', 'Subcategory', 
+        'Item Name', 'Manufacturer', 'GTIN', 'Tags', 
         'Items Per Box', 'Cost Per Item', 'URL', 'Public Notes', 'Private Notes',
         'Organization', 'Quantity', 'Location', 'Detail', 'Date Received', 
         'Expiration Date', 'Lot Number', 'Stock Notes'
@@ -51,7 +51,7 @@ def download_import_template(request):
     
     # Add sample data row for guidance
     sample_data = [
-        'Medical Gloves', 'Nitrile Brand', '1234567890123', 'Medical Supplies', 'PPE',
+        'Medical Gloves', 'Nitrile Brand', '1234567890123', 'PPE, Disposable', 
         '100', '0.15', 'https://example.com', 'Disposable nitrile gloves', 'Store in cool dry place',
         'UCSD Health', '1000', 'Storage Room A', 'Size Large', str(date.today()), 
         '', 'LOT2024001', 'Received in good condition'
@@ -62,7 +62,7 @@ def download_import_template(request):
         cell.font = Font(italic=True, color='808080')
     
     # Set column widths for better readability
-    column_widths = [15, 15, 15, 15, 15, 12, 12, 20, 20, 20, 15, 10, 15, 15, 12, 12, 12, 20]
+    column_widths = [15, 15, 15, 20, 12, 12, 20, 20, 20, 15, 10, 15, 15, 12, 12, 12, 20]
     for col, width in enumerate(column_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
     
@@ -73,8 +73,7 @@ def download_import_template(request):
         "",
         "Required Fields:",
         "- Item Name: Unique name for the item",
-        "- Category: Must match existing category name",
-        "- Subcategory: Must match existing subcategory name",
+        "- Tags: Comma-separated list of tag names (e.g., 'PPE, Disposable, Medical')",
         "- Organization: Must match existing organization name", 
         "- Quantity: Number of items (must be positive integer)",
         "- Location: Storage location for the stock",
@@ -93,25 +92,30 @@ def download_import_template(request):
         "- Lot Number: Batch identifier",
         "- Stock Notes: Notes specific to this stock entry",
         "",
+        "Tags Information:",
+        "- Use comma-separated tag names: 'PPE, Disposable, Medical'",
+        "- Tag names are case-insensitive and will be automatically matched",
+        "- If a tag doesn't exist, it will be created in the 'General' tag group",
+        "- Multiple items can share the same tags",
+        "",
         "Important Notes:",
         "- If an item name already exists, new stock will be added to the existing item",
         "- When reusing existing items, only stock details (quantity, location, etc.) are used",
         "- GTIN placement: If Detail field is empty, GTIN goes on the Item; if Detail has content, GTIN goes on the Stock Item",
         "- GTINs must be unique within their respective location (Item or Stock Item)",
-        "- Categories and subcategories must already exist in the system",
         "- Organizations must already exist in the system",
         "- Dates should be in YYYY-MM-DD format",
         "- Delete the sample row before importing",
         "",
-        "Available Categories and Subcategories:",
+        "Available Tags (by Tag Group):",
     ]
     
-    # Add category/subcategory information
-    categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
-    for category in categories:
-        instructions.append(f"  {category.name}:")
-        for subcategory in category.subcategories.all().order_by('name'):
-            instructions.append(f"    - {subcategory.name}")
+    # Add tag group and tag information
+    tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+    for tag_group in tag_groups:
+        instructions.append(f"  {tag_group.name}:")
+        for tag in tag_group.tags.filter(is_active=True).order_by('sort_order', 'name'):
+            instructions.append(f"    - {tag.name}")
     
     instructions.append("")
     instructions.append("Available Organizations:")
