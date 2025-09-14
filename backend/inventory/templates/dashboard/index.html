@@ -54,10 +54,11 @@
   <a href="{% url 'audit' %}" class="list-group-item list-group-item-action">View audit logs</a>
   {% endif %} {% if perms.inventory.view_deleteditem %}
   <a href="{% url 'view_deleted_items' %}" class="list-group-item list-group-item-action">View deleted items</a>
-  {% endif %}
-  <a href="{% url 'tag_groups_list' %}" class="list-group-item list-group-item-action">Manage tag groups</a>
+  {% endif %} {% if perms.inventory.view_tag %}
   <a href="{% url 'tag_list' %}" class="list-group-item list-group-item-action">Manage tags</a>
-  {% if perms.inventory.view_organization %}
+  {% endif %} {% if perms.inventory.view_taggroup %}
+  <a href="{% url 'tag_groups_list' %}" class="list-group-item list-group-item-action">Manage tag groups</a>
+  {% endif %} {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
   {% endif %} {% if perms.inventory.delete_image %}
   <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>

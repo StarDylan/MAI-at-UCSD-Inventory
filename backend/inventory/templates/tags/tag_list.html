@@ -10,12 +10,14 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>Tags</h2>
                 <div>
+                    {% if perms.inventory.add_tag %}
                     <a href="{% url 'tag_create' %}" class="btn btn-primary">
                         <i class="material-icons">add</i> Create Tag
                     </a>
                     <a href="{% url 'tag_bulk_create' %}" class="btn btn-secondary">
                         <i class="material-icons">add_box</i> Bulk Create
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -62,15 +64,19 @@
                                         </td>
                                         <td>
                                             <div class="btn-group" role="group">
+                                                {% if perms.inventory.change_tag %}
                                                 <a href="{% url 'tag_edit' tag.pk %}" class="btn btn-sm btn-outline-primary">
                                                     <i class="material-icons" style="font-size: 16px;">edit</i>
                                                 </a>
+                                                {% endif %} {% if perms.inventory.hide_tag %}
                                                 <button type="button" class="btn btn-sm btn-outline-warning" onclick="hideTag('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Hide tag (soft delete)">
                                                     <i class="material-icons" style="font-size: 16px;">visibility_off</i>
                                                 </button>
+                                                {% endif %} {% if perms.inventory.delete_tag %}
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="checkTagDependencies('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Delete tag permanently">
                                                     <i class="material-icons" style="font-size: 16px;">delete_forever</i>
                                                 </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>
@@ -143,12 +149,15 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
+                                                    {% if perms.inventory.hide_tag %}
                                                     <button type="button" class="btn btn-sm btn-outline-success" onclick="restoreTag('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Restore tag">
                                                         <i class="material-icons" style="font-size: 16px;">visibility</i>
                                                     </button>
+                                                    {% endif %} {% if perms.inventory.delete_tag%}
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteTag('{{ tag.pk }}', '{{ tag.name|escapejs }}')" title="Delete tag permanently">
                                                         <i class="material-icons" style="font-size: 16px;">delete_forever</i>
                                                     </button>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
