@@ -120,20 +120,16 @@ def checkout_detail_view(request, checkout_id):
     checkout_audit = AuditEvent.objects.filter(entity_id=checkout.id).select_related('user').order_by('-created_at')
 
     # Prepare audit events for template display
-    audit_events = []
     for event in checkout_audit:
-        audit_events.append({
-            'event': event,
-            'json_data': {
-                'before': event.before,
-                'after': event.after,
-            }
-        })
+        event.json_data = {
+            'before': event.before,
+            'after': event.after,
+        }
 
     context = {
         'checkout': checkout,
         'checkout_items': checkout_items,
-        'checkout_audit': audit_events,
+        'checkout_audit': checkout_audit,
         'can_edit': not checkout.is_completed,
     }
 

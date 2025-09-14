@@ -325,8 +325,8 @@
         <tbody>
           {% for event in checkout_audit %}
           <tr onclick="viewDiff({{ event.json_data }});">
-            <td>{{ event.created_at }}</td>
-            <td>{{ event.event.user.get_full_name|default:event.event.user.username }}</td>
+            <td>{{ event.created_at|date:"d-M-Y H:i:s" }}</td>
+            <td>{{ event.user.get_full_name|default:event.user.username }}</td>
             <td>{{ event.event }}</td>
           </tr>
           {% endfor %}
@@ -341,16 +341,16 @@
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="auditDiffModalLabel">Audit Event Details</h5>
+        <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <h6>Before</h6>
+        <h2>Before</h2>
         <pre id="audit_left"></pre>
 
-        <h6>After</h6>
+        <h2>After</h2>
         <pre id="audit_right"></pre>
       </div>
       <div class="modal-footer">
@@ -680,15 +680,22 @@
     leftBlockId = $("#audit_left").attr("id");
     rightBlockId = $("#audit_right").attr("id");
     $(document).jdd(leftBlockId, rightBlockId);
+  }
 
-    // Initialize DataTable for audit log if not already initialized
-    if (!$.fn.DataTable.isDataTable("#checkout_audit_table")) {
+  // Initialize DataTable for audit log
+  $(document).ready(function() {
+    if ($.fn.DataTable) {
+      $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
       $("#checkout_audit_table").DataTable({
+        lengthMenu: [
+          [10, 25, 50, 100, -1],
+          [10, 25, 50, 100, "All"],
+        ],
         order: [[0, "desc"]],
         pageLength: 10,
         responsive: true,
       });
     }
-  }
+  });
 </script>
 {% endblock %}
