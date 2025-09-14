@@ -1,0 +1,32 @@
+{% extends "shared/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Create Tag{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Create New Tag</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="material-icons">save</i> Create Tag
+                            </button>
+                            <a href="{% url 'tag_list' %}" class="btn btn-secondary">
+                                <i class="material-icons">cancel</i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
