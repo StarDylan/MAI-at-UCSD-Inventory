@@ -62,9 +62,9 @@
                                                 <a href="{% url 'tag_edit' tag.pk %}" class="btn btn-sm btn-outline-primary">
                                                     <i class="material-icons" style="font-size: 16px;">edit</i>
                                                 </a>
-                                                <a href="{% url 'tag_delete' tag.pk %}" class="btn btn-sm btn-outline-danger">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="checkTagDependencies('{{ tag.pk }}', '{{ tag.name|escapejs }}')">
                                                     <i class="material-icons" style="font-size: 16px;">delete</i>
-                                                </a>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -110,6 +110,77 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     {% endif %}
 });
+
+function checkTagDependencies(tagId, tagName) {
+    fetch(`/api/tags/check-dependencies/${tagId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error checking dependencies: ' + data.error);
+                return;
+            }
+            
+            if (!data.can_delete) {
+                // Show error modal or alert
+                showErrorModal('Cannot Delete Tag', data.message);
+            } else {
+                // Proceed to delete confirmation
+                window.location.href = `/tags/delete/${tagId}/`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error checking tag dependencies. Please try again.');
+        });
+}
+
+function showErrorModal(title, message) {
+    // Create and show Bootstrap modal
+    const modalHtml = `
+        <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="errorModalLabel">
+                            <i class="material-icons">error</i> ${title}
+                        </h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>${message}</p>
+                        <div class="alert alert-info">
+                            <strong>To delete this tag:</strong>
+                            <ol class="mb-0">
+                                <li>Go to the <a href="/search/" target="_blank">Inventory Search</a></li>
+                                <li>Filter by this tag to find all items using it</li>
+                                <li>Remove the tag from all items</li>
+                                <li>Return here to delete the tag</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <a href="/search/" class="btn btn-primary">Go to Inventory Search</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('errorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    $('#errorModal').modal('show');
+}
 </script>
 
 {% endblock %}

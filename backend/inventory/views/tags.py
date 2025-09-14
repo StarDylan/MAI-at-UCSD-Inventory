@@ -14,12 +14,49 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib import messages
 from django.views.generic import UpdateView, CreateView, ListView, DeleteView
+from django.views.decorators.http import require_GET
 import json
 
 from inventory import models
 from inventory.forms_tags import TagGroupForm, TagForm, TagBulkCreateForm
 from inventory.models import Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
+
+
+@login_required
+@require_GET
+def check_tag_dependencies(request, uuid):
+    """API endpoint to check if a tag can be deleted"""
+    try:
+        tag = get_object_or_404(Tag, id=uuid)
+        items_count = tag.items.count()  # Use the related_name from Item.tags
+        
+        return JsonResponse({
+            'can_delete': items_count == 0,
+            'items_count': items_count,
+            'tag_name': tag.name,
+            'message': f'Cannot delete tag "{tag.name}" because it is assigned to {items_count} items. Please remove the tag from all items first.' if items_count > 0 else None
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_GET
+def check_tag_group_dependencies(request, uuid):
+    """API endpoint to check if a tag group can be deleted"""
+    try:
+        tag_group = get_object_or_404(TagGroup, id=uuid)
+        active_tags_count = tag_group.tags.filter(is_active=True).count()  # Use related_name
+        
+        return JsonResponse({
+            'can_delete': active_tags_count == 0,
+            'active_tags_count': active_tags_count,
+            'tag_group_name': tag_group.name,
+            'message': f'Cannot delete tag group "{tag_group.name}" because it has {active_tags_count} active tags. Please delete or move the tags first.' if active_tags_count > 0 else None
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 
 class TagGroupListView(LoginRequiredMixin, ListView):

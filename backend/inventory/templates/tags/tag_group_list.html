@@ -34,9 +34,9 @@
                                             <a class="dropdown-item" href="{% url 'tag_group_edit' tag_group.pk %}">
                                                 <i class="material-icons">edit</i> Edit
                                             </a>
-                                            <a class="dropdown-item text-danger" href="{% url 'tag_group_delete' tag_group.pk %}">
+                                            <button class="dropdown-item text-danger" onclick="checkTagGroupDependencies('{{ tag_group.pk }}', '{{ tag_group.name|escapejs }}')" style="border: none; background: none; width: 100%; text-align: left;">
                                                 <i class="material-icons">delete</i> Delete
-                                            </a>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -89,5 +89,77 @@
     transform: translateX(2px);
 }
 </style>
+
+<script>
+function checkTagGroupDependencies(tagGroupId, tagGroupName) {
+    fetch(`/api/tag-groups/check-dependencies/${tagGroupId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error checking dependencies: ' + data.error);
+                return;
+            }
+            
+            if (!data.can_delete) {
+                // Show error modal
+                showErrorModal('Cannot Delete Tag Group', data.message);
+            } else {
+                // Proceed to delete confirmation
+                window.location.href = `/tags/groups/delete/${tagGroupId}/`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error checking tag group dependencies. Please try again.');
+        });
+}
+
+function showErrorModal(title, message) {
+    // Create and show Bootstrap modal
+    const modalHtml = `
+        <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="errorModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="errorModalLabel">
+                            <i class="material-icons">error</i> ${title}
+                        </h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>${message}</p>
+                        <div class="alert alert-info">
+                            <strong>To delete this tag group:</strong>
+                            <ol class="mb-0">
+                                <li>First delete or move all tags from this group</li>
+                                <li>Go to <a href="{% url 'tag_list' %}" target="_blank">Tags List</a> to manage individual tags</li>
+                                <li>Return here to delete the empty tag group</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <a href="{% url 'tag_list' %}" class="btn btn-primary">Go to Tags List</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('errorModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    $('#errorModal').modal('show');
+}
+</script>
 
 {% endblock %}
