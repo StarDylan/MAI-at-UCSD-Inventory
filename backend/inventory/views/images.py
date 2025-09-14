@@ -7,6 +7,8 @@ for inventory items. Images are stored using Cloudinary service.
 
 import json
 import logging
+import io
+import base64
 from typing import TypedDict, cast
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
@@ -17,9 +19,59 @@ from django.conf import settings
 import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
+from PIL import Image as PILImage
 
 from inventory.models import Item, Image
 from .utils import audit_log_state, audit_log_event
+
+
+def generate_thumbnail(image_data, max_size=(150, 150), quality=85):
+    """
+    Generate a thumbnail from base64 image data.
+    
+    Args:
+        image_data: Base64 encoded image data
+        max_size: Tuple of (max_width, max_height) for the thumbnail
+        quality: JPEG quality (1-100)
+        
+    Returns:
+        Base64 encoded thumbnail data
+    """
+    try:
+        # Remove data URL prefix if present
+        if image_data.startswith('data:'):
+            image_data = image_data.split(',')[1]
+        
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+        image = PILImage.open(io.BytesIO(image_bytes))
+        
+        # Convert to RGB if necessary (for PNG with transparency)
+        if image.mode in ('RGBA', 'LA', 'P'):
+            # Create a white background
+            background = PILImage.new('RGB', image.size, (255, 255, 255))
+            if image.mode == 'P':
+                image = image.convert('RGBA')
+            background.paste(image, mask=image.split()[-1] if image.mode in ('RGBA', 'LA') else None)
+            image = background
+        elif image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Create thumbnail maintaining aspect ratio
+        image.thumbnail(max_size, PILImage.Resampling.LANCZOS)
+        
+        # Save to bytes buffer
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG', quality=quality, optimize=True)
+        buffer.seek(0)
+        
+        # Encode to base64
+        thumbnail_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        return f"data:image/jpeg;base64,{thumbnail_b64}"
+        
+    except Exception as e:
+        logging.error(f"Thumbnail generation failed: {e}")
+        return None
 
 
 @login_required
@@ -54,8 +106,9 @@ def image_upload_view(request, uuid):
     """
     Handle photo uploads for a specific item.
     
-    Accepts base64 encoded image data via POST request and uploads it to
-    Cloudinary. Creates a new Image record associated with the item.
+    Accepts base64 encoded image data via POST request and uploads both
+    full-size and thumbnail versions to Cloudinary. Creates a new Image 
+    record with both URLs.
     
     Args:
         request: HTTP request object (must be POST with JSON body)
@@ -99,7 +152,7 @@ def image_upload_view(request, uuid):
             version: int
 
         try:
-            # Upload image to Cloudinary
+            # Upload full-size image to Cloudinary
             upload_result = cast(
                 UploadResult, 
                 cloudinary.uploader.upload(image_data, resource_type="auto")
@@ -112,14 +165,50 @@ def image_upload_view(request, uuid):
                 quality="auto"
             )
             
+            # Generate thumbnail
+            thumbnail_data = generate_thumbnail(image_data)
+            thumbnail_result = None
+            thumbnail_url = ""
+            
+            if thumbnail_data:
+                try:
+                    # Upload thumbnail to Cloudinary with a different public_id
+                    thumbnail_result = cast(
+                        UploadResult,
+                        cloudinary.uploader.upload(
+                            thumbnail_data, 
+                            resource_type="auto",
+                            public_id=f"{upload_result['public_id']}_thumb"
+                        )
+                    )
+                    
+                    # Generate optimized thumbnail URL
+                    thumbnail_url, _ = cloudinary_url(
+                        thumbnail_result["public_id"], 
+                        fetch_format="auto", 
+                        quality="auto"
+                    )
+                    
+                except Exception as e:
+                    logging.warning(f"Thumbnail upload failed, continuing with full image: {e}")
+                    # If thumbnail upload fails, use the full image URL as fallback
+                    thumbnail_url = optimize_url
+                    thumbnail_result = upload_result
+            else:
+                # If thumbnail generation fails, use the full image URL as fallback
+                thumbnail_url = optimize_url
+                thumbnail_result = upload_result
+            
         except Exception as e:
             logging.error(f"Cloudinary upload failed: {e}")
             raise Exception("Cloudinary upload failed")
 
-        # Create new Image record in database
+        # Create new Image record in database with both URLs
         new_image = Image.objects.create(
             image_url=optimize_url,
+            thumbnail_url=thumbnail_url,
             public_id=upload_result["public_id"],
+            thumbnail_public_id=thumbnail_result["public_id"] if thumbnail_result else "",
             item=item,
         )
 
@@ -149,7 +238,7 @@ def image_delete_view(request, uuid):
     Delete a specific image from the system.
     
     Removes the image record from the database and optionally deletes
-    it from Cloudinary based on system settings.
+    both full-size and thumbnail images from Cloudinary based on system settings.
     
     Args:
         request: HTTP request object
@@ -172,7 +261,15 @@ def image_delete_view(request, uuid):
     # Delete from Cloudinary if configured to do so
     if settings.DELETE_CLOUDINARY_IMAGES:
         try:
-            cloudinary.uploader.destroy(image.public_id)
+            # Delete full-size image
+            if image.public_id:
+                cloudinary.uploader.destroy(image.public_id)
+            
+            # Delete thumbnail if it exists and is different from the main image
+            if (image.thumbnail_public_id and 
+                image.thumbnail_public_id != image.public_id):
+                cloudinary.uploader.destroy(image.thumbnail_public_id)
+                
         except Exception as e:
             logging.error(f"Error deleting image from Cloudinary: {e}")
             raise e

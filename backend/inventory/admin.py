@@ -110,12 +110,26 @@ class ItemAdmin(admin.ModelAdmin):
 
 @admin.register(models.Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ("id", "item", "image_url", "public_id")
+    list_display = ("id", "item", "image_preview", "thumbnail_preview", "public_id")
     search_fields = ("id", "image_url", "item__name", "item__id")
     list_select_related = ("item",)
     autocomplete_fields = ("item",)
     ordering = ("item__name",)
     list_per_page = 25
+    fields = ("item", "image_url", "thumbnail_url", "public_id", "thumbnail_public_id")
+    readonly_fields = ("public_id", "thumbnail_public_id")
+    
+    @admin.display(description="Image Preview")
+    def image_preview(self, obj):
+        if obj.image_url:
+            return format_html('<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: contain;" />', obj.image_url)
+        return "No image"
+    
+    @admin.display(description="Thumbnail Preview")
+    def thumbnail_preview(self, obj):
+        if obj.thumbnail_url:
+            return format_html('<img src="{}" style="max-width: 50px; max-height: 50px; object-fit: contain;" />', obj.thumbnail_url)
+        return "No thumbnail"
 
 
 @admin.register(models.Organization)

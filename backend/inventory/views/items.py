@@ -1044,9 +1044,9 @@ def public_search_api(request):
     # Prepare response data
     items_list = []
     for item in items:
-        # Get the first image URL if available
+        # Get the first image URL if available - use thumbnail for public search performance
         first_image = item.images.first()
-        image_url = first_image.image_url if first_image else None
+        image_url = first_image.thumbnail_url if first_image and first_image.thumbnail_url else (first_image.image_url if first_image else None)
         
         # Calculate expiration info
         has_expired_stock = item.expired_stock_quantity > 0 if item.expired_stock_quantity else False

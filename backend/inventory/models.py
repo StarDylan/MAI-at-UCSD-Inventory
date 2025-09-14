@@ -333,8 +333,10 @@ class User(AbstractUser):
 
 class Image(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    image_url = models.URLField()
+    image_url = models.URLField(help_text="Full-size image URL")
+    thumbnail_url = models.URLField(blank=True, default="", help_text="Thumbnail image URL for lists and previews")
     public_id = models.CharField(max_length=255, blank=True, null=True)
+    thumbnail_public_id = models.CharField(max_length=255, blank=True, default="", help_text="Cloudinary public ID for thumbnail")
     item = models.ForeignKey(
         Item, related_name="images", on_delete=models.CASCADE, db_column="item_id"
     )
