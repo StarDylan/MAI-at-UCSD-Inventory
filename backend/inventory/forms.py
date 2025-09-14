@@ -464,6 +464,7 @@ class AddToCheckOutForm(forms.Form):
             ).order_by('-created_at')
         if item:
             # Populate stock items for this item with available quantity
+            # Include all stock items regardless of surplus status
             stock_items = item.stock_items.filter(
                 quantity__gt=0
             ).order_by('detail', 'expiration_date', 'date_received')

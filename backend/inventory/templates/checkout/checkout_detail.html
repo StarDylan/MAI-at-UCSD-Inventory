@@ -141,11 +141,22 @@
         </thead>
         <tbody>
           {% for item in checkout_items %}
-          <tr>
+          <tr {% if item.stock_item.surplus_status != 'not_wanted' %}class="table-warning"{% endif %}>
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none"> {{ item.stock_item.item.name }} </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+              {% endif %}
+              {% if item.stock_item.surplus_status == 'wanted' %}
+              <br /><small class="text-dark">
+                <i class="material-icons" style="font-size: 14px; vertical-align: middle;">warning</i>
+                <strong>This item is WANTED by surplus</strong>
+              </small>
+              {% elif item.stock_item.surplus_status == 'pending' %}
+              <br /><small class="text-dark">
+                <i class="material-icons" style="font-size: 14px; vertical-align: middle;">warning</i>
+                <strong>This item is pending surplus review</strong>
+              </small>
               {% endif %}
             </td>
             <td>
@@ -314,7 +325,7 @@
         <tbody>
           {% for event in checkout_audit %}
           <tr onclick="viewDiff({{ event.json_data }});">
-            <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
+            <td>{{ event.created_at }}</td>
             <td>{{ event.event.user.get_full_name|default:event.event.user.username }}</td>
             <td>{{ event.event }}</td>
           </tr>
@@ -430,21 +441,32 @@
       // Clear any previous errors when opening modal
       clearFormErrors();
 
+      // Clear any previous info messages
+      const existingInfoAlerts = document.querySelectorAll('.alert-info');
+      existingInfoAlerts.forEach(alert => alert.remove());
+
       // Load stock items for this item
       fetch(`/api/items/${itemId}/stock-items/`)
         .then((response) => response.json())
         .then((data) => {
           stockItemSelect.innerHTML = '<option value="">Select stock item...</option>';
-          data.stock_items.forEach((stockItem) => {
-            stockItemSelect.innerHTML += `
-                        <option value="${stockItem.id}" 
-                                data-quantity="${stockItem.quantity}"
-                                data-location="${stockItem.location}"
-                                data-organization="${stockItem.organization}">
-                            ${stockItem.display_name}
-                        </option>
-                    `;
-          });
+          
+          if (data.stock_items.length === 0) {
+            stockItemSelect.innerHTML = '<option value="" disabled>No stock items available for checkout</option>';
+          } else {
+            data.stock_items.forEach((stockItem) => {
+              const surplusWarning = stockItem.surplus_status !== 'not_wanted' ? ' ⚠️' : '';
+              stockItemSelect.innerHTML += `
+                          <option value="${stockItem.id}" 
+                                  data-quantity="${stockItem.quantity}"
+                                  data-location="${stockItem.location}"
+                                  data-organization="${stockItem.organization}"
+                                  data-surplus-status="${stockItem.surplus_status}">
+                              ${stockItem.display_name}${surplusWarning}
+                          </option>
+                      `;
+            });
+          }
         })
         .catch((error) => {
           console.error("Error loading stock items:", error);
@@ -465,12 +487,35 @@
       this.classList.remove("is-invalid");
       document.getElementById("stockItemErrors").textContent = "";
 
+      // Clear any previous surplus warnings
+      const existingWarnings = document.querySelectorAll('.surplus-warning');
+      existingWarnings.forEach(warning => warning.remove());
+
       const selectedOption = this.options[this.selectedIndex];
       if (selectedOption.value) {
         const maxQuantity = selectedOption.dataset.quantity;
+        const surplusStatus = selectedOption.dataset.surplusStatus;
+        
         quantityInput.max = maxQuantity;
         quantityInput.value = Math.min(1, maxQuantity);
         quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
+        
+        // Show warning for non-approved surplus items
+        if (surplusStatus !== 'not_wanted') {
+          const warningDiv = document.createElement('div');
+          warningDiv.className = 'alert alert-warning mt-2 surplus-warning';
+          let warningText = '';
+          if (surplusStatus === 'wanted') {
+            warningText = '<strong>Warning:</strong> This item is WANTED by surplus. Please confirm before adding to checkout.';
+          } else if (surplusStatus === 'pending') {
+            warningText = '<strong>Warning:</strong> This item is pending surplus review. Please confirm before adding to checkout.';
+          }
+          warningDiv.innerHTML = `
+            <i class="material-icons" style="vertical-align: middle; font-size: 16px;">warning</i>
+            ${warningText}
+          `;
+          selectedOption.parentNode.parentNode.appendChild(warningDiv);
+        }
       } else {
         quantityInput.max = "";
         quantityInput.value = "";
