@@ -537,8 +537,21 @@ def api_restore_tag(request, tag_id):
     
     try:
         tag = Tag.objects.get(id=tag_id)
+        
+        # Capture before state for audit
+        before_state = audit_log_state(tag)
+        
         tag.is_active = True
         tag.save()
+        
+        # Capture after state and log the audit event
+        after_state = audit_log_state(tag)
+        audit_log_event(
+            user=request.user,
+            event=f'Restored tag "{tag.name}"',
+            before_state=before_state,
+            after_state=after_state
+        )
         
         return JsonResponse({
             'success': True,
