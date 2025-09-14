@@ -437,6 +437,22 @@
     manufacturerInput.addEventListener("input", triggerSearch);
   }
 
+  // Auto-search on page load if any key fields are pre-populated
+  function checkForAutoSearch() {
+    const hasPrefilledValues = (
+      (itemNameInput && itemNameInput.value.trim().length >= 2) ||
+      (gtinInput && gtinInput.value.trim().length >= 2) ||
+      (manufacturerInput && manufacturerInput.value.trim().length >= 2)
+    );
+
+    if (hasPrefilledValues) {
+      triggerSearch();
+    }
+  }
+
+  // Run auto-search check on page load
+  document.addEventListener("DOMContentLoaded", checkForAutoSearch);
+
   itemsList.addEventListener("click", function (e) {
     if (e.target.classList.contains("checkin-btn")) {
       const itemId = e.target.closest("li").getAttribute("data-id");

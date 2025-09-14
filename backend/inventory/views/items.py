@@ -313,35 +313,6 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         
         # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
-
-    def form_invalid(self, form):
-        """
-        Handle form validation errors, with special handling for GTIN duplicates.
-        
-        If the form has a GTIN duplicate error, redirect to check-in for the existing item.
-        Otherwise, show the form with validation errors.
-        
-        Args:
-            form: Invalid ItemWithStockForm instance
-            
-        Returns:
-            HttpResponseRedirect: Redirect to check-in view if GTIN duplicate
-            HttpResponse: Rendered form with errors otherwise
-        """
-        # Check if there's a GTIN duplicate error
-        gtin_errors = form.errors.get('gtin', [])
-        for error in gtin_errors:
-            if hasattr(error, 'code') and error.code == 'duplicate_gtin':
-                # Find the existing stock item with this GTIN
-                gtin = form.cleaned_data.get('gtin', '').strip()
-                if gtin:
-                    existing_stock_item = models.StockItem.objects.filter(gtin=gtin).first()
-                    if existing_stock_item:
-                        # Redirect to check-in view for the existing item
-                        return redirect('search_check_in_item', item_uuid=existing_stock_item.item.id)
-        
-        # Fall back to default form_invalid behavior
-        return super().form_invalid(form)
     
     def get_form_kwargs(self):
         """
@@ -355,6 +326,73 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             del kwargs['instance']
 
         return kwargs 
+
+    def get_initial(self):
+        """
+        Get initial form data from URL parameters.
+        
+        Supports pre-populating fields via URL parameters:
+        - name: Item name
+        - manufacturer: Manufacturer name  
+        - gtin: GTIN number
+        - date_received: Date received (YYYY-MM-DD format)
+        - organization: Organization ID or name
+        - stock_location: Stock location
+        - quantity: Quantity (integer)
+        - lot_number: Lot number
+        """
+        initial = super().get_initial()
+        
+        # Get URL parameters for pre-populating fields
+        if 'name' in self.request.GET:
+            initial['name'] = self.request.GET['name']
+            
+        if 'manufacturer' in self.request.GET:
+            initial['manufacturer'] = self.request.GET['manufacturer']
+            
+        if 'gtin' in self.request.GET:
+            initial['gtin'] = self.request.GET['gtin']
+            
+        if 'date_received' in self.request.GET:
+            try:
+                from datetime import datetime
+                # Parse date in YYYY-MM-DD format
+                date_str = self.request.GET['date_received']
+                parsed_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                initial['date_received'] = parsed_date
+            except (ValueError, TypeError):
+                # If date parsing fails, ignore this parameter
+                pass
+                
+        if 'organization' in self.request.GET:
+            org_param = self.request.GET['organization']
+            try:
+                # Try to find organization by name (case-insensitive)
+                from inventory.models import Organization
+                print(org_param)
+                org = Organization.objects.get(name__iexact=org_param)
+                print(org)
+                initial['organization'] = org
+            except (Organization.DoesNotExist, ValueError):
+                # If organization not found, ignore this parameter
+                pass
+                
+        if 'stock_location' in self.request.GET:
+            initial['stock_location'] = self.request.GET['stock_location']
+            
+        if 'quantity' in self.request.GET:
+            try:
+                quantity = int(self.request.GET['quantity'])
+                if quantity > 0:
+                    initial['quantity'] = quantity
+            except (ValueError, TypeError):
+                # If quantity parsing fails, ignore this parameter
+                pass
+                
+        if 'lot_number' in self.request.GET:
+            initial['lot_number'] = self.request.GET['lot_number']
+            
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -570,25 +608,47 @@ def items_search_api(request):
     
     from django.db.models import Q, Sum, Case, When, IntegerField
     
-    # Build search conditions (AND logic - all conditions must match)
-    search_conditions = Q()
-    
-    if general_query:
-        # General search across all fields (OR within this condition)
-        search_conditions &= (
-            Q(name__icontains=general_query) | 
-            Q(manufacturer__icontains=general_query) |
-            Q(gtin__exact=general_query)  # Exact match for GTIN
-        )
-    
-    if name_query:
-        search_conditions &= Q(name__icontains=name_query)
-    
-    if manufacturer_query:
-        search_conditions &= Q(manufacturer__icontains=manufacturer_query)
-    
+    # Check for exact GTIN match first - if found, prioritize it over name/manufacturer filters
+    exact_gtin_match = None
     if gtin_query:
-        search_conditions &= Q(gtin__exact=gtin_query)  # Exact match for GTIN
+        exact_gtin_match = gtin_query
+    elif general_query and len(general_query) >= 8:  # GTINs are typically 8+ digits
+        # Check if general_query could be a GTIN by trying exact match
+        exact_gtin_match = general_query
+    
+    search_conditions = Q()
+    use_exact_gtin_priority = False
+    
+    if exact_gtin_match:
+        # First check if there's an exact GTIN match (item level or stock level)
+        gtin_exists = (
+            models.Item.active_objects.filter(gtin__exact=exact_gtin_match).exists() or
+            models.StockItem.objects.filter(gtin__exact=exact_gtin_match, item__is_deleted=False).exists()
+        )
+        
+        if gtin_exists:
+            # If exact GTIN match exists, use only GTIN condition and ignore name/manufacturer
+            use_exact_gtin_priority = True
+            search_conditions = Q(gtin__exact=exact_gtin_match)
+    
+    if not use_exact_gtin_priority:
+        # Build normal search conditions (AND logic - all conditions must match)
+        if general_query:
+            # General search across all fields (OR within this condition)
+            search_conditions &= (
+                Q(name__icontains=general_query) | 
+                Q(manufacturer__icontains=general_query) |
+                Q(gtin__exact=general_query)  # Exact match for GTIN
+            )
+        
+        if name_query:
+            search_conditions &= Q(name__icontains=name_query)
+        
+        if manufacturer_query:
+            search_conditions &= Q(manufacturer__icontains=manufacturer_query)
+        
+        if gtin_query:
+            search_conditions &= Q(gtin__exact=gtin_query)  # Exact match for GTIN
     
     
     # Build the base queryset similar to view_subcategory_items
@@ -615,7 +675,7 @@ def items_search_api(request):
         
     items_qs = items_qs.values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
     # Also search by stock item GTINs if GTIN queries are provided
-    # These items must also match other non-GTIN criteria
+    # These items must also match other non-GTIN criteria (unless exact GTIN priority is used)
     stock_item_matches = []
     if general_query or gtin_query:
         stock_gtin_conditions = Q()
@@ -630,20 +690,24 @@ def items_search_api(request):
             # Build additional conditions for items found via stock GTIN
             additional_item_conditions = Q()
             
-            # Apply name and manufacturer filters to stock item matches too
-            if name_query:
-                additional_item_conditions &= Q(item__name__icontains=name_query)
-            
-            if manufacturer_query:
-                additional_item_conditions &= Q(item__manufacturer__icontains=manufacturer_query)
-            
-            # If general query exists, it should match name/manufacturer on the item level
-            if general_query:
-                additional_item_conditions &= (
-                    Q(item__name__icontains=general_query) |
-                    Q(item__manufacturer__icontains=general_query) |
-                    Q(item__gtin__exact=general_query)  # Exact match for GTIN
-                )
+            if use_exact_gtin_priority:
+                # If using exact GTIN priority, only filter by GTIN - ignore name/manufacturer
+                pass  # No additional conditions needed
+            else:
+                # Apply name and manufacturer filters to stock item matches too
+                if name_query:
+                    additional_item_conditions &= Q(item__name__icontains=name_query)
+                
+                if manufacturer_query:
+                    additional_item_conditions &= Q(item__manufacturer__icontains=manufacturer_query)
+                
+                # If general query exists, it should match name/manufacturer on the item level
+                if general_query:
+                    additional_item_conditions &= (
+                        Q(item__name__icontains=general_query) |
+                        Q(item__manufacturer__icontains=general_query) |
+                        Q(item__gtin__exact=general_query)  # Exact match for GTIN
+                    )
             
             stock_item_matches = (models.StockItem.objects
                                  .select_related('item')
@@ -653,7 +717,6 @@ def items_search_api(request):
     
     if stock_item_matches:
         # Use the same filtering logic as items_query above for permission checks
-        subcategory = None
         if manufacturer_query or name_query:
             # Try to infer subcategory from other filters if needed (optional)
             pass  # No-op, as subcategory is not available in this context
