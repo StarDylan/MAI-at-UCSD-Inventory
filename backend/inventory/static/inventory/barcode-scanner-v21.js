@@ -642,6 +642,20 @@ function createBarcodeScannerButton(gtinInput) {
  * Handle barcode scan result by parsing GS1 data and populating form fields
  */
 function handleBarcodeResult(gtinInput, barcodeData) {
+    // Check if this is a plain UPC code (numeric only, 8, 12, 13, or 14 digits)
+    const isUPC = /^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(barcodeData.trim());
+    
+    if (isUPC) {
+        // For UPC codes, use the scanned data directly as GTIN
+        gtinInput.value = barcodeData.trim();
+        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Show success message for UPC
+        showUPCResult(gtinInput, barcodeData.trim());
+        return;
+    }
+    
+    // For non-UPC codes, try GS1 parsing
     const parsed = BarcodeScanner.parseGS1(barcodeData);
     
     // Set GTIN value
@@ -717,13 +731,42 @@ function showParseResult(gtinInput, barcodeData, parsed) {
             // Remove any existing parse result messages first
             const existingMessages = container.querySelectorAll('.alert-success');
             existingMessages.forEach(existing => {
-                if (existing.innerHTML.includes('Parsed GS1 data:')) {
+                if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned UPC code:')) {
                     existing.remove();
                 }
             });
             
             container.appendChild(message);
         }
+    }
+}
+
+/**
+ * Show UPC scan result as a temporary message
+ */
+function showUPCResult(gtinInput, upcCode) {
+    const message = document.createElement('div');
+    message.className = 'alert alert-success alert-dismissible fade show mt-2';
+    message.innerHTML = `
+        <strong>Scanned UPC code:</strong> ${upcCode}
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    
+    const container = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
+    
+    // Safety check: ensure container exists
+    if (container && !message.parentNode) {
+        // Remove any existing parse result messages first
+        const existingMessages = container.querySelectorAll('.alert-success');
+        existingMessages.forEach(existing => {
+            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned UPC code:')) {
+                existing.remove();
+            }
+        });
+        
+        container.appendChild(message);
     }
 }
 
