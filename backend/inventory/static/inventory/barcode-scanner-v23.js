@@ -22,6 +22,10 @@ class BarcodeScanner {
     
 
     static parseGS1(data) {
+        console.log(data);
+        for (let i = 0; i < data.length; i++) {
+            console.log(data.charCodeAt(i));
+        }
         const result = {};
         let remainingData = data;
         const separator = String.fromCharCode(29);
@@ -45,6 +49,14 @@ class BarcodeScanner {
             if (!ais[ai].isVariableLength) {
                 fixedLengthAis[ai] = ais[ai].length;
             }
+        }
+
+        // Remove any leading/trailing whitespace
+        remainingData = remainingData.trim();
+        
+        // Remove any leading GS characters
+        while (remainingData.charAt(0) === separator) {
+            remainingData = remainingData.substring(1);
         }
 
         while (remainingData.length > 0) {
