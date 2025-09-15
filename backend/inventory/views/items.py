@@ -1088,7 +1088,14 @@ def public_search_api(request):
         tag_groups_display = []
         tags_by_group = {}
         
-        for tag in item.tags.all():
+        # Get all tags and sort them properly for tags_display
+        all_tags = list(item.tags.all())
+        all_tags.sort(key=lambda t: (t.tag_group.sort_order or 0, t.sort_order or 0, t.name))
+        
+        # Compute tags_display using prefetched data to avoid N+1 query
+        tags_display = ', '.join(tag.name for tag in all_tags) if all_tags else ""
+        
+        for tag in all_tags:
             tag_info = {
                 'id': str(tag.id),
                 'name': tag.name,
@@ -1116,7 +1123,7 @@ def public_search_api(request):
             'manufacturer': item.manufacturer,
             # New tag-based fields
             'tags': item_tags,
-            'tags_display': item.tags_display,
+            'tags_display': tags_display,
             'tag_groups_display': ', '.join(tag_groups_display),
             'tags_by_group': tags_by_group,
             'total_stock_quantity': item.annotated_total_stock_quantity or 0,
