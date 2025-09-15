@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db.models.functions import Lower
+from django.core.validators import URLValidator
 from django.db import models
 import uuid
 
@@ -158,7 +159,7 @@ class Item(models.Model):
     )
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
-    url = models.URLField(blank=True)
+    url = models.TextField(validators=[URLValidator()], blank=True, default="")
 
     is_deleted = models.BooleanField(default=False)
 
