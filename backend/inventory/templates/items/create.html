@@ -1,4 +1,4 @@
-{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
+{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %} {% load static %}
 
 <h4>Create Item</h4>
 <form method="post" action="{% url 'create_item' %}" autocomplete="off">
@@ -379,5 +379,8 @@
     }
   });
 </script>
+
+<!-- Barcode Scanner for GTIN input -->
+<script src="{% static 'inventory/barcode-scanner-v19.js' %}"></script>
 
 {% endblock %}
