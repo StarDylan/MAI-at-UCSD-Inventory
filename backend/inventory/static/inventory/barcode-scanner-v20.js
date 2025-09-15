@@ -267,8 +267,11 @@ class BarcodeScanner {
             this.isScanning = true;
             this.onResult = onResult;
             
-            // Create a Data Matrix code reader
-            const codeReader = new window.ZXing.BrowserDatamatrixCodeReader();
+            const codeReader = new window.ZXing.BrowserMultiFormatReader(null, {
+                // Specify the formats you want to read
+                formats: [window.ZXing.BarcodeFormat.DATA_MATRIX, window.ZXing.BarcodeFormat.UPC_A, window.ZXing.BarcodeFormat.UPC_E]
+            });
+
             this.codeReader = codeReader;
             
             // Get video input devices using the correct API
