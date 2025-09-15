@@ -257,6 +257,7 @@ class StockItem(models.Model):
         related_name="stock_items",
         on_delete=models.CASCADE,
         db_column="item_id",
+        db_index=True
     )
     organization = models.ForeignKey(
         Organization,
@@ -339,7 +340,7 @@ class Image(models.Model):
     public_id = models.CharField(max_length=255, blank=True, null=True)
     thumbnail_public_id = models.CharField(max_length=255, blank=True, default="", help_text="Cloudinary public ID for thumbnail")
     item = models.ForeignKey(
-        Item, related_name="images", on_delete=models.CASCADE, db_column="item_id"
+        Item, related_name="images", on_delete=models.CASCADE, db_column="item_id", db_index=True
     )
 
     def __str__(self):
@@ -380,7 +381,6 @@ class Image(models.Model):
                 
         # Final fallback to original image
         return self.image_url
-
 
 class CheckOut(models.Model):
     """
