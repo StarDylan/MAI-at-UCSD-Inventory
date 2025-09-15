@@ -512,7 +512,7 @@ class AuditEvent(models.Model):
     entity_type = models.CharField(max_length=50, db_column="type", editable=False)
     entity_id = models.UUIDField(editable=False)
     user = models.ForeignKey(User, on_delete=models.PROTECT, editable=False)
-    event = models.CharField(max_length=255, editable=False)
+    event = models.TextField(editable=False)
     before = models.TextField(blank=True, default="", editable=False)
     after = models.TextField(blank=True, default="", editable=False)
 
@@ -526,56 +526,3 @@ class AuditEvent(models.Model):
 
     def __str__(self):
         return f"[{self.created_at}] {self.entity_type}:{self.id} {self.event}"
-
-
-# -----------------------
-# LOG DB MODELS
-# -----------------------
-# If you keep logs in a separate SQLite file (mai-log.db), you can place these in a
-# separate Django app and route them to a different DATABASES alias via a database router.
-
-class ErrorLog(models.Model):
-    date = models.DateTimeField()
-    source = models.CharField(max_length=255)
-    log_level = models.IntegerField()
-    log_level_name = models.CharField(max_length=50)
-    message = models.TextField()
-    args = models.TextField(blank=True, default="")
-    module = models.CharField(max_length=255, blank=True, default="")
-    function_name = models.CharField(max_length=255, blank=True, default="")
-    line_num = models.IntegerField(null=True, blank=True)
-    exception = models.TextField(blank=True, default="")
-    process = models.IntegerField(null=True, blank=True)
-    thread = models.CharField(max_length=255, blank=True, default="")
-    thread_name = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        db_table = "error_log"
-
-
-class AccessLog(models.Model):
-    date = models.DateTimeField()
-    source = models.CharField(max_length=255)
-    log_level = models.IntegerField()
-    log_level_name = models.CharField(max_length=50)
-    message = models.TextField()
-    args = models.TextField(blank=True, default="")
-    module = models.CharField(max_length=255, blank=True, default="")
-    function_name = models.CharField(max_length=255, blank=True, default="")
-    line_num = models.IntegerField(null=True, blank=True)
-    exception = models.TextField(blank=True, default="")
-    process = models.IntegerField(null=True, blank=True)
-    thread = models.CharField(max_length=255, blank=True, default="")
-    thread_name = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        db_table = "access_log"
-
-
-class LatencyLog(models.Model):
-    date = models.DateTimeField()
-    path = models.CharField(max_length=512)
-    time = models.IntegerField(help_text="Latency in milliseconds")
-
-    class Meta:
-        db_table = "latency_log"
