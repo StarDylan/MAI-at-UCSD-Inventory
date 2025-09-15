@@ -22,10 +22,6 @@ class BarcodeScanner {
     
 
     static parseGS1(data) {
-        console.log(data);
-        for (let i = 0; i < data.length; i++) {
-            console.log(data.charCodeAt(i));
-        }
         const result = {};
         let remainingData = data;
         const separator = String.fromCharCode(29);
@@ -54,12 +50,15 @@ class BarcodeScanner {
         // Remove any leading/trailing whitespace
         remainingData = remainingData.trim();
         
-        // Remove any leading GS characters
-        while (remainingData.charAt(0) === separator) {
-            remainingData = remainingData.substring(1);
-        }
-
+        
+        
         while (remainingData.length > 0) {
+            
+            // Remove any leading GS characters
+            while (remainingData.charAt(0) === separator) {
+                remainingData = remainingData.substring(1);
+            }
+
             let aiCode = "";
             let dataField = "";
             
@@ -146,7 +145,21 @@ class BarcodeScanner {
             }
         }
         
-        return result;
+        // Check if we found any GS1 formatting
+        const hasGS1Formatting = data.includes("(") || data.includes(String.fromCharCode(29));
+        
+        if (hasGS1Formatting) {
+            if (Object.keys(result).length === 0) {
+                // GS1 format detected but no relevant data found
+                return { _gs1_no_data: true };
+            } else {
+                // GS1 format detected and some data was parsed
+                return result;
+            }
+        }
+        
+        // Return null if no GS1 formatting detected (not a GS1 barcode)
+        return null;
     }
 
     /**
@@ -662,8 +675,11 @@ function handleBarcodeResult(gtinInput, barcodeData) {
     // Always try GS1 parsing first
     const parsed = BarcodeScanner.parseGS1(trimmedData);
     
-    // Check if parsing was successful and returned useful data
-    if (parsed && (parsed.gtin || parsed.lot || parsed.expiration)) {
+    if (parsed && parsed._gs1_no_data) {
+        // GS1 format detected but no relevant data found
+        // Don't populate GTIN field - leave it empty
+        showGS1NoDataResult(gtinInput);
+    } else if (parsed && (parsed.gtin || parsed.lot || parsed.expiration)) {
         // GS1 parsing successful - use parsed data
         if (parsed.gtin) {
             gtinInput.value = parsed.gtin;
@@ -695,8 +711,12 @@ function handleBarcodeResult(gtinInput, barcodeData) {
         
         // Show success message
         showParseResult(gtinInput, trimmedData, parsed);
+    } else if (parsed && Object.keys(parsed).length > 0) {
+        // GS1 data was parsed but contains no useful fields (only serial, variant, etc.)
+        // Don't populate GTIN field - leave it empty
+        showGS1NoDataResult(gtinInput);
     } else {
-        // GS1 parsing failed or returned no useful data - use raw barcode as GTIN
+        // Not a GS1 barcode or parsing failed - use raw barcode as GTIN
         gtinInput.value = trimmedData;
         gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
         
@@ -743,9 +763,9 @@ function showParseResult(gtinInput, barcodeData, parsed) {
         // Safety check: ensure container exists
         if (container && !message.parentNode) {
             // Remove any existing barcode scan result messages first
-            const existingMessages = container.querySelectorAll('.alert-success');
+            const existingMessages = container.querySelectorAll('.alert-success, .alert-warning');
             existingMessages.forEach(existing => {
-                if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:')) {
+                if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:') || existing.innerHTML.includes('GS1 barcode scanned')) {
                     existing.remove();
                 }
             });
@@ -773,9 +793,38 @@ function showSimpleScanResult(gtinInput, scannedCode) {
     // Safety check: ensure container exists
     if (container && !message.parentNode) {
         // Remove any existing barcode scan result messages first
-        const existingMessages = container.querySelectorAll('.alert-success');
+        const existingMessages = container.querySelectorAll('.alert-success, .alert-warning');
         existingMessages.forEach(existing => {
-            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:')) {
+            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:') || existing.innerHTML.includes('GS1 barcode scanned')) {
+                existing.remove();
+            }
+        });
+        
+        container.appendChild(message);
+    }
+}
+
+/**
+ * Show GS1 no data result as a temporary message
+ */
+function showGS1NoDataResult(gtinInput) {
+    const message = document.createElement('div');
+    message.className = 'alert alert-warning alert-dismissible fade show mt-2';
+    message.innerHTML = `
+        <strong>GS1 barcode scanned but no relevant info found</strong>
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    
+    const container = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
+    
+    // Safety check: ensure container exists
+    if (container && !message.parentNode) {
+        // Remove any existing barcode scan result messages first
+        const existingMessages = container.querySelectorAll('.alert-success, .alert-warning');
+        existingMessages.forEach(existing => {
+            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:') || existing.innerHTML.includes('GS1 barcode scanned')) {
                 existing.remove();
             }
         });
