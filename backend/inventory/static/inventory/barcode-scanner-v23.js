@@ -30,11 +30,14 @@ class BarcodeScanner {
         const ais = {
             "01": { key: "gtin", isVariableLength: false, length: 14 },
             "10": { key: "lot", isVariableLength: true, length: 20 },
+            "13": { key: "packaging_date", isVariableLength: false, length: 6 },
             "17": { key: "expiration", isVariableLength: false, length: 6 },
+            "20": { key: "product_variant", isVariableLength: false, length: 2 },
             "21": { key: "serial", isVariableLength: true, length: 20 },
             "11": { key: "production_date", isVariableLength: false, length: 6 },
             "240": { key: "additional_id", isVariableLength: true, length: 30 },
             "91": { key: "company_internal", isVariableLength: true, length: 30 },
+            
         };
 
         const fixedLengthAis = {};
@@ -727,10 +730,10 @@ function showParseResult(gtinInput, barcodeData, parsed) {
         
         // Safety check: ensure container exists
         if (container && !message.parentNode) {
-            // Remove any existing parse result messages first
+            // Remove any existing barcode scan result messages first
             const existingMessages = container.querySelectorAll('.alert-success');
             existingMessages.forEach(existing => {
-                if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned UPC code:')) {
+                if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:')) {
                     existing.remove();
                 }
             });
@@ -757,7 +760,7 @@ function showSimpleScanResult(gtinInput, scannedCode) {
     
     // Safety check: ensure container exists
     if (container && !message.parentNode) {
-        // Remove any existing parse result messages first
+        // Remove any existing barcode scan result messages first
         const existingMessages = container.querySelectorAll('.alert-success');
         existingMessages.forEach(existing => {
             if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:')) {
