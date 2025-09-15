@@ -50,51 +50,64 @@
                 <i class="material-icons dropdown-arrow">expand_more</i>
               </button>
               <div class="tag-dropdown-menu" id="tag-dropdown-menu">
-                <div class="tag-menu-header d-flex justify-content-between align-items-center mb-2">
-                  <h6 class="mb-0">Filter by Tags</h6>
-                  <button type="button" class="btn btn-sm btn-outline-secondary close-tag-filter" id="close-tag-filter">
-                    <i class="material-icons">close</i>
-                  </button>
-                </div>
-                <div class="tag-search-container mb-2">
-                  <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
-                  <div class="tag-actions mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Clear All</button>
-                    <span class="selected-count text-muted ms-2" id="tag-count">0 selected</span>
-                  </div>
-                </div>
-                <div class="tag-groups-list" id="tag-groups-list">
-                  {% for tag_group in tag_groups %}
-                    <div class="tag-group-section" data-tag-group-id="{{ tag_group.id }}">
-                      <div class="tag-group-header" style="border-left: 4px solid {{ tag_group.color }};">
-                        <h6 class="tag-group-name mb-1">{{ tag_group.name }}</h6>
-                        {% if tag_group.description %}
-                          <small class="text-muted">{{ tag_group.description }}</small>
-                        {% endif %}
+                <div class="tag-menu-header">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <h6 class="mb-0">Filter by Tags</h6>
+                      <button type="button" class="btn btn-sm btn-outline-secondary close-tag-filter" id="close-tag-filter">
+                        <i class="material-icons">close</i>
+                      </button>
+                    </div>
+                    <div class="tag-search-container mb-2">
+                      <div class="tag-search-input-wrapper">
+                        <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
+                        <button type="button" class="tag-search-clear" id="tag-search-clear" style="display: none;">
+                          <i class="material-icons">close</i>
+                        </button>
                       </div>
-                      <div class="tags-in-group">
-                        {% for tag in tag_group.tags.all %}
-                          <div class="tag-item" 
-                               data-tag-id="{{ tag.id }}" 
-                               data-tag-name="{{ tag.name|lower }}" 
-                               data-tag-group-id="{{ tag_group.id }}"
-                               data-tag-color="{{ tag.display_color }}"
-                               data-tag-text-color="{{ tag.text_color }}"
-                               style="background-color: {{ tag.display_color }}; border-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
-                            <span class="tag-name">{{ tag.name }}</span>
-                            <div class="tag-actions">
-                              <button type="button" class="tag-btn include-btn" data-action="include" title="Include items with this tag">
-                                <i class="material-icons">add</i>
-                              </button>
-                              <button type="button" class="tag-btn exclude-btn" data-action="exclude" title="Exclude items with this tag">
-                                <i class="material-icons">remove</i>
-                              </button>
-                            </div>
-                          </div>
-                        {% endfor %}
+                      <div class="tag-search-results mt-1">
+                        <small class="text-muted" id="tag-search-count"></small>
+                      </div>
+                      <div class="tag-actions mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Unselect All</button>
+                        <span class="selected-count text-muted ms-2" id="tag-count">0 selected</span>
                       </div>
                     </div>
-                  {% endfor %}
+
+                </div>
+                <div class="tag-groups-container">
+                  <div class="tag-groups-list" id="tag-groups-list">
+                    {% for tag_group in tag_groups %}
+                      <div class="tag-group-section" data-tag-group-id="{{ tag_group.id }}">
+                        <div class="tag-group-header" style="border-left: 4px solid {{ tag_group.color }};">
+                          <h6 class="tag-group-name mb-1">{{ tag_group.name }}</h6>
+                          {% if tag_group.description %}
+                            <small class="text-muted">{{ tag_group.description }}</small>
+                          {% endif %}
+                        </div>
+                        <div class="tags-in-group">
+                          {% for tag in tag_group.tags.all %}
+                            <div class="tag-item" 
+                                 data-tag-id="{{ tag.id }}" 
+                                 data-tag-name="{{ tag.name|lower }}" 
+                                 data-tag-group-id="{{ tag_group.id }}"
+                                 data-tag-color="{{ tag.display_color }}"
+                                 data-tag-text-color="{{ tag.text_color }}"
+                                 style="background-color: {{ tag.display_color }}; border-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
+                              <span class="tag-name">{{ tag.name }}</span>
+                              <div class="tag-actions">
+                                <button type="button" class="tag-btn include-btn" data-action="include" title="Include items with this tag">
+                                  <i class="material-icons">add</i>
+                                </button>
+                                <button type="button" class="tag-btn exclude-btn" data-action="exclude" title="Exclude items with this tag">
+                                  <i class="material-icons">remove</i>
+                                </button>
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
                 </div>
               </div>
             </div>
@@ -483,6 +496,14 @@
   display: none;
 }
 
+.tag-item.hidden {
+  display: none;
+}
+
+.tag-group-section.hidden {
+  display: none;
+}
+
 .category-content {
   display: flex;
   justify-content: space-between;
@@ -661,10 +682,20 @@
   border-radius: 0.375rem;
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
   max-height: 60vh;
+  overflow: hidden;
+  display: none;
+  min-width: 800px;
+}
+
+.tag-dropdown.open .tag-dropdown-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.tag-groups-container {
+  flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  display: none;
-  min-width: 600px;
 }
 
 /* Mobile responsive design for tag filter */
@@ -718,14 +749,12 @@
   }
 }
 
-.tag-dropdown.open .tag-dropdown-menu {
-  display: block;
-}
 
 .tag-menu-header {
   border-bottom: 1px solid #e9ecef;
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
+  padding: 1rem 1rem 0.5rem 1rem;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .close-tag-filter {
@@ -761,11 +790,6 @@
   .tag-group-section {
     margin-bottom: 1.5rem;
   }
-  
-  .tag-groups-list {
-    max-height: 50vh;
-    overflow-y: auto;
-  }
 }
 
 .tag-group-header {
@@ -788,11 +812,9 @@
 .tags-in-group {
   padding: 0.75rem;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.5rem;
   background-color: white;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
 /* Mobile layout for tags */
@@ -960,6 +982,42 @@
   margin-bottom: 1rem;
 }
 
+.tag-search-input-wrapper {
+  position: relative;
+}
+
+.tag-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.tag-search-clear:hover {
+  background-color: #f8f9fa;
+  color: #495057;
+}
+
+.tag-search-clear .material-icons {
+  font-size: 14px;
+}
+
+.tag-search-results {
+  min-height: 16px;
+}
+
 .tag-actions {
   display: flex;
   align-items: center;
@@ -1101,6 +1159,14 @@ $(document).ready(function() {
   // Update tag filter UI based on URL parameters
   updateTagFilterUI();
   
+  // Initialize tag search filtering if there's existing text
+  const existingSearchText = $('#tag-search').val();
+  if (existingSearchText) {
+    $('#tag-search').trigger('input');
+  } else {
+    updateTagSearchCount();
+  }
+  
   loadItems(true); // Reset and load initial items
 });
 
@@ -1144,6 +1210,27 @@ function updateTagCount() {
   
   $('#tag-count').text(text);
   $('#tag-button-text').text(buttonText);
+}
+
+function updateTagSearchCount() {
+  const searchTerm = $('#tag-search').val().toLowerCase();
+  let visibleCount = 0;
+  let totalCount = 0;
+  
+  // Count all tags
+  $('.tag-item').each(function() {
+    totalCount++;
+    if (!$(this).hasClass('hidden')) {
+      visibleCount++;
+    }
+  });
+  
+  // Update count display
+  if (searchTerm) {
+    $('#tag-search-count').text(`${visibleCount} of ${totalCount} tags shown`);
+  } else {
+    $('#tag-search-count').text(`${totalCount} tags available`);
+  }
 }
 
 function updateTagFilterUI() {
@@ -1197,6 +1284,11 @@ function initializeEventListeners() {
     e.preventDefault();
     $('.tag-dropdown').toggleClass('open');
     
+    // Initialize tag count when opening
+    if ($('.tag-dropdown').hasClass('open')) {
+      updateTagSearchCount();
+    }
+    
     // Handle mobile overlay and scroll prevention
     if (window.innerWidth <= 768) {
       if ($('.tag-dropdown').hasClass('open')) {
@@ -1231,6 +1323,14 @@ function initializeEventListeners() {
   $('#tag-search').on('input', function() {
     const searchTerm = $(this).val().toLowerCase();
     let visibleCount = 0;
+    let totalCount = 0;
+    
+    // Show/hide clear button
+    if (searchTerm) {
+      $('#tag-search-clear').show();
+    } else {
+      $('#tag-search-clear').hide();
+    }
     
     // Search through tag groups and tags
     $('.tag-group-section').each(function() {
@@ -1246,6 +1346,7 @@ function initializeEventListeners() {
       
       // Check individual tags in this group
       $groupSection.find('.tag-item').each(function() {
+        totalCount++;
         const tagName = $(this).data('tag-name');
         if (tagName.includes(searchTerm) || groupVisible) {
           $(this).removeClass('hidden');
@@ -1264,12 +1365,18 @@ function initializeEventListeners() {
       }
     });
     
-    // Update placeholder to show count
+    // Update count display
     if (searchTerm) {
-      $(this).attr('placeholder', `${visibleCount} tags found`);
+      $('#tag-search-count').text(`${visibleCount} of ${totalCount} tags shown`);
     } else {
-      $(this).attr('placeholder', 'Search tags...');
+      $('#tag-search-count').text(`${totalCount} tags available`);
     }
+  });
+  
+  // Clear search button
+  $('#tag-search-clear').on('click', function() {
+    $('#tag-search').val('').trigger('input');
+    $('#tag-search').focus();
   });
   
   // Tag filter controls
