@@ -233,6 +233,8 @@ class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         return Tag.objects.select_related('tag_group').filter(
             is_active=True, 
             tag_group__is_active=True
+        ).annotate(
+            items_count=Count('items')
         ).order_by(
             'tag_group__sort_order', 
             'tag_group__name', 
@@ -256,9 +258,11 @@ class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         
         context['tags_by_group'] = tags_by_group
         
-        # Add hidden tags to context
+        # Add hidden tags to context with item count annotation
         context['hidden_tags'] = Tag.objects.select_related('tag_group').filter(
             is_active=False
+        ).annotate(
+            items_count=Count('items')
         ).order_by('tag_group__name', 'name')
         
         # Check if we should focus on a specific tag group
