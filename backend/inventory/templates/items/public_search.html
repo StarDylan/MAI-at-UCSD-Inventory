@@ -1039,6 +1039,13 @@
   vertical-align: middle;
 }
 
+.location-cell {
+  max-width: 200px;
+  word-wrap: break-word;
+  white-space: normal;
+  line-height: 1.3;
+}
+
 /* Status badges for table */
 .expired-badge {
   background-color: #dc3545;
@@ -1825,7 +1832,7 @@ function createTableRow(item) {
   
   // Only show location if user has permission
   const locationColumn = hasInternalPermission ? 
-    `<td class="text-truncate" style="max-width: 150px;" title="${locationText}">${locationText}</td>` : '';
+    `<td class="location-cell" title="${locationText}">${locationText}</td>` : '';
   
   return $(`
     <tr>
