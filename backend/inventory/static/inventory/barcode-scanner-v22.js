@@ -642,53 +642,52 @@ function createBarcodeScannerButton(gtinInput) {
  * Handle barcode scan result by parsing GS1 data and populating form fields
  */
 function handleBarcodeResult(gtinInput, barcodeData) {
-    // Check if this is a plain UPC code (numeric only, 8, 12, 13, or 14 digits)
-    const isUPC = /^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(barcodeData.trim());
+    const trimmedData = barcodeData.trim();
     
-    if (isUPC) {
-        // For UPC codes, use the scanned data directly as GTIN
-        gtinInput.value = barcodeData.trim();
-        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // Always try GS1 parsing first
+    const parsed = BarcodeScanner.parseGS1(trimmedData);
+    
+    // Check if parsing was successful and returned useful data
+    if (parsed && (parsed.gtin || parsed.lot || parsed.expiration)) {
+        // GS1 parsing successful - use parsed data
+        if (parsed.gtin) {
+            gtinInput.value = parsed.gtin;
+            gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
         
-        // Show success message for UPC
-        showUPCResult(gtinInput, barcodeData.trim());
-        return;
-    }
-    
-    // For non-UPC codes, try GS1 parsing
-    const parsed = BarcodeScanner.parseGS1(barcodeData);
-    
-    // Set GTIN value
-    if (parsed.gtin) {
-        gtinInput.value = parsed.gtin
-        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    
-    // Try to populate lot and expiration fields if they exist
-    const form = gtinInput.closest('form');
-    if (form) {
-        // Look for lot/batch number field
-        const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
-        for (const fieldName of lotFields) {
-            const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
-            if (lotInput && parsed.lot) {
-                lotInput.value = parsed.lot;
-                lotInput.dispatchEvent(new Event('input', { bubbles: true }));
-                break;
+        // Try to populate lot and expiration fields if they exist
+        const form = gtinInput.closest('form');
+        if (form) {
+            // Look for lot/batch number field
+            const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
+            for (const fieldName of lotFields) {
+                const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
+                if (lotInput && parsed.lot) {
+                    lotInput.value = parsed.lot;
+                    lotInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    break;
+                }
+            }
+            
+            // Look for expiration date field
+            const expirationInput = form.querySelector(`#id_expiration_date`);
+            if (expirationInput && parsed.expiration) {
+                // parsed.expiration looks like YYMMDD, convert to YYYY-MM-DD
+                expirationInput.value = parseGS1Date(parsed.expiration);
+                expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }
         
-        // Look for expiration date field
-        const expirationInput = form.querySelector(`#id_expiration_date`);
-        if (expirationInput && parsed.expiration) {
-            // parsed.expiration looks like YYMMDD, convert to YYYY-MM-DD
-            expirationInput.value = parseGS1Date(parsed.expiration);
-            expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        // Show success message
+        showParseResult(gtinInput, trimmedData, parsed);
+    } else {
+        // GS1 parsing failed or returned no useful data - use raw barcode as GTIN
+        gtinInput.value = trimmedData;
+        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Show simple success message
+        showSimpleScanResult(gtinInput, trimmedData);
     }
-    
-    // Show success message
-    showParseResult(gtinInput, barcodeData, parsed);
 }
 
 function parseGS1Date(date) {
@@ -742,13 +741,13 @@ function showParseResult(gtinInput, barcodeData, parsed) {
 }
 
 /**
- * Show UPC scan result as a temporary message
+ * Show simple scan result as a temporary message
  */
-function showUPCResult(gtinInput, upcCode) {
+function showSimpleScanResult(gtinInput, scannedCode) {
     const message = document.createElement('div');
     message.className = 'alert alert-success alert-dismissible fade show mt-2';
     message.innerHTML = `
-        <strong>Scanned UPC code:</strong> ${upcCode}
+        <strong>Scanned barcode:</strong> ${scannedCode}
         <button type="button" class="close" data-dismiss="alert">
             <span aria-hidden="true">&times;</span>
         </button>
@@ -761,7 +760,7 @@ function showUPCResult(gtinInput, upcCode) {
         // Remove any existing parse result messages first
         const existingMessages = container.querySelectorAll('.alert-success');
         existingMessages.forEach(existing => {
-            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned UPC code:')) {
+            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:')) {
                 existing.remove();
             }
         });
