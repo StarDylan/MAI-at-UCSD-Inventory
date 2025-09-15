@@ -740,6 +740,27 @@ function addGS1ParseToInput(gtinInput) {
         return;
     }
     
+    // Add keydown event listener for Ctrl+] to insert GS character
+    gtinInput.addEventListener('keydown', function(event) {
+        // Check for Ctrl+] combination (KeyCode 221 is ']')
+        if (event.ctrlKey && event.key === ']') {
+            event.preventDefault();
+            
+            // Insert GS character (ASCII 29) at cursor position
+            const cursorPosition = this.selectionStart;
+            const value = this.value;
+            const gsChar = String.fromCharCode(29); // GS character
+            
+            this.value = value.slice(0, cursorPosition) + gsChar + value.slice(this.selectionEnd);
+            
+            // Move cursor after the inserted GS character
+            this.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+            
+            // Trigger input event to notify other listeners
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    
     gtinInput.addEventListener('blur', function() {
         const value = this.value.trim();
         if (!value) return;
