@@ -53,7 +53,7 @@ def view_item_detail(request, uuid):
          not request.user.has_perm('inventory.view_deleteditem'))):
         return HttpResponseForbidden()
 
-    # Fetch related images, stock items, and audit events
+    # Fetch related images, stock items, and audit events with optimized queries
     images = item.images.all().order_by('id')
     
     # Filter stock items based on authentication status and surplus approval
@@ -901,7 +901,7 @@ def public_search_api(request):
     has_internal_details_perm = request.user.has_perm('inventory.view_internalstockingdetails')
     
     # Start with stock items queryset and filter based on permissions
-    stock_items_query = models.StockItem.objects.select_related('item').filter(
+    stock_items_query = models.StockItem.objects.select_related('item', 'organization').filter(
         item__is_deleted=False,  # Only active items
         quantity__gt=0
     )
@@ -967,7 +967,14 @@ def public_search_api(request):
     items_query = models.Item.active_objects.filter(
         id__in=item_ids
     ).prefetch_related(
-        'tags__tag_group'
+        'tags__tag_group',
+        # Prefetch images ordered by ID to get first image efficiently
+        Prefetch('images', queryset=models.Image.objects.order_by('id')),
+        # Prefetch stock items with organization for location aggregation and surplus status checks
+        Prefetch(
+            'stock_items', 
+            queryset=models.StockItem.objects.select_related('organization').filter(quantity__gt=0)
+        )
     ).select_related()
     
     # Add distinct to prevent duplicates when joining with stock_items, tags, etc.
@@ -1045,31 +1052,38 @@ def public_search_api(request):
     items_list = []
     for item in items:
         # Get the first image URL if available - use thumbnail for public search performance
-        first_image = item.images.first()
+        # Use prefetched images to avoid additional query
+        images = list(item.images.all())
+        first_image = images[0] if images else None
         image_url = first_image.get_thumbnail_url() if first_image else None
         
         # Calculate expiration info
         has_expired_stock = item.expired_stock_quantity > 0 if item.expired_stock_quantity else False
         
-        # Get locations
-        locations = item.aggregated_locations
+        # Get locations from prefetched stock items to avoid additional queries
+        prefetched_stock_items = list(item.stock_items.all())
+        locations_set = set()
+        for stock_item in prefetched_stock_items:
+            if stock_item.location:
+                locations_set.add(stock_item.location)
+        locations = ", ".join(sorted(locations_set))
         
         # Check surplus status information for users with internal stocking details permission
+        # Use prefetched stock items to avoid additional queries
         has_pending_surplus = False
         has_wanted_surplus = False
         if request.user.has_perm('inventory.view_internalstockingdetails'):
-            # Check if any stock items for this item are still pending surplus review
-            has_pending_surplus = item.stock_items.filter(
-                surplus_status='pending',
-                quantity__gt=0
-            ).exists()
-            # Check if any stock items for this item are wanted by surplus
-            has_wanted_surplus = item.stock_items.filter(
-                surplus_status='wanted',
-                quantity__gt=0
-            ).exists()
+            # Check surplus status from prefetched stock items
+            has_pending_surplus = any(
+                stock_item.surplus_status == 'pending' and stock_item.quantity > 0 
+                for stock_item in prefetched_stock_items
+            )
+            has_wanted_surplus = any(
+                stock_item.surplus_status == 'wanted' and stock_item.quantity > 0 
+                for stock_item in prefetched_stock_items
+            )
         
-        # Get tags information
+        # Get tags information from prefetched tags
         item_tags = []
         tag_groups_display = []
         tags_by_group = {}
