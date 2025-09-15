@@ -1076,6 +1076,7 @@ let currentViewMode = 'tile'; // 'tile' or 'table'
 let searchTimeout = null;
 let loadedItems = []; // Store all loaded items
 let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %}true{% else %}false{% endif %}; // Django template variable
+let currentRequest = null; // Track current AJAX request
 
 // Tag filter state
 let tagStates = {}; // { tagId: 'include'|null }
@@ -1546,7 +1547,11 @@ function setViewMode(mode) {
 }
 
 function loadItems(reset = false) {
-  if (isLoading) return;
+  // Cancel any existing request
+  if (currentRequest) {
+    currentRequest.abort();
+    currentRequest = null;
+  }
   
   if (reset) {
     currentOffset = 0;
@@ -1622,7 +1627,7 @@ function loadItems(reset = false) {
     updateURLParams(params);
   }
   
-  $.ajax({
+  currentRequest = $.ajax({
     url: '/api/public-search/',
     method: 'GET',
     data: params,
@@ -1651,11 +1656,18 @@ function loadItems(reset = false) {
       hasMore = data.has_more;
       
       isLoading = false;
+      currentRequest = null;
       $('#loading-indicator').hide();
     },
     error: function(xhr, status, error) {
+      // Don't show error for aborted requests (user typed new search)
+      if (xhr.statusText === 'abort') {
+        return;
+      }
+      
       console.error('Error loading items:', error);
       isLoading = false;
+      currentRequest = null;
       $('#loading-indicator').hide();
       
       // Show error message
