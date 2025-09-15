@@ -46,7 +46,7 @@
               <button type="button" class="btn btn-outline-secondary w-100 tag-dropdown-btn" id="tag-dropdown-btn">
                 <span class="dropdown-text">
                   <i class="material-icons">label</i>
-                  <span id="tag-button-text">Select Tags</span>
+                  <span id="tag-button-text" style="min-width: 120px; display: inline-block;">Select Tags</span>
                 <i class="material-icons dropdown-arrow">expand_more</i>
               </button>
               <div class="tag-dropdown-menu" id="tag-dropdown-menu">
@@ -58,18 +58,18 @@
                       </button>
                     </div>
                     <div class="tag-search-container mb-2">
-                      <div class="tag-search-input-wrapper">
-                        <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
-                        <button type="button" class="tag-search-clear" id="tag-search-clear" style="display: none;">
-                          <i class="material-icons">close</i>
-                        </button>
-                      </div>
-                      <div class="tag-search-results mt-1">
-                        <small class="text-muted" id="tag-search-count"></small>
-                      </div>
-                      <div class="tag-actions mt-2">
+                      <div class="d-flex align-items-center mb-2" style="gap: 1rem;">
+                        <div class="tag-search-input-wrapper flex-grow-1">
+                          <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
+                          <button type="button" class="tag-search-clear" id="tag-search-clear" style="display: none;">
+                            <i class="material-icons">close</i>
+                          </button>
+                        </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Unselect All</button>
-                        <span class="selected-count text-muted ms-2" id="tag-count">0 selected</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted" id="tag-search-count"></small>
+                        <small class="text-muted" id="tag-count">0 selected</small>
                       </div>
                     </div>
 
