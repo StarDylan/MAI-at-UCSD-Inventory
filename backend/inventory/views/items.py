@@ -41,9 +41,15 @@ def view_item_detail(request, uuid):
     Raises:
         Http404: If item with given UUID doesn't exist
     """
-    # Use all_objects manager to include deleted items
+    # Use all_objects manager to include deleted items with optimized tag prefetching
     item = get_object_or_404(
-        Item.objects,
+        Item.objects.prefetch_related(
+            # Only prefetch active tags from active tag groups
+            Prefetch(
+                'tags',
+                queryset=models.Tag.objects.filter(is_active=True, tag_group__is_active=True).select_related('tag_group')
+            )
+        ),
         id=uuid
     )
 
@@ -967,7 +973,11 @@ def public_search_api(request):
     items_query = models.Item.active_objects.filter(
         id__in=item_ids
     ).prefetch_related(
-        'tags__tag_group',
+        # Only prefetch active tags from active tag groups
+        Prefetch(
+            'tags',
+            queryset=models.Tag.objects.filter(is_active=True, tag_group__is_active=True).select_related('tag_group')
+        ),
         # Prefetch images ordered by ID to get first image efficiently
         Prefetch('images', queryset=models.Image.objects.order_by('id')),
         # Prefetch stock items with organization for location aggregation and surplus status checks
