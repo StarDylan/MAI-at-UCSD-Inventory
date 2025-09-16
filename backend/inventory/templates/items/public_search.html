@@ -1,7 +1,4 @@
-{% extends "shared/base.html" %}
-{% load static %}
-
-{% block body %}
+{% extends "shared/base.html" %} {% load static %} {% block body %}
 <div class="row">
   <div class="col-12">
     <h3>Inventory Search</h3>
@@ -19,26 +16,23 @@
           <div class="col-md-9">
             <label class="form-label">Search Items</label>
             {% if perms.inventory.view_internalstockingdetails %}
-            <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, GTIN, or location...">
+            <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, GTIN, or location..." />
             {% else %}
-            <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN...">
+            <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN..." />
             {% endif %}
           </div>
 
           <div class="col-md-3 mb-3">
             <label class="form-label">Display Options</label>
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="exclude-expired">
-              <label class="form-check-label" for="exclude-expired">
-                Exclude expired items
-              </label>
+              <input class="form-check-input" type="checkbox" id="exclude-expired" />
+              <label class="form-check-label" for="exclude-expired"> Exclude expired items </label>
             </div>
           </div>
-     
         </div>
-        
+
         <!-- Filters and Sort Controls Row -->
-        <div class="row">               
+        <div class="row">
           <!-- Tag Filter -->
           <div class="col-md-4">
             <label class="form-label">Tag Filter</label>
@@ -46,74 +40,75 @@
               <button type="button" class="btn btn-outline-secondary w-100 tag-dropdown-btn d-flex justify-content-between align-items-center" id="tag-dropdown-btn">
                 <span class="dropdown-text d-flex align-items-center">
                   <i class="material-icons">label</i>
-                  <span id="tag-button-text" style="min-width: 120px; display: inline-block;">Select Tags</span>
+                  <span id="tag-button-text" style="min-width: 120px; display: inline-block">Select Tags</span>
                 </span>
                 <i class="material-icons dropdown-arrow">expand_more</i>
               </button>
               <div class="tag-dropdown-menu" id="tag-dropdown-menu">
                 <div class="tag-menu-header">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                      <h6 class="mb-0">Filter by Tags</h6>
-                      <button type="button" class="btn btn-sm btn-outline-secondary close-tag-filter" id="close-tag-filter">
-                        <i class="material-icons">close</i>
-                      </button>
-                    </div>
-                    <div class="tag-search-container mb-2">
-                      <div class="d-flex align-items-center mb-2" style="gap: 1rem;">
-                        <div class="tag-search-input-wrapper flex-grow-1">
-                          <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags...">
-                          <button type="button" class="tag-search-clear" id="tag-search-clear" style="display: none;">
-                            <i class="material-icons">close</i>
-                          </button>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Unselect All</button>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Filter by Tags</h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary close-tag-filter" id="close-tag-filter">
+                      <i class="material-icons">close</i>
+                    </button>
+                  </div>
+                  <div class="tag-search-container mb-2">
+                    <div class="d-flex align-items-center mb-2" style="gap: 1rem">
+                      <div class="tag-search-input-wrapper flex-grow-1">
+                        <input type="text" class="form-control form-control-sm" id="tag-search" placeholder="Search tags..." />
+                        <button type="button" class="tag-search-clear" id="tag-search-clear" style="display: none">
+                          <i class="material-icons">close</i>
+                        </button>
                       </div>
-                      <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted" id="tag-search-count"></small>
-                        <small class="text-muted" id="tag-count">0 selected</small>
-                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-tags">Unselect All</button>
                     </div>
-
+                    <div class="d-flex justify-content-between align-items-center">
+                      <small class="text-muted" id="tag-search-count"></small>
+                      <small class="text-muted" id="tag-count">0 selected</small>
+                    </div>
+                  </div>
                 </div>
                 <div class="tag-groups-container">
                   <div class="tag-groups-list" id="tag-groups-list">
                     {% for tag_group in tag_groups %}
-                      <div class="tag-group-section" data-tag-group-id="{{ tag_group.id }}">
-                        <div class="tag-group-header" style="border-left: 4px solid {{ tag_group.color }};">
-                          <h6 class="tag-group-name mb-1">{{ tag_group.name }}</h6>
-                          {% if tag_group.description %}
-                            <small class="text-muted">{{ tag_group.description }}</small>
-                          {% endif %}
-                        </div>
-                        <div class="tags-in-group">
-                          {% for tag in tag_group.tags.all %}
-                            <div class="tag-item" 
-                                 data-tag-id="{{ tag.id }}" 
-                                 data-tag-name="{{ tag.name|lower }}" 
-                                 data-tag-group-id="{{ tag_group.id }}"
-                                 data-tag-color="{{ tag.display_color }}"
-                                 data-tag-text-color="{{ tag.text_color }}"
-                                 style="background-color: {{ tag.display_color }}; border-color: {{ tag.display_color }}; color: {{ tag.text_color }};">
-                              <span class="tag-name">{{ tag.name }}</span>
-                              <div class="tag-actions">
-                                <button type="button" class="tag-btn include-btn" data-action="include" title="Include items with this tag">
-                                  <i class="material-icons">add</i>
-                                </button>
-                                <button type="button" class="tag-btn exclude-btn" data-action="exclude" title="Exclude items with this tag">
-                                  <i class="material-icons">remove</i>
-                                </button>
-                              </div>
-                            </div>
-                          {% endfor %}
-                        </div>
+                    <div class="tag-group-section" data-tag-group-id="{{ tag_group.id }}">
+                      <div class="tag-group-header" style="border-left: 4px solid {{ tag_group.color }};">
+                        <h6 class="tag-group-name mb-1">{{ tag_group.name }}</h6>
+                        {% if tag_group.description %}
+                        <small class="text-muted">{{ tag_group.description }}</small>
+                        {% endif %}
                       </div>
+                      <div class="tags-in-group">
+                        {% for tag in tag_group.tags.all %}
+                        <div
+                          class="tag-item"
+                          data-tag-id="{{ tag.id }}"
+                          data-tag-name="{{ tag.name|lower }}"
+                          data-tag-group-id="{{ tag_group.id }}"
+                          data-tag-color="{{ tag.display_color }}"
+                          data-tag-text-color="{{ tag.text_color }}"
+                          style="background-color: {{ tag.display_color }}; border-color: {{ tag.display_color }}; color: {{ tag.text_color }};"
+                        >
+                          <span class="tag-name">{{ tag.name }}</span>
+                          <div class="tag-actions">
+                            <button type="button" class="tag-btn include-btn" data-action="include" title="Include items with this tag">
+                              <i class="material-icons">add</i>
+                            </button>
+                            <button type="button" class="tag-btn exclude-btn" data-action="exclude" title="Exclude items with this tag">
+                              <i class="material-icons">remove</i>
+                            </button>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    </div>
                     {% endfor %}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <!-- Sort By -->
           <div class="col-md-3">
             <label for="sort-by" class="form-label">Sort By</label>
@@ -124,7 +119,7 @@
               <option value="quantity">Quantity</option>
             </select>
           </div>
-          
+
           <!-- Sort Order -->
           <div class="col-md-2">
             <label for="sort-order" class="form-label">Order</label>
@@ -133,12 +128,12 @@
               <option value="asc">Ascending</option>
             </select>
           </div>
-          
+
           <!-- Clear Filters Button -->
           <div class="col-md-2">
             <label class="form-label">&nbsp;</label>
-            <button type="button" class="btn btn-secondary btn-sm d-flex align-items-center justify-content-center" id="clear-filters" style="width: 120px;">
-              <i class="material-icons me-2" style="font-size: 18px;">clear_all</i> Clear Filters
+            <button type="button" class="btn btn-secondary btn-sm d-flex align-items-center justify-content-center" id="clear-filters" style="width: 120px">
+              <i class="material-icons me-2" style="font-size: 18px">clear_all</i> Clear Filters
             </button>
           </div>
         </div>
@@ -151,16 +146,14 @@
 <div class="row mb-3">
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center">
-      <div id="results-info" class="text-muted small">
-        Loading items...
-      </div>
+      <div id="results-info" class="text-muted small">Loading items...</div>
       <!-- View Mode Toggle -->
       <div class="btn-group btn-group-sm" role="group">
         <button type="button" class="btn btn-outline-primary btn-sm" id="tile-view-btn" title="Tile View">
-          <i class="material-icons" style="font-size: 18px;">view_module</i>
+          <i class="material-icons" style="font-size: 18px">view_module</i>
         </button>
         <button type="button" class="btn btn-outline-primary btn-sm" id="table-view-btn" title="Table View">
-          <i class="material-icons" style="font-size: 18px;">view_list</i>
+          <i class="material-icons" style="font-size: 18px">view_list</i>
         </button>
       </div>
     </div>
@@ -173,7 +166,7 @@
 </div>
 
 <!-- Table View Container -->
-<div id="table-view-container" style="display: none;">
+<div id="table-view-container" style="display: none">
   <div class="table-responsive">
     <table class="table table-hover" id="items-table">
       <thead>
@@ -199,7 +192,7 @@
 </div>
 
 <!-- Loading Indicator -->
-<div id="loading-indicator" class="text-center py-4" style="display: none;">
+<div id="loading-indicator" class="text-center py-4" style="display: none">
   <div class="spinner-border" role="status">
     <span class="sr-only">Loading...</span>
   </div>
@@ -207,1735 +200,1733 @@
 </div>
 
 <!-- No Results Message -->
-<div id="no-results" class="text-center py-5" style="display: none;">
-  <i class="material-icons" style="font-size: 4rem; color: #ccc;">search_off</i>
+<div id="no-results" class="text-center py-5" style="display: none">
+  <i class="material-icons" style="font-size: 4rem; color: #ccc">search_off</i>
   <h5 class="mt-3">No items found</h5>
   <p class="text-muted">Try adjusting your search criteria or filters.</p>
 </div>
 
 <style>
-.supply-card-link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-  height: 100%;
-}
+  .supply-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    height: 100%;
+  }
 
-.supply-card-link:hover {
-  text-decoration: none;
-  color: inherit;
-}
+  .supply-card-link:hover {
+    text-decoration: none;
+    color: inherit;
+  }
 
-.supply-card-link:focus {
-  outline: none;
-}
+  .supply-card-link:focus {
+    outline: none;
+  }
 
-.supply-card {
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 0.5rem;
-  transition: box-shadow 0.2s ease;
-  cursor: pointer;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.supply-card:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-}
-
-.card-info {
-  flex-grow: 1;
-}
-
-.card-image-container {
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.card-image {
-  max-width: 120px;
-  max-height: 120px;
-  object-fit: contain;
-  border-radius: 0.25rem;
-}
-
-.placeholder-image {
-  width: 120px;
-  height: 120px;
-  background-color: #f8f9fa;
-  border-radius: 0.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6c757d;
-  font-size: 3rem;
-}
-
-.card-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #212529;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
-}
-
-.manufacturer {
-  font-size: 0.875rem;
-  color: #6c757d;
-  margin-bottom: 0.75rem;
-}
-
-.quantity-display {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #007bff;
-  margin-bottom: 0.75rem;
-}
-
-.quantity-unit {
-  font-size: 0.875rem;
-  color: #6c757d;
-  font-weight: normal;
-}
-
-.variants-info {
-  color: #007bff;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.bottom-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: auto;
-  margin-bottom: 0.5em;
-}
-
-.expiration-status {
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-}
-
-.expiration-status .material-icons {
-  font-size: 1rem;
-  margin-right: 0.25rem;
-}
-
-.status-valid {
-  color: #28a745;
-}
-
-.status-partial {
-  color: #b8860b;
-}
-
-.status-expired {
-  color: #dc3545;
-}
-
-.status-out-of-stock {
-  color: #6c757d;
-}
-
-@media (max-width: 768px) {
   .supply-card {
-    margin-bottom: 15px;
-  }
-}
-
-/* Category Filter Styles */
-.category-dropdown {
-  position: relative;
-}
-
-.category-dropdown-btn {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  border: 1px solid #dee2e6;
-  background-color: white;
-  transition: all 0.2s ease;
-}
-
-.category-dropdown-btn:hover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
-}
-
-.category-dropdown-btn:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.dropdown-text {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #495057;
-}
-
-.dropdown-arrow {
-  transition: transform 0.2s ease;
-  color: #6c757d;
-}
-
-.category-dropdown.open .dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-.category-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background-color: white;
-  border: 1px solid #dee2e6;
-  border-radius: 0.375rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  padding: 0.75rem;
-  max-height: 400px;
-  overflow: hidden;
-  display: none;
-  margin-top: 0.25rem;
-}
-
-.category-dropdown.open .category-dropdown-menu {
-  display: block;
-  animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.category-search-container {
-  flex-shrink: 0;
-}
-
-.category-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.selected-count {
-  font-size: 0.875rem;
-  margin-left: auto;
-}
-
-.category-list {
-  max-height: 250px;
-  overflow-y: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 0.25rem;
-  background-color: #f8f9fa;
-  padding: 0.25rem;
-  margin-top: 0.5rem;
-}
-
-.category-item {
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  margin-bottom: 0.25rem;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.category-item:last-child {
-  margin-bottom: 0;
-}
-
-.category-item:hover {
-  background-color: #f8f9fa;
-}
-
-.category-item.included {
-  background-color: #d4edda;
-  border-color: #28a745;
-}
-
-.category-item.excluded {
-  background-color: #f8d7da;
-  border-color: #dc3545;
-}
-
-.category-item.hidden {
-  display: none;
-}
-
-.tag-item.hidden {
-  display: none;
-}
-
-.tag-group-section.hidden {
-  display: none;
-}
-
-.category-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.category-name {
-  font-weight: 500;
-  color: #495057;
-  flex-grow: 1;
-}
-
-.category-item.included .category-name {
-  color: #155724;
-  font-weight: 600;
-}
-
-.category-item.excluded .category-name {
-  color: #721c24;
-  font-weight: 600;
-}
-
-.category-controls {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.category-btn {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1;
-  border-radius: 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.category-btn .material-icons {
-  font-size: 0.875rem;
-}
-
-.include-btn {
-  color: #28a745;
-  background-color: white;
-  border-color: #28a745;
-}
-
-.include-btn:hover {
-  background-color: #28a745;
-  color: white;
-}
-
-.include-btn.active {
-  background-color: #28a745;
-  color: white;
-  font-weight: 600;
-}
-
-.exclude-btn {
-  color: #dc3545;
-  background-color: white;
-  border-color: #dc3545;
-}
-
-.exclude-btn:hover {
-  background-color: #dc3545;
-  color: white;
-}
-
-.exclude-btn.active {
-  background-color: #dc3545;
-  color: white;
-  font-weight: 600;
-}
-
-.category-item.included .include-btn {
-  background-color: #28a745;
-  color: white;
-  font-weight: 600;
-}
-
-.category-item.excluded .exclude-btn {
-  background-color: #dc3545;
-  color: white;
-  font-weight: 600;
-}
-
-.btn-xs {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .category-dropdown-menu {
-    max-height: 350px;
-    position: fixed;
-    top: 50%;
-    left: 1rem;
-    right: 1rem;
-    transform: translateY(-50%);
-    z-index: 1050;
+    background: white;
+    border: 1px solid #dee2e6;
     border-radius: 0.5rem;
+    transition: box-shadow 0.2s ease;
+    cursor: pointer;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
   }
-  
+
+  .supply-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-info {
+    flex-grow: 1;
+  }
+
+  .card-image-container {
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .card-image {
+    max-width: 120px;
+    max-height: 120px;
+    object-fit: contain;
+    border-radius: 0.25rem;
+  }
+
+  .placeholder-image {
+    width: 120px;
+    height: 120px;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 3rem;
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+  }
+
+  .manufacturer {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.75rem;
+  }
+
+  .quantity-display {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 0.75rem;
+  }
+
+  .quantity-unit {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: normal;
+  }
+
+  .variants-info {
+    color: #007bff;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .bottom-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    margin-bottom: 0.5em;
+  }
+
+  .expiration-status {
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .expiration-status .material-icons {
+    font-size: 1rem;
+    margin-right: 0.25rem;
+  }
+
+  .status-valid {
+    color: #28a745;
+  }
+
+  .status-partial {
+    color: #b8860b;
+  }
+
+  .status-expired {
+    color: #dc3545;
+  }
+
+  .status-out-of-stock {
+    color: #6c757d;
+  }
+
+  @media (max-width: 768px) {
+    .supply-card {
+      margin-bottom: 15px;
+    }
+  }
+
+  /* Category Filter Styles */
+  .category-dropdown {
+    position: relative;
+  }
+
+  .category-dropdown-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border: 1px solid #dee2e6;
+    background-color: white;
+    transition: all 0.2s ease;
+  }
+
+  .category-dropdown-btn:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+  }
+
+  .category-dropdown-btn:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+
+  .dropdown-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #495057;
+  }
+
+  .dropdown-arrow {
+    transition: transform 0.2s ease;
+    color: #6c757d;
+  }
+
+  .category-dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
+  .category-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    padding: 0.75rem;
+    max-height: 400px;
+    overflow: hidden;
+    display: none;
+    margin-top: 0.25rem;
+  }
+
   .category-dropdown.open .category-dropdown-menu {
-    animation: slideUp 0.3s ease;
+    display: block;
+    animation: slideDown 0.2s ease;
   }
-  
-  @keyframes slideUp {
+
+  @keyframes slideDown {
     from {
       opacity: 0;
-      transform: translateY(-50%) translateY(20px);
+      transform: translateY(-10px);
     }
     to {
       opacity: 1;
-      transform: translateY(-50%);
+      transform: translateY(0);
     }
   }
-  
-  .category-list {
-    max-height: 200px;
+
+  .category-search-container {
+    flex-shrink: 0;
   }
-  
+
   .category-actions {
-    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
-  
+
   .selected-count {
-    width: 100%;
-    margin-left: 0;
+    font-size: 0.875rem;
+    margin-left: auto;
+  }
+
+  .category-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 0.25rem;
+    background-color: #f8f9fa;
+    padding: 0.25rem;
     margin-top: 0.5rem;
   }
-}
 
-/* Tag Filter Styles - New tagging system */
-.tag-dropdown {
-  position: relative;
-}
+  .category-item {
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.25rem;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
 
-.tag-dropdown-btn {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  border: 1px solid #dee2e6;
-  background-color: white;
-  transition: all 0.2s ease;
-}
+  .category-item:last-child {
+    margin-bottom: 0;
+  }
 
-.tag-dropdown-btn:hover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
-}
+  .category-item:hover {
+    background-color: #f8f9fa;
+  }
 
-.tag-dropdown-btn:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
+  .category-item.included {
+    background-color: #d4edda;
+    border-color: #28a745;
+  }
 
-.tag-dropdown.open .dropdown-arrow {
-  transform: rotate(180deg);
-}
+  .category-item.excluded {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+  }
 
-.tag-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 0.375rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-  max-height: 60vh;
-  overflow: hidden;
-  display: none;
-  min-width: 800px;
-}
+  .category-item.hidden {
+    display: none;
+  }
 
-.tag-dropdown.open .tag-dropdown-menu {
-  display: flex;
-  flex-direction: column;
-}
+  .tag-item.hidden {
+    display: none;
+  }
 
-.tag-groups-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-}
+  .tag-group-section.hidden {
+    display: none;
+  }
 
-/* Mobile responsive design for tag filter */
-@media (max-width: 768px) {
+  .category-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .category-name {
+    font-weight: 500;
+    color: #495057;
+    flex-grow: 1;
+  }
+
+  .category-item.included .category-name {
+    color: #155724;
+    font-weight: 600;
+  }
+
+  .category-item.excluded .category-name {
+    color: #721c24;
+    font-weight: 600;
+  }
+
+  .category-controls {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .category-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
+
+  .category-btn .material-icons {
+    font-size: 0.875rem;
+  }
+
+  .include-btn {
+    color: #28a745;
+    background-color: white;
+    border-color: #28a745;
+  }
+
+  .include-btn:hover {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .include-btn.active {
+    background-color: #28a745;
+    color: white;
+    font-weight: 600;
+  }
+
+  .exclude-btn {
+    color: #dc3545;
+    background-color: white;
+    border-color: #dc3545;
+  }
+
+  .exclude-btn:hover {
+    background-color: #dc3545;
+    color: white;
+  }
+
+  .exclude-btn.active {
+    background-color: #dc3545;
+    color: white;
+    font-weight: 600;
+  }
+
+  .category-item.included .include-btn {
+    background-color: #28a745;
+    color: white;
+    font-weight: 600;
+  }
+
+  .category-item.excluded .exclude-btn {
+    background-color: #dc3545;
+    color: white;
+    font-weight: 600;
+  }
+
+  .btn-xs {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .category-dropdown-menu {
+      max-height: 350px;
+      position: fixed;
+      top: 50%;
+      left: 1rem;
+      right: 1rem;
+      transform: translateY(-50%);
+      z-index: 1050;
+      border-radius: 0.5rem;
+    }
+
+    .category-dropdown.open .category-dropdown-menu {
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(-50%);
+      }
+    }
+
+    .category-list {
+      max-height: 200px;
+    }
+
+    .category-actions {
+      flex-wrap: wrap;
+    }
+
+    .selected-count {
+      width: 100%;
+      margin-left: 0;
+      margin-top: 0.5rem;
+    }
+  }
+
+  /* Tag Filter Styles - New tagging system */
+  .tag-dropdown {
+    position: relative;
+  }
+
+  .tag-dropdown-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border: 1px solid #dee2e6;
+    background-color: white;
+    transition: all 0.2s ease;
+  }
+
+  .tag-dropdown-btn:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+  }
+
+  .tag-dropdown-btn:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+
+  .tag-dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
   .tag-dropdown-menu {
-    position: fixed;
-    top: 0;
+    position: absolute;
+    top: 100%;
     left: 0;
     right: 0;
-    bottom: 0;
-    max-height: 100vh;
-    min-width: unset;
-    border-radius: 0;
-    z-index: 1050;
-    padding: 1rem;
-    overflow-y: auto;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    max-height: 60vh;
+    overflow: hidden;
+    display: none;
+    min-width: 800px;
   }
-  
-  .tag-dropdown-menu.mobile-overlay {
+
+  .tag-dropdown.open .tag-dropdown-menu {
     display: flex;
     flex-direction: column;
   }
-  
-  .tag-menu-header {
-    position: sticky;
-    top: 0;
-    background: white;
-    z-index: 10;
-    padding: 1rem 0 0.5rem 0;
-    margin-bottom: 1rem;
-  }
-  
-  .tag-search-container {
-    position: sticky;
-    top: 4rem;
-    background: white;
-    z-index: 9;
-    padding-bottom: 1rem;
-    margin-bottom: 0;
-  }
-  
-  .tag-groups-list {
+
+  .tag-groups-container {
     flex: 1;
     overflow-y: auto;
+    padding: 1rem;
   }
-  
-  body.tag-filter-open {
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
+
+  /* Mobile responsive design for tag filter */
+  @media (max-width: 768px) {
+    .tag-dropdown-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 100vh;
+      min-width: unset;
+      border-radius: 0;
+      z-index: 1050;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .tag-dropdown-menu.mobile-overlay {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tag-menu-header {
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+      padding: 1rem 0 0.5rem 0;
+      margin-bottom: 1rem;
+    }
+
+    .tag-search-container {
+      position: sticky;
+      top: 4rem;
+      background: white;
+      z-index: 9;
+      padding-bottom: 1rem;
+      margin-bottom: 0;
+    }
+
+    .tag-groups-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    body.tag-filter-open {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+    }
   }
-}
 
+  .tag-menu-header {
+    border-bottom: 1px solid #e9ecef;
+    padding: 1rem 1rem 0.5rem 1rem;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
 
-.tag-menu-header {
-  border-bottom: 1px solid #e9ecef;
-  padding: 1rem 1rem 0.5rem 1rem;
-  margin-bottom: 0;
-  flex-shrink: 0;
-}
-
-.close-tag-filter {
-  padding: 0.25rem;
-  line-height: 1;
-  border: none;
-  background: transparent;
-}
-
-.close-tag-filter:hover {
-  background-color: #f8f9fa;
-}
-
-/* Mobile-specific styles for close button */
-@media (max-width: 768px) {
   .close-tag-filter {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 10;
+    padding: 0.25rem;
+    line-height: 1;
+    border: none;
+    background: transparent;
   }
-}
 
-.tag-group-section {
-  margin-bottom: 1rem;
-  border: 1px solid #e9ecef;
-  border-radius: 0.375rem;
-  overflow: hidden;
-}
+  .close-tag-filter:hover {
+    background-color: #f8f9fa;
+  }
 
-/* Desktop layout improvements */
-@media (min-width: 769px) {
+  /* Mobile-specific styles for close button */
+  @media (max-width: 768px) {
+    .close-tag-filter {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      z-index: 10;
+    }
+  }
+
   .tag-group-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    overflow: hidden;
   }
-}
 
-.tag-group-header {
-  background-color: #f8f9fa;
-  padding: 0.75rem;
-  border-left: 4px solid #6c757d;
-}
+  /* Desktop layout improvements */
+  @media (min-width: 769px) {
+    .tag-group-section {
+      margin-bottom: 1.5rem;
+    }
+  }
 
-.tag-group-name {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: #495057;
-  font-size: 0.9rem;
-}
+  .tag-group-header {
+    background-color: #f8f9fa;
+    padding: 0.75rem;
+    border-left: 4px solid #6c757d;
+  }
 
-.tag-group-actions {
-  margin-top: 0.5rem;
-}
+  .tag-group-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #495057;
+    font-size: 0.9rem;
+  }
 
-.tags-in-group {
-  padding: 0.75rem;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  background-color: white;
-}
+  .tag-group-actions {
+    margin-top: 0.5rem;
+  }
 
-/* Mobile layout for tags */
-@media (max-width: 768px) {
   .tags-in-group {
-    grid-template-columns: 1fr;
-    max-height: none;
-    gap: 0.75rem;
-  }
-  
-  .tag-item {
-    padding: 0.75rem 1rem;
-    border-radius: 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .tag-name {
-    font-size: 0.9rem;
-  }
-  
-  .tag-actions {
+    padding: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.5rem;
+    background-color: white;
   }
-  
+
+  /* Mobile layout for tags */
+  @media (max-width: 768px) {
+    .tags-in-group {
+      grid-template-columns: 1fr;
+      max-height: none;
+      gap: 0.75rem;
+    }
+
+    .tag-item {
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .tag-name {
+      font-size: 0.9rem;
+    }
+
+    .tag-actions {
+      gap: 0.5rem;
+    }
+
+    .tag-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 18px;
+    }
+  }
+
+  .tag-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 2px solid;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    font-weight: 500;
+    position: relative;
+    /* Default unselected state - dimmed background */
+    filter: brightness(0.85) saturate(0.7);
+    border-style: dashed;
+    opacity: 0.8;
+  }
+
+  .tag-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    filter: brightness(0.9) saturate(0.8);
+  }
+
+  .tag-item.included {
+    /* Included state - bright background with solid green border */
+    filter: brightness(1.1) saturate(1.2);
+    border: 3px solid #28a745;
+    border-style: solid;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    transform: translateY(-2px);
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.05));
+  }
+
+  .tag-item.excluded {
+    /* Excluded state - bright with red border to show it's actively filtering */
+    filter: brightness(1.1) saturate(1.2);
+    border: 3px solid #dc3545;
+    border-style: solid;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    transform: translateY(-2px);
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
+  }
+
+  .tag-item.included:hover {
+    filter: brightness(1.15) saturate(1.3);
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+  }
+
+  .tag-item.excluded:hover {
+    filter: brightness(1.15) saturate(1.3);
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+  }
+
+  .tag-name {
+    flex: 1;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .tag-actions {
+    display: flex;
+    gap: 0.25rem;
+  }
+
   .tag-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
+    padding: 0.25rem;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.9);
+    color: #666;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
   }
-}
 
-.tag-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.75rem;
-  border: 2px solid;
-  transition: all 0.2s ease;
-  font-size: 0.8rem;
-  font-weight: 500;
-  position: relative;
-  /* Default unselected state - dimmed background */
-  filter: brightness(0.85) saturate(0.7);
-  border-style: dashed;
-  opacity: 0.8;
-}
+  .tag-btn:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 1);
+  }
 
-.tag-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  filter: brightness(0.9) saturate(0.8);
-}
+  .tag-btn.include-btn:hover {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+  }
 
-.tag-item.included {
-  /* Included state - bright background with solid green border */
-  filter: brightness(1.1) saturate(1.2);
-  border: 3px solid #28a745;
-  border-style: solid;
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-  transform: translateY(-2px);
-  opacity: 1;
-  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.05));
-}
+  .tag-btn.exclude-btn:hover {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+  }
 
-.tag-item.excluded {
-  /* Excluded state - bright with red border to show it's actively filtering */
-  filter: brightness(1.1) saturate(1.2);
-  border: 3px solid #dc3545;
-  border-style: solid;
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-  transform: translateY(-2px);
-  opacity: 1;
-  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
-}
+  /* Active states for buttons when tag is included/excluded */
+  .tag-item.included .tag-btn.include-btn {
+    background: #28a745;
+    color: white;
+    border: 1px solid white;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
+  }
 
-.tag-item.included:hover {
-  filter: brightness(1.15) saturate(1.3);
-  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
-}
+  .tag-item.excluded .tag-btn.exclude-btn {
+    background: #dc3545;
+    color: white;
+    border: 1px solid white;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+  }
 
-.tag-item.excluded:hover {
-  filter: brightness(1.15) saturate(1.3);
-  box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
-}
+  /* Make inactive button more subtle when tag is active */
+  .tag-item.included .tag-btn.exclude-btn {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
 
-.tag-name {
-  flex: 1;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
+  .tag-item.excluded .tag-btn.include-btn {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
 
-.tag-actions {
-  display: flex;
-  gap: 0.25rem;
-}
+  .tag-group-section.group-selected .tag-group-header {
+    background-color: #d1ecf1;
+  }
 
-.tag-btn {
-  padding: 0.25rem;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: rgba(255, 255, 255, 0.9);
-  color: #666;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
+  .tag-search-container {
+    margin-bottom: 1rem;
+  }
 
-.tag-btn:hover {
-  transform: scale(1.1);
-  background: rgba(255, 255, 255, 1);
-}
+  .tag-search-input-wrapper {
+    position: relative;
+  }
 
-.tag-btn.include-btn:hover {
-  background: #28a745;
-  color: white;
-  border-color: #28a745;
-}
+  .tag-search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
 
-.tag-btn.exclude-btn:hover {
-  background: #dc3545;
-  color: white;
-  border-color: #dc3545;
-}
+  .tag-search-clear:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+  }
 
-/* Active states for buttons when tag is included/excluded */
-.tag-item.included .tag-btn.include-btn {
-  background: #28a745;
-  color: white;
-  border: 1px solid white;
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
-}
+  .tag-search-clear .material-icons {
+    font-size: 14px;
+  }
 
-.tag-item.excluded .tag-btn.exclude-btn {
-  background: #dc3545;
-  color: white;
-  border: 1px solid white;
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
-}
+  .tag-search-results {
+    min-height: 16px;
+  }
 
-/* Make inactive button more subtle when tag is active */
-.tag-item.included .tag-btn.exclude-btn {
-  opacity: 0.5;
-  transform: scale(0.9);
-}
+  .tag-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
 
-.tag-item.excluded .tag-btn.include-btn {
-  opacity: 0.5;
-  transform: scale(0.9);
-}
+  /* Table-specific styles */
+  .table .badge-sm {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    border-radius: 8px;
+    display: inline-block;
+  }
 
-.tag-group-section.group-selected .tag-group-header {
-  background-color: #d1ecf1;
-}
+  .table td {
+    vertical-align: middle;
+  }
 
-.tag-search-container {
-  margin-bottom: 1rem;
-}
+  .location-cell {
+    max-width: 200px;
+    word-wrap: break-word;
+    white-space: normal;
+    line-height: 1.3;
+  }
 
-.tag-search-input-wrapper {
-  position: relative;
-}
+  /* Status badges for table */
+  .expired-badge {
+    background-color: #dc3545;
+    color: white;
+  }
 
-.tag-search-clear {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #6c757d;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
+  .zero-stock-badge {
+    background-color: #6c757d;
+    color: white;
+  }
 
-.tag-search-clear:hover {
-  background-color: #f8f9fa;
-  color: #495057;
-}
+  .low-stock-badge {
+    background-color: #ffc107;
+    color: #212529;
+  }
 
-.tag-search-clear .material-icons {
-  font-size: 14px;
-}
-
-.tag-search-results {
-  min-height: 16px;
-}
-
-.tag-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* Table-specific styles */
-.table .badge-sm {
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  margin-right: 2px;
-  margin-bottom: 2px;
-  border-radius: 8px;
-  display: inline-block;
-}
-
-.table td {
-  vertical-align: middle;
-}
-
-.location-cell {
-  max-width: 200px;
-  word-wrap: break-word;
-  white-space: normal;
-  line-height: 1.3;
-}
-
-/* Status badges for table */
-.expired-badge {
-  background-color: #dc3545;
-  color: white;
-}
-
-.zero-stock-badge {
-  background-color: #6c757d;
-  color: white;
-}
-
-.low-stock-badge {
-  background-color: #ffc107;
-  color: #212529;
-}
-
-.in-stock-badge {
-  background-color: #28a745;
-  color: white;
-}
+  .in-stock-badge {
+    background-color: #28a745;
+    color: white;
+  }
 </style>
 
 <script>
-let currentOffset = 0;
-let isLoading = false;
-let hasMore = true;
-let currentViewMode = 'tile'; // 'tile' or 'table'
-let searchTimeout = null;
-let loadedItems = []; // Store all loaded items
-let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %}true{% else %}false{% endif %}; // Django template variable
-let currentRequest = null; // Track current AJAX request
+  let currentOffset = 0;
+  let isLoading = false;
+  let hasMore = true;
+  let currentViewMode = 'tile'; // 'tile' or 'table'
+  let searchTimeout = null;
+  let loadedItems = []; // Store all loaded items
+  let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %}true{% else %}false{% endif %}; // Django template variable
+  let currentRequest = null; // Track current AJAX request
 
-// Tag filter state
-let tagStates = {}; // { tagId: 'include'|null }
-let tagGroupStates = {}; // { tagGroupId: 'include'|null }
+  // Tag filter state
+  let tagStates = {}; // { tagId: 'include'|null }
+  let tagGroupStates = {}; // { tagGroupId: 'include'|null }
 
-// URL parameter management functions
-function updateURLParams(params) {
-  const url = new URL(window.location);
-  
-  // Clear existing search parameters
-  url.searchParams.delete('search');
-  url.searchParams.delete('tags');
-  url.searchParams.delete('excluded_tags');
-  url.searchParams.delete('exclude_expired');
-  url.searchParams.delete('sort_by');
-  url.searchParams.delete('sort_order');
-  url.searchParams.delete('location');
-  url.searchParams.delete('offset');
-  
-  // Add new parameters
-  Object.keys(params).forEach(key => {
-    if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
-      // Skip offset for initial searches to keep URLs clean
-      if (key === 'offset' && params[key] === 0) return;
-      // Skip limit parameter from URL (keep it only for API calls)
-      if (key === 'limit') return;
-      url.searchParams.set(key, params[key]);
-    }
-  });
-  
-  // Update URL without reloading the page
-  window.history.replaceState({}, '', url);
-}
+  // URL parameter management functions
+  function updateURLParams(params) {
+    const url = new URL(window.location);
 
-function getURLParams() {
-  const urlParams = new URLSearchParams(window.location.search);
-  return {
-    search: urlParams.get('search') || '',
-    tags: urlParams.get('tags') || '',
-    excluded_tags: urlParams.get('excluded_tags') || '',
-    exclude_expired: urlParams.get('exclude_expired') === 'true',
-    sort_by: urlParams.get('sort_by') || 'date_added',
-    sort_order: urlParams.get('sort_order') || 'desc',
-    location: urlParams.get('location') || '',
-  };
-}
+    // Clear existing search parameters
+    url.searchParams.delete('search');
+    url.searchParams.delete('tags');
+    url.searchParams.delete('excluded_tags');
+    url.searchParams.delete('exclude_expired');
+    url.searchParams.delete('sort_by');
+    url.searchParams.delete('sort_order');
+    url.searchParams.delete('location');
+    url.searchParams.delete('offset');
 
-function initializeFromURL() {
-  const params = getURLParams();
-  
-  // Set form values from URL parameters
-  $('#search-input').val(params.search);
-  $('#exclude-expired').prop('checked', params.exclude_expired);
-  $('#sort-by').val(params.sort_by);
-  $('#sort-order').val(params.sort_order);
-  
-  // Set location search if available and user has permission
-  if ($('#location-input').length) {
-    $('#location-input').val(params.location);
-  }
-  
-  // Set tag states from URL parameters
-  if (params.tags) {
-    params.tags.split(',').forEach(tagId => {
-      if (tagId.trim()) {
-        tagStates[tagId.trim()] = 'include';
+    // Add new parameters
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        // Skip offset for initial searches to keep URLs clean
+        if (key === 'offset' && params[key] === 0) return;
+        // Skip limit parameter from URL (keep it only for API calls)
+        if (key === 'limit') return;
+        url.searchParams.set(key, params[key]);
       }
     });
+
+    // Update URL without reloading the page
+    window.history.replaceState({}, '', url);
   }
-  if (params.excluded_tags) {
-    params.excluded_tags.split(',').forEach(tagId => {
-      if (tagId.trim()) {
-        tagStates[tagId.trim()] = 'exclude';
-      }
-    });
+
+  function getURLParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      search: urlParams.get('search') || '',
+      tags: urlParams.get('tags') || '',
+      excluded_tags: urlParams.get('excluded_tags') || '',
+      exclude_expired: urlParams.get('exclude_expired') === 'true',
+      sort_by: urlParams.get('sort_by') || 'date_added',
+      sort_order: urlParams.get('sort_order') || 'desc',
+      location: urlParams.get('location') || '',
+    };
   }
-}
 
-// Initialize the page
-$(document).ready(function() {
-  initializeTagFilter();
-  initializeEventListeners();
-  setViewMode('tile');
-  
-  // Initialize from URL parameters
-  initializeFromURL();
-  
-  // Update tag filter UI based on URL parameters
-  updateTagFilterUI();
-  
-  // Initialize tag search filtering if there's existing text
-  const existingSearchText = $('#tag-search').val();
-  if (existingSearchText) {
-    $('#tag-search').trigger('input');
-  } else {
-    updateTagSearchCount();
-  }
-  
-  loadItems(true); // Reset and load initial items
-});
+  function initializeFromURL() {
+    const params = getURLParams();
 
-function initializeTagFilter() {
-  // Initialize tag states
-  $('.tag-item').each(function() {
-    const tagId = $(this).data('tag-id');
-    tagStates[tagId] = null;
-  });
-  
-  // Initialize tag group states
-  $('.tag-group-section').each(function() {
-    const tagGroupId = $(this).data('tag-group-id');
-    tagGroupStates[tagGroupId] = null;
-  });
-  
-  updateTagCount();
-}
+    // Set form values from URL parameters
+    $('#search-input').val(params.search);
+    $('#exclude-expired').prop('checked', params.exclude_expired);
+    $('#sort-by').val(params.sort_by);
+    $('#sort-order').val(params.sort_order);
 
-function updateTagCount() {
-  const includedTags = Object.values(tagStates).filter(state => state === 'include').length;
-  const excludedTags = Object.values(tagStates).filter(state => state === 'exclude').length;
-  const includedTagGroups = Object.values(tagGroupStates).filter(state => state === 'include').length;
-  const total = includedTags + excludedTags + includedTagGroups;
-  
-  let text = `${total} selected`;
-  let buttonText = 'Select Tags';
-  
-  if (total > 0) {
-    let parts = [];
-    if (includedTagGroups > 0) parts.push(`${includedTagGroups} groups`);
-    if (includedTags > 0) parts.push(`${includedTags} included`);
-    if (excludedTags > 0) parts.push(`${excludedTags} excluded`);
-    
-    text = parts.join(', ');
-    buttonText = `${total} filters active`;
-  } else {
-    text = '0 selected';
-    buttonText = 'Select Tags';
-  }
-  
-  $('#tag-count').text(text);
-  $('#tag-button-text').text(buttonText);
-}
+    // Set location search if available and user has permission
+    if ($('#location-input').length) {
+      $('#location-input').val(params.location);
+    }
 
-function updateTagSearchCount() {
-  const searchTerm = $('#tag-search').val().toLowerCase();
-  let visibleCount = 0;
-  let totalCount = 0;
-  
-  // Count all tags
-  $('.tag-item').each(function() {
-    totalCount++;
-    if (!$(this).hasClass('hidden')) {
-      visibleCount++;
-    }
-  });
-  
-  // Update count display
-  if (searchTerm) {
-    $('#tag-search-count').text(`${visibleCount} of ${totalCount} tags shown`);
-  } else {
-    $('#tag-search-count').text(`${totalCount} tags available`);
-  }
-}
-
-function updateTagFilterUI() {
-  // Update individual tag items based on their state
-  $('.tag-item').each(function() {
-    const tagId = $(this).data('tag-id');
-    const state = tagStates[tagId];
-    
-    $(this).removeClass('included excluded');
-    if (state === 'include') {
-      $(this).addClass('included');
-    } else if (state === 'exclude') {
-      $(this).addClass('excluded');
-    }
-  });
-  
-  // Update tag group selections
-  $('.tag-group-section').each(function() {
-    const tagGroupId = $(this).data('tag-group-id');
-    const state = tagGroupStates[tagGroupId];
-    
-    $(this).removeClass('group-selected');
-    if (state === 'include') {
-      $(this).addClass('group-selected');
-    }
-  });
-  
-  // Update the tag count display
-  updateTagCount();
-}
-
-function initializeEventListeners() {
-  // Search input with debouncing
-  $('#search-input').on('input', function() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      loadItems(true);
-    }, 300);
-  });
-  
-  // Location search input with debouncing (for users with permission)
-  $('#location-input').on('input', function() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      loadItems(true);
-    }, 300);
-  });
-  
-  // Tag dropdown toggle
-  $('#tag-dropdown-btn').on('click', function(e) {
-    e.preventDefault();
-    $('.tag-dropdown').toggleClass('open');
-    
-    // Initialize tag count when opening
-    if ($('.tag-dropdown').hasClass('open')) {
-      updateTagSearchCount();
-    }
-    
-    // Handle mobile overlay and scroll prevention
-    if (window.innerWidth <= 768) {
-      if ($('.tag-dropdown').hasClass('open')) {
-        $('.tag-dropdown-menu').addClass('mobile-overlay');
-        $('body').addClass('tag-filter-open');
-      } else {
-        $('.tag-dropdown-menu').removeClass('mobile-overlay');
-        $('body').removeClass('tag-filter-open');
-      }
-    }
-  });
-  
-  // Close tag filter button
-  $('#close-tag-filter').on('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    $('.tag-dropdown').removeClass('open');
-    $('.tag-dropdown-menu').removeClass('mobile-overlay');
-    $('body').removeClass('tag-filter-open');
-  });
-  
-  // Close dropdown when clicking outside
-  $(document).on('click', function(e) {
-    if (!$(e.target).closest('.tag-dropdown').length) {
-      $('.tag-dropdown').removeClass('open');
-      $('.tag-dropdown-menu').removeClass('mobile-overlay');
-      $('body').removeClass('tag-filter-open');
-    }
-  });
-  
-  // Tag search functionality
-  $('#tag-search').on('input', function() {
-    const searchTerm = $(this).val().toLowerCase();
-    let visibleCount = 0;
-    let totalCount = 0;
-    
-    // Show/hide clear button
-    if (searchTerm) {
-      $('#tag-search-clear').show();
-    } else {
-      $('#tag-search-clear').hide();
-    }
-    
-    // Search through tag groups and tags
-    $('.tag-group-section').each(function() {
-      const $groupSection = $(this);
-      const groupName = $groupSection.find('.tag-group-name').text().toLowerCase();
-      let groupVisible = false;
-      let tagsInGroupVisible = 0;
-      
-      // Check if group name matches
-      if (groupName.includes(searchTerm)) {
-        groupVisible = true;
-      }
-      
-      // Check individual tags in this group
-      $groupSection.find('.tag-item').each(function() {
-        totalCount++;
-        const tagName = $(this).data('tag-name');
-        if (tagName.includes(searchTerm) || groupVisible) {
-          $(this).removeClass('hidden');
-          tagsInGroupVisible++;
-          visibleCount++;
-        } else {
-          $(this).addClass('hidden');
+    // Set tag states from URL parameters
+    if (params.tags) {
+      params.tags.split(',').forEach(tagId => {
+        if (tagId.trim()) {
+          tagStates[tagId.trim()] = 'include';
         }
       });
-      
-      // Show/hide the entire group based on whether any tags or group name matched
-      if (groupVisible || tagsInGroupVisible > 0) {
-        $groupSection.removeClass('hidden');
-      } else {
-        $groupSection.addClass('hidden');
+    }
+    if (params.excluded_tags) {
+      params.excluded_tags.split(',').forEach(tagId => {
+        if (tagId.trim()) {
+          tagStates[tagId.trim()] = 'exclude';
+        }
+      });
+    }
+  }
+
+  // Initialize the page
+  $(document).ready(function() {
+    initializeTagFilter();
+    initializeEventListeners();
+    setViewMode('tile');
+
+    // Initialize from URL parameters
+    initializeFromURL();
+
+    // Update tag filter UI based on URL parameters
+    updateTagFilterUI();
+
+    // Initialize tag search filtering if there's existing text
+    const existingSearchText = $('#tag-search').val();
+    if (existingSearchText) {
+      $('#tag-search').trigger('input');
+    } else {
+      updateTagSearchCount();
+    }
+
+    loadItems(true); // Reset and load initial items
+  });
+
+  function initializeTagFilter() {
+    // Initialize tag states
+    $('.tag-item').each(function() {
+      const tagId = $(this).data('tag-id');
+      tagStates[tagId] = null;
+    });
+
+    // Initialize tag group states
+    $('.tag-group-section').each(function() {
+      const tagGroupId = $(this).data('tag-group-id');
+      tagGroupStates[tagGroupId] = null;
+    });
+
+    updateTagCount();
+  }
+
+  function updateTagCount() {
+    const includedTags = Object.values(tagStates).filter(state => state === 'include').length;
+    const excludedTags = Object.values(tagStates).filter(state => state === 'exclude').length;
+    const includedTagGroups = Object.values(tagGroupStates).filter(state => state === 'include').length;
+    const total = includedTags + excludedTags + includedTagGroups;
+
+    let text = `${total} selected`;
+    let buttonText = 'Select Tags';
+
+    if (total > 0) {
+      let parts = [];
+      if (includedTagGroups > 0) parts.push(`${includedTagGroups} groups`);
+      if (includedTags > 0) parts.push(`${includedTags} included`);
+      if (excludedTags > 0) parts.push(`${excludedTags} excluded`);
+
+      text = parts.join(', ');
+      buttonText = `${total} filters active`;
+    } else {
+      text = '0 selected';
+      buttonText = 'Select Tags';
+    }
+
+    $('#tag-count').text(text);
+    $('#tag-button-text').text(buttonText);
+  }
+
+  function updateTagSearchCount() {
+    const searchTerm = $('#tag-search').val().toLowerCase();
+    let visibleCount = 0;
+    let totalCount = 0;
+
+    // Count all tags
+    $('.tag-item').each(function() {
+      totalCount++;
+      if (!$(this).hasClass('hidden')) {
+        visibleCount++;
       }
     });
-    
+
     // Update count display
     if (searchTerm) {
       $('#tag-search-count').text(`${visibleCount} of ${totalCount} tags shown`);
     } else {
       $('#tag-search-count').text(`${totalCount} tags available`);
     }
-  });
-  
-  // Clear search button
-  $('#tag-search-clear').on('click', function() {
-    $('#tag-search').val('').trigger('input');
-    $('#tag-search').focus();
-  });
-  
-  // Tag filter controls
-  $(document).on('click', '.tag-btn', function(e) {
-    e.preventDefault();
-    const tagItem = $(this).closest('.tag-item');
-    const tagId = tagItem.data('tag-id');
-    const action = $(this).data('action');
-    
-    // Toggle the state
-    if (tagStates[tagId] === action) {
-      // Clicking the same action - deselect
-      tagStates[tagId] = null;
-      tagItem.removeClass('included excluded');
-    } else {
-      // Set new state
-      tagStates[tagId] = action;
-      tagItem.removeClass('included excluded');
-      if (action === 'include') {
-        tagItem.addClass('included');
-      } else if (action === 'exclude') {
-        tagItem.addClass('excluded');
-      }
-    }
-    
-    updateTagCount();
-    loadItems(true);
-  });
-  
-  // Select all tags
-  $('#select-all-tags').on('click', function() {
-    $('.tag-item:not(.hidden)').each(function() {
-      const tagId = $(this).data('tag-id');
-      tagStates[tagId] = 'include';
-      $(this).removeClass('excluded').addClass('included');
-    });
-    $('.tag-group-section:not(.hidden)').each(function() {
-      const tagGroupId = $(this).data('tag-group-id');
-      tagGroupStates[tagGroupId] = 'include';
-      $(this).addClass('group-selected');
-    });
-    updateTagCount();
-    loadItems(true);
-  });
-  
-  // Clear all tags
-  $('#clear-all-tags').on('click', function() {
+  }
+
+  function updateTagFilterUI() {
+    // Update individual tag items based on their state
     $('.tag-item').each(function() {
       const tagId = $(this).data('tag-id');
-      tagStates[tagId] = null;
+      const state = tagStates[tagId];
+
       $(this).removeClass('included excluded');
+      if (state === 'include') {
+        $(this).addClass('included');
+      } else if (state === 'exclude') {
+        $(this).addClass('excluded');
+      }
     });
+
+    // Update tag group selections
     $('.tag-group-section').each(function() {
       const tagGroupId = $(this).data('tag-group-id');
-      tagGroupStates[tagGroupId] = null;
+      const state = tagGroupStates[tagGroupId];
+
       $(this).removeClass('group-selected');
+      if (state === 'include') {
+        $(this).addClass('group-selected');
+      }
     });
+
+    // Update the tag count display
     updateTagCount();
-    loadItems(true);
-  });
-  
-  // Other filter controls
-  $('#exclude-expired, #sort-by, #sort-order').on('change', function() {
-    loadItems(true);
-  });
-  
-  // Handle window resize for mobile overlay
-  $(window).on('resize', function() {
-    if (window.innerWidth > 768 && $('.tag-dropdown').hasClass('open')) {
+  }
+
+  function initializeEventListeners() {
+    // Search input with debouncing
+    $('#search-input').on('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        loadItems(true);
+      }, 300);
+    });
+
+    // Location search input with debouncing (for users with permission)
+    $('#location-input').on('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        loadItems(true);
+      }, 300);
+    });
+
+    // Tag dropdown toggle
+    $('#tag-dropdown-btn').on('click', function(e) {
+      e.preventDefault();
+      $('.tag-dropdown').toggleClass('open');
+
+      // Initialize tag count when opening
+      if ($('.tag-dropdown').hasClass('open')) {
+        updateTagSearchCount();
+      }
+
+      // Handle mobile overlay and scroll prevention
+      if (window.innerWidth <= 768) {
+        if ($('.tag-dropdown').hasClass('open')) {
+          $('.tag-dropdown-menu').addClass('mobile-overlay');
+          $('body').addClass('tag-filter-open');
+        } else {
+          $('.tag-dropdown-menu').removeClass('mobile-overlay');
+          $('body').removeClass('tag-filter-open');
+        }
+      }
+    });
+
+    // Close tag filter button
+    $('#close-tag-filter').on('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $('.tag-dropdown').removeClass('open');
       $('.tag-dropdown-menu').removeClass('mobile-overlay');
       $('body').removeClass('tag-filter-open');
-    } else if (window.innerWidth <= 768 && $('.tag-dropdown').hasClass('open')) {
-      $('.tag-dropdown-menu').addClass('mobile-overlay');
-      $('body').addClass('tag-filter-open');
-    }
-  });
-  
-  // View mode buttons
-  $('#tile-view-btn').on('click', function() {
-    setViewMode('tile');
-  });
-  
-  $('#table-view-btn').on('click', function() {
-    setViewMode('table');
-  });
-  
-  // Clear filters
-  $('#clear-filters').on('click', function() {
-    $('#search-input').val('');
-    
-    // Clear tag states by resetting the objects
-    if (typeof tagStates !== 'undefined') {
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+      if (!$(e.target).closest('.tag-dropdown').length) {
+        $('.tag-dropdown').removeClass('open');
+        $('.tag-dropdown-menu').removeClass('mobile-overlay');
+        $('body').removeClass('tag-filter-open');
+      }
+    });
+
+    // Tag search functionality
+    $('#tag-search').on('input', function() {
+      const searchTerm = $(this).val().toLowerCase();
+      let visibleCount = 0;
+      let totalCount = 0;
+
+      // Show/hide clear button
+      if (searchTerm) {
+        $('#tag-search-clear').show();
+      } else {
+        $('#tag-search-clear').hide();
+      }
+
+      // Search through tag groups and tags
+      $('.tag-group-section').each(function() {
+        const $groupSection = $(this);
+        const groupName = $groupSection.find('.tag-group-name').text().toLowerCase();
+        let groupVisible = false;
+        let tagsInGroupVisible = 0;
+
+        // Check if group name matches
+        if (groupName.includes(searchTerm)) {
+          groupVisible = true;
+        }
+
+        // Check individual tags in this group
+        $groupSection.find('.tag-item').each(function() {
+          totalCount++;
+          const tagName = $(this).data('tag-name');
+          if (tagName.includes(searchTerm) || groupVisible) {
+            $(this).removeClass('hidden');
+            tagsInGroupVisible++;
+            visibleCount++;
+          } else {
+            $(this).addClass('hidden');
+          }
+        });
+
+        // Show/hide the entire group based on whether any tags or group name matched
+        if (groupVisible || tagsInGroupVisible > 0) {
+          $groupSection.removeClass('hidden');
+        } else {
+          $groupSection.addClass('hidden');
+        }
+      });
+
+      // Update count display
+      if (searchTerm) {
+        $('#tag-search-count').text(`${visibleCount} of ${totalCount} tags shown`);
+      } else {
+        $('#tag-search-count').text(`${totalCount} tags available`);
+      }
+    });
+
+    // Clear search button
+    $('#tag-search-clear').on('click', function() {
+      $('#tag-search').val('').trigger('input');
+      $('#tag-search').focus();
+    });
+
+    // Tag filter controls
+    $(document).on('click', '.tag-btn', function(e) {
+      e.preventDefault();
+      const tagItem = $(this).closest('.tag-item');
+      const tagId = tagItem.data('tag-id');
+      const action = $(this).data('action');
+
+      // Toggle the state
+      if (tagStates[tagId] === action) {
+        // Clicking the same action - deselect
+        tagStates[tagId] = null;
+        tagItem.removeClass('included excluded');
+      } else {
+        // Set new state
+        tagStates[tagId] = action;
+        tagItem.removeClass('included excluded');
+        if (action === 'include') {
+          tagItem.addClass('included');
+        } else if (action === 'exclude') {
+          tagItem.addClass('excluded');
+        }
+      }
+
+      updateTagCount();
+      loadItems(true);
+    });
+
+    // Select all tags
+    $('#select-all-tags').on('click', function() {
+      $('.tag-item:not(.hidden)').each(function() {
+        const tagId = $(this).data('tag-id');
+        tagStates[tagId] = 'include';
+        $(this).removeClass('excluded').addClass('included');
+      });
+      $('.tag-group-section:not(.hidden)').each(function() {
+        const tagGroupId = $(this).data('tag-group-id');
+        tagGroupStates[tagGroupId] = 'include';
+        $(this).addClass('group-selected');
+      });
+      updateTagCount();
+      loadItems(true);
+    });
+
+    // Clear all tags
+    $('#clear-all-tags').on('click', function() {
       $('.tag-item').each(function() {
         const tagId = $(this).data('tag-id');
-        if (tagId) {
-          delete tagStates[tagId];
-        }
+        tagStates[tagId] = null;
         $(this).removeClass('included excluded');
       });
-    }
-    
-    if (typeof tagGroupStates !== 'undefined') {
       $('.tag-group-section').each(function() {
         const tagGroupId = $(this).data('tag-group-id');
-        if (tagGroupId) {
-          delete tagGroupStates[tagGroupId];
-        }
+        tagGroupStates[tagGroupId] = null;
         $(this).removeClass('group-selected');
       });
-    }
-    
-    $('#exclude-expired').prop('checked', false);
-    $('#sort-by').val('date_added');
-    $('#sort-order').val('desc');
-    
-    // Update counts and reload items
-    if (typeof updateTagCount === 'function') {
       updateTagCount();
-    }
-    if (typeof loadItems === 'function') {
       loadItems(true);
-    }
-  });
-  
-  // Infinite scroll
-  $(window).on('scroll', function() {
-    if ($(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
-      if (!isLoading && hasMore) {
-        loadItems(false); // Load more items without resetting
-      }
-    }
-  });
-}
+    });
 
-function setViewMode(mode) {
-  currentViewMode = mode;
-  
-  if (mode === 'tile') {
-    $('#tile-view-btn').removeClass('btn-outline-primary').addClass('btn-primary');
-    $('#table-view-btn').removeClass('btn-primary').addClass('btn-outline-primary');
-    $('#tile-view-container').show();
-    $('#table-view-container').hide();
-  } else {
-    $('#table-view-btn').removeClass('btn-outline-primary').addClass('btn-primary');
-    $('#tile-view-btn').removeClass('btn-primary').addClass('btn-outline-primary');
-    $('#tile-view-container').hide();
-    $('#table-view-container').show();
-  }
-  
-  // Re-render existing items in the new view mode
-  if (loadedItems.length > 0) {
-    if (mode === 'tile') {
-      $('#tile-view-container').empty();
-      renderTileItems(loadedItems);
-    } else {
-      $('#table-body').empty();
-      renderTableItems(loadedItems);
-    }
-  }
-}
+    // Other filter controls
+    $('#exclude-expired, #sort-by, #sort-order').on('change', function() {
+      loadItems(true);
+    });
 
-function loadItems(reset = false) {
-  // Cancel any existing request
-  if (currentRequest) {
-    currentRequest.abort();
-    currentRequest = null;
-  }
-  
-  if (reset) {
-    currentOffset = 0;
-    hasMore = true;
-    loadedItems = [];
-    $('#tile-view-container').empty();
-    $('#table-body').empty();
-  }
-  
-  isLoading = true;
-  $('#loading-indicator').show();
-  $('#no-results').hide();
-  
-  // Build tag filter parameters
-  const includedTags = [];
-  const excludedTags = [];
-  const includedTagGroups = [];
-  
-  Object.keys(tagStates).forEach(tagId => {
-    const state = tagStates[tagId];
-    if (state === 'include') {
-      includedTags.push(tagId);
-    } else if (state === 'exclude') {
-      excludedTags.push(tagId);
-    }
-  });
-  
-  Object.keys(tagGroupStates).forEach(tagGroupId => {
-    const state = tagGroupStates[tagGroupId];
-    if (state === 'include') {
-      includedTagGroups.push(tagGroupId);
-    }
-  });
-  
-  // Collect filter parameters
-  const params = {
-    offset: currentOffset,
-    limit: 20,
-    search: $('#search-input').val().trim(),
-    exclude_expired: $('#exclude-expired').is(':checked'),
-    sort_by: $('#sort-by').val(),
-    sort_order: $('#sort-order').val()
-  };
-  
-  // Add location search if user has permission and field is visible
-  if ($('#location-search-container').is(':visible')) {
-    const locationQuery = $('#location-input').val().trim();
-    if (locationQuery) {
-      params.location = locationQuery;
-    }
-  }
-  
-  // Add tag filters
-  if (includedTags.length > 0) {
-    params.tags = includedTags.join(',');
-  }
-  if (excludedTags.length > 0) {
-    params.excluded_tags = excludedTags.join(',');
-  }
-  if (includedTagGroups.length > 0) {
-    params.tag_groups = includedTagGroups.join(',');
-  }
-  
-  // Remove empty parameters
-  Object.keys(params).forEach(key => {
-    if (params[key] === '' || params[key] === null || params[key] === undefined) {
-      delete params[key];
-    }
-  });
-  
-  // Update URL with search parameters (only on new searches, not pagination)
-  if (reset) {
-    updateURLParams(params);
-  }
-  
-  currentRequest = $.ajax({
-    url: '/api/public-search/',
-    method: 'GET',
-    data: params,
-    success: function(data) {
-      // Handle user permissions (only on first load)
-      if (reset || currentOffset === 0) {
-        updateResultsInfo(data.total_count);
-        loadedItems = [];
+    // Handle window resize for mobile overlay
+    $(window).on('resize', function() {
+      if (window.innerWidth > 768 && $('.tag-dropdown').hasClass('open')) {
+        $('.tag-dropdown-menu').removeClass('mobile-overlay');
+        $('body').removeClass('tag-filter-open');
+      } else if (window.innerWidth <= 768 && $('.tag-dropdown').hasClass('open')) {
+        $('.tag-dropdown-menu').addClass('mobile-overlay');
+        $('body').addClass('tag-filter-open');
       }
-      
-      if (data.items.length === 0 && currentOffset === 0) {
-        $('#no-results').show();
-      } else {
-        // Add new items to our stored array
-        loadedItems = loadedItems.concat(data.items);
-        
-        // Render items in current view mode
-        if (currentViewMode === 'tile') {
-          renderTileItems(data.items);
-        } else {
-          renderTableItems(data.items);
+    });
+
+    // View mode buttons
+    $('#tile-view-btn').on('click', function() {
+      setViewMode('tile');
+    });
+
+    $('#table-view-btn').on('click', function() {
+      setViewMode('table');
+    });
+
+    // Clear filters
+    $('#clear-filters').on('click', function() {
+      $('#search-input').val('');
+
+      // Clear tag states by resetting the objects
+      if (typeof tagStates !== 'undefined') {
+        $('.tag-item').each(function() {
+          const tagId = $(this).data('tag-id');
+          if (tagId) {
+            delete tagStates[tagId];
+          }
+          $(this).removeClass('included excluded');
+        });
+      }
+
+      if (typeof tagGroupStates !== 'undefined') {
+        $('.tag-group-section').each(function() {
+          const tagGroupId = $(this).data('tag-group-id');
+          if (tagGroupId) {
+            delete tagGroupStates[tagGroupId];
+          }
+          $(this).removeClass('group-selected');
+        });
+      }
+
+      $('#exclude-expired').prop('checked', false);
+      $('#sort-by').val('date_added');
+      $('#sort-order').val('desc');
+
+      // Update counts and reload items
+      if (typeof updateTagCount === 'function') {
+        updateTagCount();
+      }
+      if (typeof loadItems === 'function') {
+        loadItems(true);
+      }
+    });
+
+    // Infinite scroll
+    $(window).on('scroll', function() {
+      if ($(window).scrollTop() + $(window).height() >= $(document).height() - 100) {
+        if (!isLoading && hasMore) {
+          loadItems(false); // Load more items without resetting
         }
       }
-      
-      currentOffset = data.offset + data.items.length;
-      hasMore = data.has_more;
-      
-      isLoading = false;
-      currentRequest = null;
-      $('#loading-indicator').hide();
-    },
-    error: function(xhr, status, error) {
-      // Don't show error for aborted requests (user typed new search)
-      if (xhr.statusText === 'abort') {
-        return;
-      }
-      
-      console.error('Error loading items:', error);
-      isLoading = false;
-      currentRequest = null;
-      $('#loading-indicator').hide();
-      
-      // Show error message
-      if (currentOffset === 0) {
-        $('#no-results h5').text('Error loading items');
-        $('#no-results p').text('Please try again later or contact support.');
-        $('#no-results').show();
-      }
-    }
-  });
-}
-
-function updateResultsInfo(totalCount) {
-  const plural = totalCount === 1 ? 'item' : 'items';
-  $('#results-info').text(`Showing ${totalCount} ${plural}`);
-}
-
-function renderTileItems(items) {
-  items.forEach(item => {
-    const tile = createItemTile(item);
-    $('#tile-view-container').append(tile);
-  });
-}
-
-function renderTableItems(items) {
-  items.forEach(item => {
-    const row = createTableRow(item);
-    $('#table-body').append(row);
-  });
-}
-
-function getDisplayQuantity(item) {
-  // Calculate unexpired quantity when "Exclude expired items" is checked
-  const excludeExpired = $('#exclude-expired').is(':checked');
-  
-  if (excludeExpired && item.expired_stock_quantity > 0) {
-    // Return total - expired = unexpired quantity
-    return item.total_stock_quantity - item.expired_stock_quantity;
-  }
-  
-  // Return total quantity by default
-  return item.total_stock_quantity;
-}
-
-function getQuantityText() {
-  const excludeExpired = $('#exclude-expired').is(':checked');
-  return excludeExpired ? 'unexpired units available' : 'units available';
-}
-
-function createItemTile(item) {
-  const imageHtml = item.image_url 
-    ? `<img src="${item.image_url}" alt="${item.name}" class="card-image">`
-    : `<div class="placeholder-image">
-         <i class="material-icons" style="font-size: 3rem;">inventory_2</i>
-       </div>`;
-  
-  const statusInfo = getStatusInfo(item);
-  const manufacturerHtml = item.manufacturer ? `<div class="manufacturer">${item.manufacturer}</div>` : '';
-  const variantText = item.variant_count > 1 ? `${item.variant_count} variants available` : '';
-  const locationText = item.locations || 'No location specified';
-  const displayQuantity = getDisplayQuantity(item);
-  const quantityText = getQuantityText();
-  
-  // Create tags display
-  let tagsHtml = '';
-  let allTags = [...(item.tags || [])];
-  
-  // Add surplus tags if item has surplus status (for users with permission)
-  if (item.has_pending_surplus) {
-    allTags.push({
-      name: 'Needs Surplus Check',
-      color: '#ffc107',
-      text_color: '#212529'
     });
   }
-  
-  if (item.has_wanted_surplus) {
-    allTags.push({
-      name: 'Wanted by Surplus',
-      color: '#dc3545',
-      text_color: '#ffffff'
-    });
-  }
-  
-  if (allTags.length > 0) {
-    const tagBadges = allTags.slice(0, 3).map(tag => 
-      `<span class="tag-badge" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 4px;">${tag.name}</span>`
-    ).join('');
-    const moreCount = allTags.length > 3 ? `<span class="text-muted">+${allTags.length - 3} more</span>` : '';
-    tagsHtml = `<div class="tags-display mb-2">${tagBadges}${moreCount}</div>`;
-  } else if (item.category) {
-    // Fallback to legacy category display during transition
-    const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
-    tagsHtml = `<div class="category-display mb-2"><small class="text-muted">${categoryText}</small></div>`;
-  }
-  
-  return $(`
-    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
-      <a href="/view/item/${item.id}/" class="supply-card-link">
-        <div class="supply-card">
-          <div class="card-image-container">
-            ${imageHtml}
-          </div>
-          
-          <h3 class="card-title">${item.name}</h3>
-          ${manufacturerHtml}
-          
-          <div class="quantity-display">
-              ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
-          </div>
 
-          ${tagsHtml}
-          
-          <div class="bottom-section">
-            <div class="expiration-status ${statusInfo.class}">
-              <i class="${statusInfo.icon} mr-1">${statusInfo.iconText}</i>
-              ${statusInfo.text}
-            </div>
-            <div class="variants-info">
-              ${variantText}
-            </div>
-          </div>
-        </div>
-      </a>
-    </div>
-  `);
-}
+  function setViewMode(mode) {
+    currentViewMode = mode;
 
-function createTableRow(item) {
-  const imageHtml = item.image_url 
-    ? `<img src="${item.image_url}" alt="${item.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">`
-    : `<div style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-         <i class="material-icons" style="font-size: 20px; color: #6c757d;">image</i>
-       </div>`;
-  
-  const statusInfo = getStatusInfo(item);
-  const manufacturerText = item.manufacturer || '-';
-  const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '1 variant';
-  const locationText = item.locations || 'No location';
-  const displayQuantity = getDisplayQuantity(item);
-  
-  // Create tags display for table
-  let tagsHtml = '<span class="text-muted">-</span>';
-  let allTags = [...(item.tags || [])];
-  
-  // Add surplus tags if item has surplus status (for users with permission)
-  if (item.has_pending_surplus) {
-    allTags.push({
-      name: 'Needs Surplus Check',
-      color: '#ffc107',
-      text_color: '#212529'
-    });
-  }
-  
-  if (item.has_wanted_surplus) {
-    allTags.push({
-      name: 'Wanted by Surplus',
-      color: '#dc3545',
-      text_color: '#ffffff'
-    });
-  }
-  
-  if (allTags.length > 0) {
-    const tagBadges = allTags.slice(0, 3).map(tag => 
-      `<span class="badge badge-sm me-1" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 8px;">${tag.name}</span>`
-    ).join('');
-    const moreCount = allTags.length > 3 ? `<br><small class="text-muted">+${allTags.length - 3} more</small>` : '';
-    tagsHtml = `${tagBadges}${moreCount}`;
-  } else if (item.category) {
-    // Fallback to legacy category display during transition
-    const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
-    tagsHtml = `<span class="text-muted">${categoryText}</span>`;
-  }
-  
-  // Only show location if user has permission
-  const locationColumn = hasInternalPermission ? 
-    `<td class="location-cell" title="${locationText}">${locationText}</td>` : '';
-  
-  return $(`
-    <tr>
-      <td>${imageHtml}</td>
-      <td>
-        <strong>${item.name}</strong>
-        ${item.notes_public ? `<br><small class="text-muted">${item.notes_public}</small>` : ''}
-      </td>
-      <td>${manufacturerText}</td>
-      <td>${tagsHtml}</td>
-      <td>${displayQuantity}</td>
-      <td>${variantText}</td>
-      ${locationColumn}
-      <td>
-        <div class="expiration-status ${statusInfo.class}" style="font-size: 0.8rem;">
-          <i class="material-icons" style="font-size: 14px; margin-right: 2px;">${statusInfo.iconText}</i>
-          ${statusInfo.text}
-        </div>
-      </td>
-      <td>
-        <a href="/view/item/${item.id}/" class="btn btn-sm btn-outline-primary">
-          <i class="material-icons" style="font-size: 16px;">visibility</i>
-        </a>
-      </td>
-    </tr>
-  `);
-}
-
-function getStatusInfo(item) {
-  const excludeExpired = $('#exclude-expired').is(':checked');
-  
-  if (excludeExpired) {
-    // When exclude expired is checked, all items shown are unexpired
-    if (item.total_stock_quantity === 0) {
-      return {
-        status: 'out-of-stock',
-        class: 'status-out-of-stock',
-        icon: 'material-icons',
-        iconText: 'cancel',
-        text: 'Out of stock'
-      };
+    if (mode === 'tile') {
+      $('#tile-view-btn').removeClass('btn-outline-primary').addClass('btn-primary');
+      $('#table-view-btn').removeClass('btn-primary').addClass('btn-outline-primary');
+      $('#tile-view-container').show();
+      $('#table-view-container').hide();
     } else {
-      return {
-        status: 'valid',
-        class: 'status-valid',
-        icon: 'material-icons',
-        iconText: 'check_circle',
-        text: 'All Unexpired'
-      };
+      $('#table-view-btn').removeClass('btn-outline-primary').addClass('btn-primary');
+      $('#tile-view-btn').removeClass('btn-primary').addClass('btn-outline-primary');
+      $('#tile-view-container').hide();
+      $('#table-view-container').show();
     }
-  } else {
-    // Original behavior when exclude expired is not checked
-    if (item.has_expired_stock && item.total_stock_quantity > 0) {
-      const expiredCount = item.expired_stock_quantity || 'Some';
-      if (item.total_stock_quantity === item.expired_stock_quantity) {
+
+    // Re-render existing items in the new view mode
+    if (loadedItems.length > 0) {
+      if (mode === 'tile') {
+        $('#tile-view-container').empty();
+        renderTileItems(loadedItems);
+      } else {
+        $('#table-body').empty();
+        renderTableItems(loadedItems);
+      }
+    }
+  }
+
+  function loadItems(reset = false) {
+    // Cancel any existing request
+    if (currentRequest) {
+      currentRequest.abort();
+      currentRequest = null;
+    }
+
+    if (reset) {
+      currentOffset = 0;
+      hasMore = true;
+      loadedItems = [];
+      $('#tile-view-container').empty();
+      $('#table-body').empty();
+    }
+
+    isLoading = true;
+    $('#loading-indicator').show();
+    $('#no-results').hide();
+
+    // Build tag filter parameters
+    const includedTags = [];
+    const excludedTags = [];
+    const includedTagGroups = [];
+
+    Object.keys(tagStates).forEach(tagId => {
+      const state = tagStates[tagId];
+      if (state === 'include') {
+        includedTags.push(tagId);
+      } else if (state === 'exclude') {
+        excludedTags.push(tagId);
+      }
+    });
+
+    Object.keys(tagGroupStates).forEach(tagGroupId => {
+      const state = tagGroupStates[tagGroupId];
+      if (state === 'include') {
+        includedTagGroups.push(tagGroupId);
+      }
+    });
+
+    // Collect filter parameters
+    const params = {
+      offset: currentOffset,
+      limit: 20,
+      search: $('#search-input').val().trim(),
+      exclude_expired: $('#exclude-expired').is(':checked'),
+      sort_by: $('#sort-by').val(),
+      sort_order: $('#sort-order').val()
+    };
+
+    // Add location search if user has permission and field is visible
+    if ($('#location-search-container').is(':visible')) {
+      const locationQuery = $('#location-input').val().trim();
+      if (locationQuery) {
+        params.location = locationQuery;
+      }
+    }
+
+    // Add tag filters
+    if (includedTags.length > 0) {
+      params.tags = includedTags.join(',');
+    }
+    if (excludedTags.length > 0) {
+      params.excluded_tags = excludedTags.join(',');
+    }
+    if (includedTagGroups.length > 0) {
+      params.tag_groups = includedTagGroups.join(',');
+    }
+
+    // Remove empty parameters
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key];
+      }
+    });
+
+    // Update URL with search parameters (only on new searches, not pagination)
+    if (reset) {
+      updateURLParams(params);
+    }
+
+    currentRequest = $.ajax({
+      url: '/api/public-search/',
+      method: 'GET',
+      data: params,
+      success: function(data) {
+        // Handle user permissions (only on first load)
+        if (reset || currentOffset === 0) {
+          updateResultsInfo(data.total_count);
+          loadedItems = [];
+        }
+
+        if (data.items.length === 0 && currentOffset === 0) {
+          $('#no-results').show();
+        } else {
+          // Add new items to our stored array
+          loadedItems = loadedItems.concat(data.items);
+
+          // Render items in current view mode
+          if (currentViewMode === 'tile') {
+            renderTileItems(data.items);
+          } else {
+            renderTableItems(data.items);
+          }
+        }
+
+        currentOffset = data.offset + data.items.length;
+        hasMore = data.has_more;
+
+        isLoading = false;
+        currentRequest = null;
+        $('#loading-indicator').hide();
+      },
+      error: function(xhr, status, error) {
+        // Don't show error for aborted requests (user typed new search)
+        if (xhr.statusText === 'abort') {
+          return;
+        }
+
+        console.error('Error loading items:', error);
+        isLoading = false;
+        currentRequest = null;
+        $('#loading-indicator').hide();
+
+        // Show error message
+        if (currentOffset === 0) {
+          $('#no-results h5').text('Error loading items');
+          $('#no-results p').text('Please try again later or contact support.');
+          $('#no-results').show();
+        }
+      }
+    });
+  }
+
+  function updateResultsInfo(totalCount) {
+    const plural = totalCount === 1 ? 'item' : 'items';
+    $('#results-info').text(`Showing ${totalCount} ${plural}`);
+  }
+
+  function renderTileItems(items) {
+    items.forEach(item => {
+      const tile = createItemTile(item);
+      $('#tile-view-container').append(tile);
+    });
+  }
+
+  function renderTableItems(items) {
+    items.forEach(item => {
+      const row = createTableRow(item);
+      $('#table-body').append(row);
+    });
+  }
+
+  function getDisplayQuantity(item) {
+    // Calculate unexpired quantity when "Exclude expired items" is checked
+    const excludeExpired = $('#exclude-expired').is(':checked');
+
+    if (excludeExpired && item.expired_stock_quantity > 0) {
+      // Return total - expired = unexpired quantity
+      return item.total_stock_quantity - item.expired_stock_quantity;
+    }
+
+    // Return total quantity by default
+    return item.total_stock_quantity;
+  }
+
+  function getQuantityText() {
+    const excludeExpired = $('#exclude-expired').is(':checked');
+    return excludeExpired ? 'unexpired units available' : 'units available';
+  }
+
+  function createItemTile(item) {
+    const imageHtml = item.image_url
+      ? `<img src="${item.image_url}" alt="${item.name}" class="card-image">`
+      : `<div class="placeholder-image">
+           <i class="material-icons" style="font-size: 3rem;">inventory_2</i>
+         </div>`;
+
+    const statusInfo = getStatusInfo(item);
+    const manufacturerHtml = item.manufacturer ? `<div class="manufacturer">${item.manufacturer}</div>` : '';
+    const variantText = item.variant_count > 1 ? `${item.variant_count} variants available` : '';
+    const locationText = item.locations || 'No location specified';
+    const displayQuantity = getDisplayQuantity(item);
+    const quantityText = getQuantityText();
+
+    // Create tags display
+    let tagsHtml = '';
+    let allTags = [...(item.tags || [])];
+
+    // Add surplus tags if item has surplus status (for users with permission)
+    if (item.has_pending_surplus) {
+      allTags.push({
+        name: 'Needs Surplus Check',
+        color: '#ffc107',
+        text_color: '#212529'
+      });
+    }
+
+    if (item.has_wanted_surplus) {
+      allTags.push({
+        name: 'Wanted by Surplus',
+        color: '#dc3545',
+        text_color: '#ffffff'
+      });
+    }
+
+    if (allTags.length > 0) {
+      const tagBadges = allTags.slice(0, 3).map(tag =>
+        `<span class="tag-badge" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 4px;">${tag.name}</span>`
+      ).join('');
+      const moreCount = allTags.length > 3 ? `<span class="text-muted">+${allTags.length - 3} more</span>` : '';
+      tagsHtml = `<div class="tags-display mb-2">${tagBadges}${moreCount}</div>`;
+    } else if (item.category) {
+      // Fallback to legacy category display during transition
+      const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
+      tagsHtml = `<div class="category-display mb-2"><small class="text-muted">${categoryText}</small></div>`;
+    }
+
+    return $(`
+      <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+        <a href="/view/item/${item.id}/" class="supply-card-link">
+          <div class="supply-card">
+            <div class="card-image-container">
+              ${imageHtml}
+            </div>
+
+            <h3 class="card-title">${item.name}</h3>
+            ${manufacturerHtml}
+
+            <div class="quantity-display">
+                ${displayQuantity} <span class="quantity-unit">${quantityText}</span>
+            </div>
+
+            ${tagsHtml}
+
+            <div class="bottom-section">
+              <div class="expiration-status ${statusInfo.class}">
+                <i class="${statusInfo.icon} mr-1">${statusInfo.iconText}</i>
+                ${statusInfo.text}
+              </div>
+              <div class="variants-info">
+                ${variantText}
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    `);
+  }
+
+  function createTableRow(item) {
+    const imageHtml = item.image_url
+      ? `<img src="${item.image_url}" alt="${item.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">`
+      : `<div style="width: 40px; height: 40px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+           <i class="material-icons" style="font-size: 20px; color: #6c757d;">image</i>
+         </div>`;
+
+    const statusInfo = getStatusInfo(item);
+    const manufacturerText = item.manufacturer || '-';
+    const variantText = item.variant_count > 1 ? `${item.variant_count} variants` : '1 variant';
+    const locationText = item.locations || 'No location';
+    const displayQuantity = getDisplayQuantity(item);
+
+    // Create tags display for table
+    let tagsHtml = '<span class="text-muted">-</span>';
+    let allTags = [...(item.tags || [])];
+
+    // Add surplus tags if item has surplus status (for users with permission)
+    if (item.has_pending_surplus) {
+      allTags.push({
+        name: 'Needs Surplus Check',
+        color: '#ffc107',
+        text_color: '#212529'
+      });
+    }
+
+    if (item.has_wanted_surplus) {
+      allTags.push({
+        name: 'Wanted by Surplus',
+        color: '#dc3545',
+        text_color: '#ffffff'
+      });
+    }
+
+    if (allTags.length > 0) {
+      const tagBadges = allTags.slice(0, 3).map(tag =>
+        `<span class="badge badge-sm me-1" style="background-color: ${tag.color}; color: ${tag.text_color}; font-size: 0.7rem; padding: 2px 6px; border-radius: 8px;">${tag.name}</span>`
+      ).join('');
+      const moreCount = allTags.length > 3 ? `<br><small class="text-muted">+${allTags.length - 3} more</small>` : '';
+      tagsHtml = `${tagBadges}${moreCount}`;
+    } else if (item.category) {
+      // Fallback to legacy category display during transition
+      const categoryText = item.subcategory ? `${item.category} / ${item.subcategory}` : item.category;
+      tagsHtml = `<span class="text-muted">${categoryText}</span>`;
+    }
+
+    // Only show location if user has permission
+    const locationColumn = hasInternalPermission ?
+      `<td class="location-cell" title="${locationText}">${locationText}</td>` : '';
+
+    return $(`
+      <tr>
+        <td>${imageHtml}</td>
+        <td>
+          <strong>${item.name}</strong>
+        </td>
+        <td>${manufacturerText}</td>
+        <td>${tagsHtml}</td>
+        <td>${displayQuantity}</td>
+        <td>${variantText}</td>
+        ${locationColumn}
+        <td>
+          <div class="expiration-status ${statusInfo.class}" style="font-size: 0.8rem;">
+            <i class="material-icons" style="font-size: 14px; margin-right: 2px;">${statusInfo.iconText}</i>
+            ${statusInfo.text}
+          </div>
+        </td>
+        <td>
+          <a href="/view/item/${item.id}/" class="btn btn-sm btn-outline-primary">
+            <i class="material-icons" style="font-size: 16px;">visibility</i>
+          </a>
+        </td>
+      </tr>
+    `);
+  }
+
+  function getStatusInfo(item) {
+    const excludeExpired = $('#exclude-expired').is(':checked');
+
+    if (excludeExpired) {
+      // When exclude expired is checked, all items shown are unexpired
+      if (item.total_stock_quantity === 0) {
         return {
-          status: 'expired',
-          class: 'status-expired',
+          status: 'out-of-stock',
+          class: 'status-out-of-stock',
           icon: 'material-icons',
-          iconText: 'warning',
-          text: 'All expired'
+          iconText: 'cancel',
+          text: 'Out of stock'
         };
       } else {
         return {
-          status: 'partial',
-          class: 'status-partial',
+          status: 'valid',
+          class: 'status-valid',
           icon: 'material-icons',
-          iconText: 'warning',
-          text: `${expiredCount}/${item.total_stock_quantity} expired`
+          iconText: 'check_circle',
+          text: 'All Unexpired'
         };
       }
-    } else if (item.total_stock_quantity === 0) {
-      return {
-        status: 'out-of-stock',
-        class: 'status-out-of-stock',
-        icon: 'material-icons',
-        iconText: 'cancel',
-        text: 'Out of stock'
-      };
     } else {
-      return {
-        status: 'valid',
-        class: 'status-valid',
-        icon: 'material-icons',
-        iconText: 'check_circle',
-        text: 'All Unexpired'
-      };
+      // Original behavior when exclude expired is not checked
+      if (item.has_expired_stock && item.total_stock_quantity > 0) {
+        const expiredCount = item.expired_stock_quantity || 'Some';
+        if (item.total_stock_quantity === item.expired_stock_quantity) {
+          return {
+            status: 'expired',
+            class: 'status-expired',
+            icon: 'material-icons',
+            iconText: 'warning',
+            text: 'All expired'
+          };
+        } else {
+          return {
+            status: 'partial',
+            class: 'status-partial',
+            icon: 'material-icons',
+            iconText: 'warning',
+            text: `${expiredCount}/${item.total_stock_quantity} expired`
+          };
+        }
+      } else if (item.total_stock_quantity === 0) {
+        return {
+          status: 'out-of-stock',
+          class: 'status-out-of-stock',
+          icon: 'material-icons',
+          iconText: 'cancel',
+          text: 'Out of stock'
+        };
+      } else {
+        return {
+          status: 'valid',
+          class: 'status-valid',
+          icon: 'material-icons',
+          iconText: 'check_circle',
+          text: 'All Unexpired'
+        };
+      }
     }
   }
-}
 </script>
 
 {% endblock %}
