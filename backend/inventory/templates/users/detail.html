@@ -1,8 +1,12 @@
 {% extends "shared/base.html" %} {% load static %} {% block body %}
 <div id="page">
   <h4 style="text-align: left; float: left">{{ user_data.user_name }}</h4>
-  <a style="text-align: right; float: right">
-    {% if user_data.user_active == False and perms.inventory.restore_user %}
+  <div style="text-align: right; float: right">
+    {% if perms.inventory.change_user %}
+    <a href="{% url 'edit_user' user_data.user_id %}" class="btn btn-primary">
+      <i class="material-icons">edit</i>
+    </a>
+    {% endif %} {% if user_data.user_active == False and perms.inventory.restore_user %}
     <button class="btn" onclick="confirmRestore('{{ user_data.user_id }}','{{ user_data.user_name }}')">
       <i class="material-icons">restore</i>
     </button>
@@ -11,7 +15,7 @@
       <i class="material-icons" style="color: red">delete</i>
     </button>
     {% endif %}
-  </a>
+  </div>
   <br />
 
   <!-- Used to align the material icon to the text -->
@@ -36,27 +40,7 @@
       border-radius: 50%;
       border-top: 16px solid #3498db;
       -webkit-animation: spin 2s linear infinite;
-      animation: spin 2s linear infinite;
-    }
-
-    @-webkit-keyframes spin {
-      0% {
-        -webkit-transform: rotate(0deg);
-      }
-
-      100% {
-        -webkit-transform: rotate(360deg);
-      }
-    }
-
-    @keyframes spin {
-      0% {
-        transform: rotate(0deg);
-      }
-
-      100% {
-        transform: rotate(360deg);
-      }
+      transform: rotate(360deg);
     }
   </style>
 
@@ -115,25 +99,18 @@
               <th scope="col">Type</th>
               <th scope="col">User</th>
               <th scope="col">Event</th>
+              <th scope="col" class="d-none">Before JSON</th>
+              <th scope="col" class="d-none">After JSON</th>
             </tr>
           </thead>
-          <tbody id="table">
-            {% for event in audit_by_user %}
-            <tr onclick='viewDiff({{ event.pk | json_script:"audit_by_user" }});'>
-              <td>{{ event.date }}</td>
-              <td>{{ event.type }}</td>
-              <td>{{ event.user }}</td>
-              <td>{{ event.event }}</td>
-            </tr>
-            {% endfor %}
+          <tbody id="audit_by_user_body">
+            <!-- Populated by JS -->
           </tbody>
         </table>
       </div>
     </div>
   </div>
-
   <br />
-
   <div class="card">
     <div class="card-header">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">fingerprint</i> Audit - Actions performed on user</span>
@@ -147,23 +124,17 @@
               <th scope="col">Type</th>
               <th scope="col">User</th>
               <th scope="col">Event</th>
+              <th scope="col" class="d-none">Before JSON</th>
+              <th scope="col" class="d-none">After JSON</th>
             </tr>
           </thead>
-          <tbody id="table">
-            {% for event in audit_on_user %}
-            <tr onclick='viewDiff({{ event.pk | json_script:"audit_on_user" }});'>
-              <td>{{ event.date }}</td>
-              <td>{{ event.type }}</td>
-              <td>{{ event.user }}</td>
-              <td>{{ event.event }}</td>
-            </tr>
-            {% endfor %}
+          <tbody id="audit_on_user_body">
+            <!-- Populated by JS -->
           </tbody>
         </table>
       </div>
     </div>
   </div>
-
   {% endif %}
 
   <!-- Modals are typically placed at the end of the body for correct rendering. -->
@@ -189,12 +160,7 @@
 
   <!-- Scripts are included after the HTML elements for correct loading -->
   <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
-  <script src="https://cdn.datatables.net/plug-ins/1.10.20/sorting/moment.js"></script>
-  <!-- Assuming the jdd library is available -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsondiffpatch/0.4.1/jsondiffpatch.min.js"></script>
 
   <script>
     function confirmDelete(id, name) {
@@ -209,41 +175,149 @@
     }
   </script>
 
-  <script type="text/javascript">
-    // Placeholder for the viewDiff function
-    function viewDiff(event) {
-      var modal = $("#auditDiffModal").modal();
-      console.log(event);
 
-      $("#audit_left").text(JSON.stringify(event["before"], null, 2));
-      $("#audit_right").text(JSON.stringify(event["after"], null, 2));
+    <script type="text/javascript">
+      function viewDiff(event) {
+        var modal = $("#auditDiffModal").modal();
+        console.log(event);
+        $("#audit_left").text(event["before"]);
+        $("#audit_right").text(event["after"]);
+        leftBlockId = $("#audit_left").attr("id");
+        rightBlockId = $("#audit_right").attr("id");
+        if ($(document).jdd) {
+          $(document).jdd(leftBlockId, rightBlockId);
+        }
+      }
 
-      // To use jsondiffpatch, you need to load its library and implement the diff logic.
-      // Example:
-      // const delta = jsondiffpatch.diff(event.before, event.after);
-      // jsondiffpatch.formatters.html.format(delta, data);
-    }
-  </script>
+      // Fetch audit events for this user
+      $(document).ready(function() {
+        var userId = "{{ user_data.user_id }}";
+        var urlBy = "/api/audit/by_user/" + userId + "/";
+        var urlOn = "/api/audit/on_user/" + userId + "/";
+        var limit = 15;
+        var offsetBy = 0;
+        var offsetOn = 0;
+        var searchBy = '';
+        var searchOn = '';
 
-  <script>
-    window.onload = function () {
-      $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
-      $("#audit_table_by").DataTable({
-        lengthMenu: [
-          [10, 25, 50, 100, -1],
-          [10, 25, 50, 100, "All"],
-        ],
-        order: [[0, "desc"]],
+        function renderAuditRow(event) {
+          var safeJson = JSON.stringify(event.json_data || {before: event.before, after: event.after});
+          return `<tr onclick='viewDiff(${safeJson})' style="cursor:pointer;">
+            <td>${event.created_at}</td>
+            <td>${event.entity_type}</td>
+            <td>${event.user}</td>
+            <td>${event.event}</td>
+            <td class="d-none">${event.before || ''}</td>
+            <td class="d-none">${event.after || ''}</td>
+          </tr>`;
+        }
+
+        function renderInfo(total, offset, count, table) {
+          var start = total === 0 ? 0 : offset + 1;
+          var end = offset + count;
+          var html = `<div class='small text-muted mb-2'>Showing ${start} to ${end} of ${total} events</div>`;
+          $(table + '_info').html(html);
+        }
+
+        function renderPagination(total, offset, table, onPageChange) {
+          var page = Math.floor(offset / limit) + 1;
+          var totalPages = Math.ceil(total / limit);
+          var html = '';
+          if (totalPages > 1) {
+            html += `<nav><ul class='pagination pagination-sm'>`;
+            if (page > 1) {
+              html += `<li class='page-item'><a class='page-link' href='#' data-page='${page-1}'>Previous</a></li>`;
+            }
+            // Smart pagination: first 3, ellipsis, last
+            var pageLinks = [];
+            if (totalPages <= 5) {
+              for (var i = 1; i <= totalPages; i++) {
+                pageLinks.push(i);
+              }
+            } else {
+              if (page <= 3) {
+                pageLinks = [1, 2, 3, 4, '...', totalPages];
+              } else if (page >= totalPages - 2) {
+                pageLinks = [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+              } else {
+                pageLinks = [1, '...', page - 1, page, page + 1, '...', totalPages];
+              }
+            }
+            for (var idx = 0; idx < pageLinks.length; idx++) {
+              var i = pageLinks[idx];
+              if (i === '...') {
+                html += `<li class='page-item disabled'><span class='page-link'>...</span></li>`;
+              } else {
+                html += `<li class='page-item${i===page?' active':''}'><a class='page-link' href='#' data-page='${i}'>${i}</a></li>`;
+              }
+            }
+            if (page < totalPages) {
+              html += `<li class='page-item'><a class='page-link' href='#' data-page='${page+1}'>Next</a></li>`;
+            }
+            html += `</ul></nav>`;
+          }
+          $(table + '_pagination').html(html);
+          $(table + '_pagination .page-link').click(function(e) {
+            e.preventDefault();
+            var newPage = parseInt($(this).data('page'));
+            if (!isNaN(newPage)) {
+              onPageChange((newPage-1)*limit);
+            }
+          });
+        }
+
+        function loadAuditByUser(offset, search) {
+          var url = urlBy + '?limit=' + limit + '&offset=' + offset;
+          if (search) url += '&search=' + encodeURIComponent(search);
+          $.getJSON(url, function(data) {
+            var rows = data.events.map(renderAuditRow).join("");
+            $("#audit_by_user_body").html(rows);
+            renderInfo(data.total, offset, data.events.length, '#audit_by_user');
+            renderPagination(data.total, offset, '#audit_by_user', function(newOffset) {
+              offsetBy = newOffset;
+              loadAuditByUser(offsetBy, searchBy);
+            });
+          });
+        }
+        function loadAuditOnUser(offset, search) {
+          var url = urlOn + '?limit=' + limit + '&offset=' + offset;
+          if (search) url += '&search=' + encodeURIComponent(search);
+          $.getJSON(url, function(data) {
+            var rows = data.events.map(renderAuditRow).join("");
+            $("#audit_on_user_body").html(rows);
+            renderInfo(data.total, offset, data.events.length, '#audit_on_user');
+            renderPagination(data.total, offset, '#audit_on_user', function(newOffset) {
+              offsetOn = newOffset;
+              loadAuditOnUser(offsetOn, searchOn);
+            });
+          });
+        }
+
+  // Add containers for info and pagination
+  $("#audit_table_by").before("<div id='audit_by_user_info'></div>");
+  $("#audit_table_by").after("<div id='audit_by_user_pagination'></div>");
+  $("#audit_table_on").before("<div id='audit_on_user_info'></div>");
+  $("#audit_table_on").after("<div id='audit_on_user_pagination'></div>");
+
+  // Add AJAX search boxes (no DataTables length dropdown)
+  $("#audit_table_by").before("<input id='audit_by_user_search' class='form-control form-control-sm mb-2' placeholder='Search actions by user...'>");
+  $("#audit_table_on").before("<input id='audit_on_user_search' class='form-control form-control-sm mb-2' placeholder='Search actions on user...'>");
+
+        // Search handlers
+        $("#audit_by_user_search").on('input', function() {
+          searchBy = $(this).val();
+          offsetBy = 0;
+          loadAuditByUser(offsetBy, searchBy);
+        });
+        $("#audit_on_user_search").on('input', function() {
+          searchOn = $(this).val();
+          offsetOn = 0;
+          loadAuditOnUser(offsetOn, searchOn);
+        });
+
+        loadAuditByUser(offsetBy, searchBy);
+        loadAuditOnUser(offsetOn, searchOn);
       });
-      $("#audit_table_on").DataTable({
-        lengthMenu: [
-          [10, 25, 50, 100, -1],
-          [10, 25, 50, 100, "All"],
-        ],
-        order: [[0, "desc"]],
-      });
-    };
-  </script>
-
+    </script>
   {% endblock %}
 </div>

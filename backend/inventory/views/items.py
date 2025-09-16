@@ -12,169 +12,23 @@ from django.template import loader
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
 from django.views.generic import UpdateView, CreateView
 
 from inventory import models
-from inventory.forms import ItemForm, ItemWithStockForm, StockItemEditForm
-from inventory.models import Category, Item, Subcategory, AuditEvent, StockItem
+from inventory.forms import StockItemEditForm
+from inventory.forms_tags import TaggedItemForm, TaggedItemWithStockForm
+from inventory.models import Item, AuditEvent, StockItem, CheckOutItem, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
-
-
-def view_database(request):
-    """
-    Display the main database view with all categories and subcategories.
-    
-    Shows a hierarchical view of the database structure with categories
-    and their related subcategories.
-    
-    Args:
-        request: HTTP request object
-        
-    Returns:
-        HttpResponse: Rendered template with categories and subcategories
-    """
-    # Use prefetch_related to efficiently load subcategories
-    categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
-
-    context = {
-        'categories': categories,
-    }
-
-    template = loader.get_template("categories/list.html")
-    return HttpResponse(template.render(context, request))
-
-
-def view_all_items(request):
-    """
-    Display all items in the inventory system.
-    
-    Shows a comprehensive list of all items with their category and
-    subcategory information.
-    
-    Args:
-        request: HTTP request object
-        
-    Returns:
-        HttpResponse: Rendered template with all items
-    """
-    from django.db.models import Sum, Case, When, IntegerField
-    
-    # Fetch all items with related category and subcategory data
-    # Use annotations to avoid N+1 queries for total_stock_quantity
-    items = (Item.active_objects
-            .select_related('category', 'subcategory')
-            .annotate(
-                stock_items_quantity_annotated=Sum(
-                    Case(
-                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                        default=0,
-                        output_field=IntegerField()
-                    )
-                )
-            )
-            .order_by('name'))
-
-    context = {
-        'items': items,
-        'category': "All Items"
-    }
-
-    template = loader.get_template("items/list.html")
-    return HttpResponse(template.render(context, request))
-
-
-def view_category_items(request, uuid):
-    """
-    Display all items belonging to a specific category.
-    
-    Args:
-        request: HTTP request object
-        uuid: UUID of the category to view
-        
-    Returns:
-        HttpResponse: Rendered template with category items
-        
-    Raises:
-        Http404: If category with given UUID doesn't exist
-    """
-    from django.db.models import Sum, Case, When, IntegerField
-    
-    category = get_object_or_404(Category, id=uuid)
-    
-    # Fetch items in the category with related data
-    # Use annotations to avoid N+1 queries for total_stock_quantity
-    items = (Item.active_objects
-            .filter(category=category)
-            .select_related('category', 'subcategory')
-            .annotate(
-                stock_items_quantity_annotated=Sum(
-                    Case(
-                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                        default=0,
-                        output_field=IntegerField()
-                    )
-                )
-            )
-            .order_by('name'))
-
-    context = {
-        'category': category,
-        'items': items,
-    }
-
-    template = loader.get_template("items/list.html")
-    return HttpResponse(template.render(context, request))
-
-
-def view_subcategory_items(request, uuid):
-    """
-    Display all items belonging to a specific subcategory.
-    
-    Args:
-        request: HTTP request object
-        uuid: UUID of the subcategory to view
-        
-    Returns:
-        HttpResponse: Rendered template with subcategory items
-        
-    Raises:
-        Http404: If subcategory with given UUID doesn't exist
-    """
-    from django.db.models import Sum, Case, When, IntegerField
-    
-    subcategory = get_object_or_404(Subcategory, id=uuid)
-    
-    # Fetch items in the subcategory with related data
-    # Use annotations to avoid N+1 queries for total_stock_quantity
-    items = (Item.active_objects
-            .filter(subcategory=subcategory)
-            .select_related('category', 'subcategory')
-            .annotate(
-                stock_items_quantity_annotated=Sum(
-                    Case(
-                        When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                        default=0,
-                        output_field=IntegerField()
-                    )
-                )
-            )
-            .order_by('name'))
-
-    context = {
-        'subcategory': subcategory,
-        'items': items,
-    }
-    
-    template = loader.get_template("items/list.html")
-    return HttpResponse(template.render(context, request))
-
+from django.db.models import Prefetch
 
 def view_item_detail(request, uuid):
     """
     Display detailed information for a specific item.
     
     Shows item details, stock items with expiration dates, associated images, and audit history.
-    Handles permissions for viewing deleted items.
+    Handles permissions for viewing deleted items. For non-authenticated users, only shows
+    surplus-approved stock items.
     
     Args:
         request: HTTP request object
@@ -187,9 +41,15 @@ def view_item_detail(request, uuid):
     Raises:
         Http404: If item with given UUID doesn't exist
     """
-    # Use all_objects manager to include deleted items
+    # Use all_objects manager to include deleted items with optimized tag prefetching
     item = get_object_or_404(
-        Item.objects.select_related('category', 'subcategory'),
+        Item.objects.prefetch_related(
+            # Only prefetch active tags from active tag groups
+            Prefetch(
+                'tags',
+                queryset=models.Tag.objects.filter(is_active=True, tag_group__is_active=True).select_related('tag_group')
+            )
+        ),
         id=uuid
     )
 
@@ -199,13 +59,20 @@ def view_item_detail(request, uuid):
          not request.user.has_perm('inventory.view_deleteditem'))):
         return HttpResponseForbidden()
 
-    # Fetch related images, stock items, and audit events
+    # Fetch related images, stock items, and audit events with optimized queries
     images = item.images.all().order_by('id')
-    stock_items = item.stock_items.select_related('organization').order_by('detail', 'expiration_date', 'date_received')
+    
+    # Filter stock items based on authentication status and surplus approval
+    stock_items_query = item.stock_items.select_related('organization')
+    if not request.user.is_authenticated:
+        # Non-authenticated users only see surplus-approved stock items
+        stock_items_query = stock_items_query.filter(surplus_status__in=['not_wanted'])
+    
+    stock_items = stock_items_query.order_by('detail', 'expiration_date', 'date_received')
     
     # Get audit events for the item and its stock items in a single query
     entity_ids = [str(uuid)] + list(stock_items.values_list('id', flat=True))
-    all_events = AuditEvent.objects.filter(entity_id__in=entity_ids).order_by('created_at')
+    all_events = AuditEvent.objects.filter(entity_id__in=entity_ids).select_related("user").order_by('-created_at')
 
     # Prepare audit events for template display
     for event in all_events:
@@ -219,6 +86,7 @@ def view_item_detail(request, uuid):
         'images': images,
         'stock_items': stock_items,
         'audit': all_events,
+        'total_items': sum(si.quantity for si in stock_items),
     }
     
     template = loader.get_template("items/detail.html")
@@ -263,6 +131,7 @@ def item_soft_delete_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Item "{item.name}" was successfully deleted.')
     return redirect('dashboard')
 
 
@@ -303,6 +172,7 @@ def item_restore_view(request, uuid):
         after_state
     )
     
+    messages.success(request, f'Item "{item.name}" was successfully restored.')
     return redirect('view_item', uuid=uuid)
 
 
@@ -337,7 +207,7 @@ def view_deleted_items(request):
     )
     
     context = {
-        'category': {"name": "Deleted Items"}, 
+        'page_title': "Deleted Items", 
         'items': deleted_items
     }
     
@@ -352,7 +222,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     with proper audit logging of changes.
     """
     model = models.Item
-    form_class = ItemForm
+    form_class = TaggedItemForm
     template_name = "items/edit.html"
     permission_required = 'inventory.change_item'
 
@@ -382,6 +252,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
             after_state
         )
         
+        messages.success(self.request, f'Item "{self.object.name}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -402,7 +273,7 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     stock information including organization, expiration date, and quantity.
     """
     model = models.Item
-    form_class = ItemWithStockForm
+    form_class = TaggedItemWithStockForm
     template_name = "items/create.html"
     permission_required = 'inventory.add_item'
 
@@ -438,42 +309,16 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         if stock_item:
             audit_log_event(
                 self.request.user, 
-                f"Added initial stock for item \"{new_item.name}\" - {stock_item.quantity} units from {stock_item.organization.name}", 
+                f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{stock_item.location}\" (initial stock from {stock_item.organization.name})", 
                 audit_log_state(None), 
                 audit_log_state(stock_item)
             )
+            messages.success(self.request, f'Item "{new_item.name}" was successfully created and checked in with {stock_item.quantity} units.')
+        else:
+            messages.success(self.request, f'Item "{new_item.name}" was successfully created.')
         
         # The parent class handles the redirection to success_url.
         return HttpResponseRedirect(self.get_success_url())
-
-    def form_invalid(self, form):
-        """
-        Handle form validation errors, with special handling for GTIN duplicates.
-        
-        If the form has a GTIN duplicate error, redirect to check-in for the existing item.
-        Otherwise, show the form with validation errors.
-        
-        Args:
-            form: Invalid ItemWithStockForm instance
-            
-        Returns:
-            HttpResponseRedirect: Redirect to check-in view if GTIN duplicate
-            HttpResponse: Rendered form with errors otherwise
-        """
-        # Check if there's a GTIN duplicate error
-        gtin_errors = form.errors.get('gtin', [])
-        for error in gtin_errors:
-            if hasattr(error, 'code') and error.code == 'duplicate_gtin':
-                # Find the existing stock item with this GTIN
-                gtin = form.cleaned_data.get('gtin', '').strip()
-                if gtin:
-                    existing_stock_item = models.StockItem.objects.filter(gtin=gtin).first()
-                    if existing_stock_item:
-                        # Redirect to check-in view for the existing item
-                        return redirect('search_check_in_item', item_uuid=existing_stock_item.item.id)
-        
-        # Fall back to default form_invalid behavior
-        return super().form_invalid(form)
     
     def get_form_kwargs(self):
         """
@@ -487,6 +332,71 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             del kwargs['instance']
 
         return kwargs 
+
+    def get_initial(self):
+        """
+        Get initial form data from URL parameters.
+        
+        Supports pre-populating fields via URL parameters:
+        - name: Item name
+        - manufacturer: Manufacturer name  
+        - gtin: GTIN number
+        - date_received: Date received (YYYY-MM-DD format)
+        - organization: Organization ID or name
+        - stock_location: Stock location
+        - quantity: Quantity (integer)
+        - lot_number: Lot number
+        """
+        initial = super().get_initial()
+        
+        # Get URL parameters for pre-populating fields
+        if 'name' in self.request.GET:
+            initial['name'] = self.request.GET['name']
+            
+        if 'manufacturer' in self.request.GET:
+            initial['manufacturer'] = self.request.GET['manufacturer']
+            
+        if 'gtin' in self.request.GET:
+            initial['gtin'] = self.request.GET['gtin']
+            
+        if 'date_received' in self.request.GET:
+            try:
+                from datetime import datetime
+                # Parse date in YYYY-MM-DD format
+                date_str = self.request.GET['date_received']
+                parsed_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                initial['date_received'] = parsed_date
+            except (ValueError, TypeError):
+                # If date parsing fails, ignore this parameter
+                pass
+                
+        if 'organization' in self.request.GET:
+            org_param = self.request.GET['organization']
+            try:
+                # Try to find organization by name (case-insensitive)
+                from inventory.models import Organization
+                org = Organization.objects.get(name__iexact=org_param)
+                initial['organization'] = org
+            except (Organization.DoesNotExist, ValueError):
+                # If organization not found, ignore this parameter
+                pass
+                
+        if 'stock_location' in self.request.GET:
+            initial['stock_location'] = self.request.GET['stock_location']
+            
+        if 'quantity' in self.request.GET:
+            try:
+                quantity = int(self.request.GET['quantity'])
+                if quantity > 0:
+                    initial['quantity'] = quantity
+            except (ValueError, TypeError):
+                # If quantity parsing fails, ignore this parameter
+                pass
+                
+        if 'lot_number' in self.request.GET:
+            initial['lot_number'] = self.request.GET['lot_number']
+            
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -534,11 +444,12 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
         after_state = audit_log_state(self.object)
         audit_log_event(
             self.request.user, 
-            f"Updated stock item for \"{self.object.item.name}\" from {self.object.location}", 
+            f"Updated \"{self.object.item.name}\" stock in location \"{self.object.location}\"", 
             before_state, 
             after_state
         )
         
+        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{self.object.location}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -572,21 +483,34 @@ def stock_item_delete_view(request, uuid):
     """
     stock_item = get_object_or_404(StockItem, id=uuid)
     item_uuid = stock_item.item.pk
-    
+
+    # Check if this stock item is referenced by any checkout
+    if CheckOutItem.objects.filter(stock_item=stock_item).exists():
+        # Use extra_tags to set Bootstrap alert-danger for red error
+        messages.error(request, "This stock entry is referenced by a checkout and cannot be deleted. Set its quantity to 0 instead.")
+        return redirect('view_item', uuid=item_uuid)
+
+    # Store info for success message before deletion
+    quantity = stock_item.quantity
+    item_name = stock_item.item.name
+    location = stock_item.location
+
     # Log the state before deletion
     before_state = audit_log_state(stock_item)
-    
+
     # Log the deletion event
     audit_log_event(
-        request.user, 
-        f"Deleted stock item for \"{stock_item.item.name}\" - {stock_item.quantity} units from {stock_item.location}", 
-        before_state, 
-        audit_log_state(None)
+        request.user,
+        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"",
+        before_state,
+        audit_log_state(None),
+        entity_id=str(stock_item.item.id)
     )
-    
+
     # Perform deletion
     stock_item.delete()
-    
+
+    messages.success(request, f'Removed {quantity} of "{item_name}" from location "{location}".')
     return redirect('view_item', uuid=item_uuid)
 
 
@@ -668,6 +592,7 @@ def items_search_api(request):
     name_query = request.GET.get('name', '').strip()
     manufacturer_query = request.GET.get('manufacturer', '').strip()
     gtin_query = request.GET.get('gtin', '').strip()
+    include_zero_stock = request.GET.get('include_zero_stock', 'false').lower() == 'true'
     
     # Get limit parameter with default value
     try:
@@ -687,44 +612,84 @@ def items_search_api(request):
     
     from django.db.models import Q, Sum, Case, When, IntegerField
     
-    # Build search conditions (AND logic - all conditions must match)
-    search_conditions = Q()
-    
-    if general_query:
-        # General search across all fields (OR within this condition)
-        search_conditions &= (
-            Q(name__icontains=general_query) | 
-            Q(manufacturer__icontains=general_query) |
-            Q(gtin__exact=general_query)  # Exact match for GTIN
-        )
-    
-    if name_query:
-        search_conditions &= Q(name__icontains=name_query)
-    
-    if manufacturer_query:
-        search_conditions &= Q(manufacturer__icontains=manufacturer_query)
-    
+    # Check for exact GTIN match first - if found, prioritize it over name/manufacturer filters
+    exact_gtin_match = None
     if gtin_query:
-        search_conditions &= Q(gtin__exact=gtin_query)  # Exact match for GTIN
+        exact_gtin_match = gtin_query
+    elif general_query and len(general_query) >= 8:  # GTINs are typically 8+ digits
+        # Check if general_query could be a GTIN by trying exact match
+        exact_gtin_match = general_query
     
+    search_conditions = Q()
+    use_exact_gtin_priority = False
+    
+    if exact_gtin_match:
+        # First check if there's an exact GTIN match (item level or stock level)
+        gtin_exists = (
+            models.Item.active_objects.filter(gtin__exact=exact_gtin_match).exists() or
+            models.StockItem.objects.filter(gtin__exact=exact_gtin_match, item__is_deleted=False).exists()
+        )
+        
+        if gtin_exists:
+            # If exact GTIN match exists, use only GTIN condition and ignore name/manufacturer
+            use_exact_gtin_priority = True
+            search_conditions = Q(gtin__exact=exact_gtin_match) | Q(stock_items__gtin__exact=exact_gtin_match)
+    
+    if not use_exact_gtin_priority:
+        # Build normal search conditions (AND logic - all conditions must match)
+        if general_query:
+            # Check if this looks like a GTIN (8+ digits, mostly numeric)
+            is_gtin_search = len(general_query) >= 8 and general_query.replace('-', '').replace(' ', '').isdigit()
+            
+            if is_gtin_search:
+                # For GTIN searches, only search GTIN fields to avoid duplicates
+                search_conditions &= (
+                    Q(gtin__exact=general_query) |  # Exact match for item-level GTIN
+                    Q(stock_items__gtin__exact=general_query)  # Exact match for stock item GTIN
+                )
+            else:
+                # General search across text fields (OR within this condition)
+                search_conditions &= (
+                    Q(name__icontains=general_query) | 
+                    Q(manufacturer__icontains=general_query)
+                )
+        
+        if name_query:
+            search_conditions &= Q(name__icontains=name_query)
+        
+        if manufacturer_query:
+            search_conditions &= Q(manufacturer__icontains=manufacturer_query)
+        
+        if gtin_query:
+            search_conditions &= (Q(gtin__exact=gtin_query) | Q(stock_items__gtin__exact=gtin_query))  # Exact match for both item and stock item GTIN
+    
+    
+    # Build the base queryset similar to view_subcategory_items
+    items_query = models.Item.active_objects
+    if not request.user.has_perm('inventory.view_internalstockingdetails'):
+        items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
     # Search items by the built conditions
-    items_qs = (models.Item.active_objects
-                .select_related('category', 'subcategory')
+    items_qs = (items_query
                 .filter(search_conditions)
+                .distinct()  # Prevent duplicates when joining with stock_items
                 .annotate(
-                    total_stock_quantity=Sum(
+                    annotated_total_stock_quantity=Sum(
                         Case(
                             When(stock_items__quantity__gt=0, then='stock_items__quantity'),
                             default=0,
                             output_field=IntegerField()
                         )
                     )
-                )
-                .filter(total_stock_quantity__gt=0)  # Only return items with stock
-                .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
-    
+                ))
+                
+    # Apply stock quantity filter based on parameter
+    if not include_zero_stock:
+        items_qs = items_qs.filter(annotated_total_stock_quantity__gt=0)  # Only return items with stock
+        
+    items_qs = items_qs.values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
     # Also search by stock item GTINs if GTIN queries are provided
-    # These items must also match other non-GTIN criteria
+    # These items must also match other non-GTIN criteria (unless exact GTIN priority is used)
     stock_item_matches = []
     if general_query or gtin_query:
         stock_gtin_conditions = Q()
@@ -739,82 +704,104 @@ def items_search_api(request):
             # Build additional conditions for items found via stock GTIN
             additional_item_conditions = Q()
             
-            # Apply name and manufacturer filters to stock item matches too
-            if name_query:
-                additional_item_conditions &= Q(item__name__icontains=name_query)
-            
-            if manufacturer_query:
-                additional_item_conditions &= Q(item__manufacturer__icontains=manufacturer_query)
-            
-            # If general query exists, it should match name/manufacturer on the item level
-            if general_query:
-                additional_item_conditions &= (
-                    Q(item__name__icontains=general_query) |
-                    Q(item__manufacturer__icontains=general_query) |
-                    Q(item__gtin__exact=general_query)  # Exact match for GTIN
-                )
+            if use_exact_gtin_priority:
+                # If using exact GTIN priority, only filter by GTIN - ignore name/manufacturer
+                pass  # No additional conditions needed
+            else:
+                # Apply name and manufacturer filters to stock item matches too
+                if name_query:
+                    additional_item_conditions &= Q(item__name__icontains=name_query)
+                
+                if manufacturer_query:
+                    additional_item_conditions &= Q(item__manufacturer__icontains=manufacturer_query)
+                
+                # If general query exists, it should match name/manufacturer on the item level
+                if general_query:
+                    additional_item_conditions &= (
+                        Q(item__name__icontains=general_query) |
+                        Q(item__manufacturer__icontains=general_query) |
+                        Q(item__gtin__exact=general_query)  # Exact match for GTIN
+                    )
             
             stock_item_matches = (models.StockItem.objects
-                                 .select_related('item', 'item__category', 'item__subcategory')
+                                 .select_related('item')
                                  .filter(stock_gtin_conditions, additional_item_conditions, item__is_deleted=False)
                                  .values_list('item_id', flat=True)
                                  .distinct())
     
     if stock_item_matches:
-        additional_items = (models.Item.active_objects
-                          .select_related('category', 'subcategory')
-                          .filter(id__in=stock_item_matches)
-                          .annotate(
-                              total_stock_quantity=Sum(
-                                  Case(
-                                      When(stock_items__quantity__gt=0, then='stock_items__quantity'),
-                                      default=0,
-                                      output_field=IntegerField()
-                                  )
-                              )
-                          )
-                          .filter(total_stock_quantity__gt=0)  # Only return items with stock
-                          .values('id', 'name', 'manufacturer', 'gtin', 'category__name', 'subcategory__name', 'total_stock_quantity'))
+        # Use the same filtering logic as items_query above for permission checks
+        if manufacturer_query or name_query:
+            # Try to infer subcategory from other filters if needed (optional)
+            pass  # No-op, as subcategory is not available in this context
+
+        # Build items_query as in view_subcategory_items
+        items_query = models.Item.active_objects
+        if not request.user.has_perm('inventory.view_internalstockingdetails'):
+            items_query = items_query.filter(stock_items__surplus_status__in=['not_wanted'])
+
+        additional_items = (
+            items_query
+            .filter(id__in=stock_item_matches)
+            .annotate(
+            annotated_total_stock_quantity=Sum(
+                Case(
+                When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                default=0,
+                output_field=IntegerField()
+                )
+            )
+            ))
+            
+        # Apply stock quantity filter based on parameter
+        if not include_zero_stock:
+            additional_items = additional_items.filter(annotated_total_stock_quantity__gt=0)
+            
+        additional_items = additional_items.values('id', 'name', 'manufacturer', 'gtin', 'annotated_total_stock_quantity')
         
         # Combine results and remove duplicates
         items_qs = items_qs.union(additional_items)
     
-    # Get all unique item IDs for GTIN lookup
-    item_ids = [item['id'] for item in items_qs]
-    
-    # Get all stock GTINs for these items
+    # Only get GTINs for the items we intend to show (apply limit first)
+    limited_item_ids = [item['id'] for item in items_qs[:limit]]
+    # Prefetch all stock items for the limited set of items in one query
+    stock_items = list(models.StockItem.objects.filter(item_id__in=limited_item_ids))
+    # Build lookup tables for GTINs and locations
     stock_gtins_by_item = {}
-    if item_ids:
-        stock_gtins = models.StockItem.objects.filter(
-            item_id__in=item_ids,
-            gtin__gt=''
-        ).values('item_id', 'gtin').distinct()
-        
-        for stock_gtin in stock_gtins:
-            item_id = stock_gtin['item_id']
-            if item_id not in stock_gtins_by_item:
-                stock_gtins_by_item[item_id] = []
-            stock_gtins_by_item[item_id].append(stock_gtin['gtin'])
-    
+    locations_by_item = {}
+    for stock_item in stock_items:
+        item_id = getattr(stock_item, 'item_id', None)
+        # GTINs
+        if stock_item.gtin:
+            stock_gtins_by_item.setdefault(item_id, []).append(stock_item.gtin)
+        # Locations (for aggregated_locations logic, if needed)
+        if item_id not in locations_by_item:
+            locations_by_item[item_id] = set()
+        if stock_item.location:
+            locations_by_item[item_id].add(stock_item.location)
+
     # Get total count before applying limit
     total_count = len(items_qs)
-    
-    # Build response with GTINs
+
+    # Build response with GTINs and locations
     items_list = []
     for item in items_qs[:limit]:  # Apply the requested limit
         gtins = []
         if item['gtin']:
             gtins.append(item['gtin'])
         gtins.extend(stock_gtins_by_item.get(item['id'], []))
-        
+        # Deduplicate GTINs while preserving order (item GTIN first)
+        gtins = list(dict.fromkeys(gtins))
+        # Aggregate locations for this item
+        locations = locations_by_item.get(item['id'], set())
+        location_str = ", ".join(sorted(locations)) if locations else ""
         items_list.append({
             'id': str(item['id']),
             'name': item['name'],
             'manufacturer': item['manufacturer'],
             'gtins': gtins,
-            'category__name': item['category__name'],
-            'subcategory__name': item['subcategory__name'],
-            'total_stock_quantity': item['total_stock_quantity'] or 0,
+            'total_stock_quantity': item['annotated_total_stock_quantity'] or 0,
+            'location': location_str,
         })
     
     return JsonResponse({
@@ -822,4 +809,326 @@ def items_search_api(request):
         'total_count': total_count,
         'has_more': total_count > limit,
         'limit': limit
+    })
+
+
+def public_search_view(request):
+    """
+    Public search page that displays all items in a store-like interface.
+    
+    Provides a comprehensive view of inventory items with filtering and sorting options.
+    Shows all items by default, sorted by last added first, with filtering options for:
+    - Tag groups and specific tags
+    - Expired vs non-expired items
+    - Include zero quantity items
+    - View modes: tile view or table view with customizable columns
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        HttpResponse: Rendered template with search interface
+    """
+    # Get all active tag groups and their tags for filter dropdown
+    tag_groups = models.TagGroup.objects.filter(is_active=True).prefetch_related(
+        Prefetch(
+            'tags',
+            queryset=models.Tag.objects.filter(is_active=True).order_by('sort_order', 'name')
+        )
+    ).order_by('sort_order', 'name')
+    
+    context = {
+        'tag_groups': tag_groups,
+    }
+    
+    template = loader.get_template("items/public_search.html")
+    return HttpResponse(template.render(context, request))
+
+
+def public_search_api(request):
+    """
+    API endpoint for the public search functionality with tag-based filtering.
+    
+    Returns items with comprehensive filtering and pagination support.
+    
+    Query Parameters:
+        offset: Starting position for pagination (default: 0)
+        limit: Maximum number of results to return (default: 20, max: 100)
+        search: General search query across name, manufacturer, GTIN, and tags
+        tag_groups: Comma-separated list of tag group IDs to filter by
+        tags: Comma-separated list of tag IDs to filter by
+        exclude_expired: Exclude expired items (true/false, default: false)
+        sort_by: Sort field (date_added, name, manufacturer, tags, quantity)
+        sort_order: Sort order (asc/desc, default: desc for date_added, asc for others)
+        
+    Returns:
+        JsonResponse: JSON response with items data and pagination info
+    """
+    from django.db.models import Q, Sum, Case, When, IntegerField, Max, Count
+    from django.utils import timezone
+    
+    # Get pagination parameters
+    try:
+        offset = int(request.GET.get('offset', 0))
+        offset = max(0, offset)
+    except (ValueError, TypeError):
+        offset = 0
+    
+    try:
+        limit = int(request.GET.get('limit', 20))
+        limit = max(1, min(limit, 100))  # Ensure limit is between 1 and 100
+    except (ValueError, TypeError):
+        limit = 20
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+
+    tag_ids = request.GET.get('tags', '').strip()
+    excluded_tag_ids = request.GET.get('excluded_tags', '').strip()
+
+    exclude_expired_param = request.GET.get('exclude_expired', 'false')
+    exclude_expired = exclude_expired_param.lower() == 'true' if isinstance(exclude_expired_param, str) else bool(exclude_expired_param)
+    
+    sort_by = request.GET.get('sort_by', 'date_added')
+    sort_order = request.GET.get('sort_order', 'desc' if sort_by == 'date_added' else 'asc')
+    
+    # Check user permissions
+    has_internal_details_perm = request.user.has_perm('inventory.view_internalstockingdetails')
+    
+    # Start with stock items queryset and filter based on permissions
+    stock_items_query = models.StockItem.objects.select_related('item', 'organization').filter(
+        item__is_deleted=False,  # Only active items
+        quantity__gt=0
+    )
+    
+    # Filter for permission-based access - only show surplus-approved items for public users
+    if not has_internal_details_perm:
+        stock_items_query = stock_items_query.filter(surplus_status__in=['not_wanted'])
+    
+    # Apply search filter to stock items and their related items
+    search_conditions = Q()
+    if search_query and len(search_query) >= 2:        
+        # Check if this looks like a GTIN (8+ digits, mostly numeric)
+        is_gtin_search = len(search_query) >= 8 and search_query.replace('-', '').replace(' ', '').isdigit()
+        
+        if is_gtin_search:
+            # For GTIN searches, only search GTIN fields to avoid duplicates
+            search_conditions = (
+                Q(item__gtin__exact=search_query) |  # Exact match for item-level GTIN
+                Q(gtin__exact=search_query)  # Exact match for stock item GTIN
+            )
+        else:
+            # For non-GTIN searches, search all text fields
+            search_conditions = (
+                Q(item__name__icontains=search_query) | 
+                Q(item__manufacturer__icontains=search_query) |
+                Q(item__tags__name__icontains=search_query) |  # Search in tag names
+                Q(item__tags__tag_group__name__icontains=search_query)  # Search in tag group names
+            )
+        
+        # Add location search only for users with internal details permission
+        if has_internal_details_perm:
+            search_conditions |= Q(location__icontains=search_query)
+    
+    
+    stock_items_query = stock_items_query.filter(search_conditions)
+    
+    # Apply specific tag filter
+    if tag_ids:
+        try:
+            tag_list = [tag_id.strip() for tag_id in tag_ids.split(',') if tag_id.strip()]
+            if tag_list:
+                stock_items_query = stock_items_query.filter(item__tags__id__in=tag_list)
+        except (ValueError, TypeError):
+            pass
+    
+    # Apply excluded tag filter
+    if excluded_tag_ids:
+        try:
+            excluded_tag_list = [tag_id.strip() for tag_id in excluded_tag_ids.split(',') if tag_id.strip()]
+            if excluded_tag_list:
+                stock_items_query = stock_items_query.exclude(item__tags__id__in=excluded_tag_list)
+        except (ValueError, TypeError):
+            pass
+    
+    # Get unique item IDs from the filtered stock items
+    item_ids = stock_items_query.values_list('item_id', flat=True).distinct()
+    
+    # Now build the items query from the filtered item IDs with proper prefetching
+    items_query = models.Item.active_objects.filter(
+        id__in=item_ids
+    ).prefetch_related(
+        # Only prefetch active tags from active tag groups
+        Prefetch(
+            'tags',
+            queryset=models.Tag.objects.filter(is_active=True, tag_group__is_active=True).select_related('tag_group')
+        ),
+        # Prefetch images ordered by ID to get first image efficiently
+        Prefetch('images', queryset=models.Image.objects.order_by('id')),
+        # Prefetch stock items with organization for location aggregation and surplus status checks
+        Prefetch(
+            'stock_items', 
+            queryset=models.StockItem.objects.select_related('organization').filter(quantity__gt=0)
+        )
+    ).select_related()
+    
+    # Add distinct to prevent duplicates when joining with stock_items, tags, etc.
+    items_query = items_query.distinct()
+    
+    # Annotate with stock information
+    today = timezone.now().date()
+    items_query = items_query.annotate(
+        annotated_total_stock_quantity=Sum(
+            Case(
+                When(stock_items__quantity__gt=0, then='stock_items__quantity'),
+                default=0,
+                output_field=IntegerField()
+            )
+        ),
+        expired_stock_quantity=Sum(
+            Case(
+                When(
+                    stock_items__quantity__gt=0,
+                    stock_items__expiration_date__lt=today,
+                    then='stock_items__quantity'
+                ),
+                default=0,
+                output_field=IntegerField()
+            )
+        ),
+        variant_count=Count('stock_items__detail', distinct=True),
+        latest_stock_date=Max('stock_items__date_received')
+    )
+    
+    # Apply expiration filter
+    if exclude_expired:
+        # Only exclude items where ALL stock is expired (no valid stock remaining)
+        from django.db.models import F
+        items_query = items_query.exclude(
+            Q(annotated_total_stock_quantity=F('expired_stock_quantity')) &
+            Q(annotated_total_stock_quantity__gt=0)
+        )
+    
+    # Apply sorting
+    sort_field = 'name'  # default
+    if sort_by == 'date_added':
+        sort_field = 'latest_stock_date'
+    elif sort_by == 'name':
+        sort_field = 'name'
+    elif sort_by == 'manufacturer':
+        sort_field = 'manufacturer'
+    elif sort_by == 'quantity':
+        sort_field = 'annotated_total_stock_quantity'
+    
+    if sort_order == 'desc':
+        sort_field = f'-{sort_field}'
+    
+    items_query = items_query.order_by(sort_field).distinct()
+    
+    # Get total count for pagination
+    total_count = items_query.count()
+    
+    # Apply pagination
+    items = items_query[offset:offset + limit]
+    
+    # Prepare response data
+    items_list = []
+    for item in items:
+        # Get the first image URL if available - use thumbnail for public search performance
+        # Use prefetched images to avoid additional query
+        images = list(item.images.all())
+        first_image = images[0] if images else None
+        image_url = first_image.get_thumbnail_url() if first_image else None
+        
+        # Calculate expiration info
+        has_expired_stock = item.expired_stock_quantity > 0 if item.expired_stock_quantity else False
+        
+        # Get locations from prefetched stock items to avoid additional queries
+        prefetched_stock_items = list(item.stock_items.all())
+        locations_set = set()
+        for stock_item in prefetched_stock_items:
+            if stock_item.location:
+                locations_set.add(stock_item.location)
+        locations = ", ".join(sorted(locations_set))
+        
+        # Check surplus status information for users with internal stocking details permission
+        # Use prefetched stock items to avoid additional queries
+        has_pending_surplus = False
+        has_wanted_surplus = False
+        if request.user.has_perm('inventory.view_internalstockingdetails'):
+            # Check surplus status from prefetched stock items
+            has_pending_surplus = any(
+                stock_item.surplus_status == 'pending' and stock_item.quantity > 0 
+                for stock_item in prefetched_stock_items
+            )
+            has_wanted_surplus = any(
+                stock_item.surplus_status == 'wanted' and stock_item.quantity > 0 
+                for stock_item in prefetched_stock_items
+            )
+        
+        # Get tags information from prefetched tags
+        item_tags = []
+        tag_groups_display = []
+        tags_by_group = {}
+        
+        # Get all tags and sort them properly for tags_display
+        all_tags = list(item.tags.all())
+        all_tags.sort(key=lambda t: (t.tag_group.sort_order or 0, t.sort_order or 0, t.name))
+        
+        # Compute tags_display using prefetched data to avoid N+1 query
+        tags_display = ', '.join(tag.name for tag in all_tags) if all_tags else ""
+        
+        for tag in all_tags:
+            tag_info = {
+                'id': str(tag.id),
+                'name': tag.name,
+                'color': tag.display_color,
+                'text_color': tag.text_color,
+                'tag_group': {
+                    'id': str(tag.tag_group.id),
+                    'name': tag.tag_group.name,
+                    'color': tag.tag_group.color,
+                    'text_color': tag.tag_group.text_color
+                }
+            }
+            item_tags.append(tag_info)
+            
+            # Group tags by tag group for display
+            group_name = tag.tag_group.name
+            if group_name not in tags_by_group:
+                tags_by_group[group_name] = []
+                tag_groups_display.append(group_name)
+            tags_by_group[group_name].append(tag.name)
+        
+        items_list.append({
+            'id': str(item.id),
+            'name': item.name,
+            'manufacturer': item.manufacturer,
+            # New tag-based fields
+            'tags': item_tags,
+            'tags_display': tags_display,
+            'tag_groups_display': ', '.join(tag_groups_display),
+            'tags_by_group': tags_by_group,
+            'total_stock_quantity': item.annotated_total_stock_quantity or 0,
+            'expired_stock_quantity': item.expired_stock_quantity or 0,
+            'has_expired_stock': has_expired_stock,
+            'has_pending_surplus': has_pending_surplus,
+            'has_wanted_surplus': has_wanted_surplus,
+            'variant_count': item.variant_count or 0,
+            'image_url': image_url,
+            'locations': locations,
+            'latest_stock_date': item.latest_stock_date.isoformat() if item.latest_stock_date else None,
+            'notes_public': item.notes_public,
+            'url': item.url,
+        })
+    
+    return JsonResponse({
+        'items': items_list,
+        'total_count': total_count,
+        'offset': offset,
+        'limit': limit,
+        'has_more': total_count > offset + limit,
+        'user_permissions': {
+            'view_internal_stocking_details': has_internal_details_perm,
+        },
     })

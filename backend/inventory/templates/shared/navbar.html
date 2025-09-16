@@ -16,16 +16,8 @@
         <a class="nav-item nav-link" href="{% url 'dashboard' %}">Dashboard</a>
       </li>
       <li class="nav-item">
-        <a class="nav-item nav-link" href="{% url 'view_database' %}">View database</a>
+        <a class="nav-item nav-link" href="{% url 'public_search' %}">Browse Inventory</a>
       </li>
-      <li class="nav-item">
-        <a class="nav-item nav-link" href="{% url 'view_all_items' %}">Search database</a>
-      </li>
-      {% if perms.inventory.view_checkout %}
-      <li class="nav-item">
-        <a class="nav-item nav-link" href="{% url 'bulk_checkout_list' %}">Bulk Checkout</a>
-      </li>
-      {% endif %}
     </ul>
     {% if user.is_authenticated %}
     <div class="nav-item dropdown">

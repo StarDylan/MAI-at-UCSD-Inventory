@@ -1,0 +1,155 @@
+{% extends "shared/base.html" %}
+{% load static %}
+
+{% block title %}Import Items from Spreadsheet{% endblock %}
+
+{% block body %}
+
+<h2>Import Items from Spreadsheet</h2>
+
+<div class="alert alert-info">
+  <h5><i class="material-icons">info</i> Instructions</h5>
+  <ol>
+    <li>Download the template using the "Download Template" button below</li>
+    <li>Fill in the template with your item information:
+      <ul>
+        <li><strong>Required:</strong> Item Name, Organization, Quantity, Location, Date Received</li>
+        <li><strong>Optional:</strong> Tags (comma-separated), Manufacturer, GTIN, Items Per Box, Cost Per Item, URL, Notes, Detail, Expiration Date, Lot Number</li>
+      </ul>
+    </li>
+    <li>Delete the sample row before importing</li>
+    <li>Save the file and upload it here</li>
+  </ol>
+  <p><strong>Note:</strong> This will create new items only. Item names must be unique and cannot already exist in the system.</p>
+</div>
+
+
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h5>Upload Spreadsheet</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="excel_file" class="form-label">Excel File (.xlsx or .xls)</label>
+            <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+            <div class="form-text">Select the completed template file to import items.</div>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="material-icons">upload_file</i>
+            Upload and Process
+          </button>
+          <a href="{% url 'download_import_template' %}" class="btn btn-success">
+            <i class="material-icons">download</i>
+            Download Template
+          </a>
+          <a href="{% url 'public_search' %}" class="btn btn-secondary">
+            <i class="material-icons">arrow_back</i>
+            Back to Inventory
+          </a>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5>Template Information</h5>
+      </div>
+      <div class="card-body">
+        <h6>Required Fields</h6>
+        <ul class="list-unstyled">
+          <li><i class="material-icons text-danger" style="font-size: 16px;">star</i> Item Name</li>
+          <li><i class="material-icons text-danger" style="font-size: 16px;">star</i> Organization</li>
+          <li><i class="material-icons text-danger" style="font-size: 16px;">star</i> Quantity</li>
+          <li><i class="material-icons text-danger" style="font-size: 16px;">star</i> Location</li>
+          <li><i class="material-icons text-danger" style="font-size: 16px;">star</i> Date Received</li>
+        </ul>
+        
+        <h6>Optional Fields</h6>
+        <ul class="list-unstyled text-muted small">
+          <li>Manufacturer</li>
+          <li>GTIN (barcode)</li>
+          <li>Items Per Box</li>
+          <li>Cost Per Item</li>
+          <li>URL</li>
+          <li>Public Notes</li>
+          <li>Private Notes</li>
+          <li>Detail (variant info)</li>
+          <li>Expiration Date</li>
+          <li>Lot Number</li>
+          <li>Stock Notes</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="card mt-3">
+      <div class="card-header">
+        <h5>Important Notes</h5>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <small>
+            <strong>Before importing:</strong>
+            <ul class="mb-0">
+              <li>Item names must be unique</li>
+              <li>Categories and subcategories must exist</li>
+              <li>Organizations must exist</li>
+              <li>Use YYYY-MM-DD format for dates</li>
+              <li>Delete the sample row</li>
+            </ul>
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header">
+    <h5>Available Categories and Organizations</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <h6>Available Tags</h6>
+        <div style="max-height: 300px; overflow-y: auto;">
+          {% for tag_group in tag_groups %}
+            <div class="mb-2">
+              <strong style="color: {{ tag_group.color }};">{{ tag_group.name }}</strong>
+              <ul class="list-unstyled ms-3">
+                {% for tag in tag_group.tags.all %}
+                  <li class="text-muted">• {{ tag.name }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-md-6">
+        <h6>Organizations</h6>
+        <div style="max-height: 300px; overflow-y: auto;">
+          <ul class="list-unstyled">
+            {% for organization in organizations %}
+              <li class="text-muted">• {{ organization.name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.material-icons {
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+</style>
+
+{% endblock %}

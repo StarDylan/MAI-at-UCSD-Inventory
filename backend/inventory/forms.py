@@ -1,85 +1,12 @@
 from django import forms
-from .models import Category, Subcategory, Organization, StockItem
+from django.urls import reverse
+from .models import Organization, StockItem
 from inventory import models
 from allauth.account.forms import LoginForm
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 from datetime import date
-
-
-class CategoryForm(forms.ModelForm):
-    class Meta:
-        model = Category
-        fields = ['name']
-
-class ItemForm(forms.ModelForm):
-    # This field will be the one the user sees and interacts with.
-    # It will display subcategories grouped by their categories.
-    subcategory = forms.ModelChoiceField(
-        queryset=models.Subcategory.objects.all(),
-        label="Category"
-    )
-
-    class Meta:
-        model = models.Item
-        # Use StockItem for quantity tracking instead of quantity_active
-        fields = ['name', 'manufacturer', 'gtin', 'items_per_box', 'cost_per_item', 'subcategory', "url", 'notes_public', 'notes_private']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Get all subcategories and their parent categories
-        subcategories = models.Subcategory.objects.select_related('category').all().order_by('category__name', 'name')
-        
-        # Create a list of tuples for grouped choices
-        grouped_choices = []
-        current_category = None
-        category_group = []
-
-        for subcategory in subcategories:
-            if current_category and subcategory.category != current_category:
-                # Add the previous category's group to the main list
-                grouped_choices.append((current_category.name, category_group))
-                category_group = []
-            
-            # Add the subcategory to the current group
-            category_group.append((subcategory.pk, subcategory.name))
-            current_category = subcategory.category
-
-        # Add the last category's group
-        if category_group:
-            assert current_category is not None  # For type checker, we always assign a category and subcategory
-            grouped_choices.append((current_category.name, category_group))
-
-        # Set the choices for the subcategory field
-        self.fields['subcategory'].choices = grouped_choices
-        
-        # Disable GTIN field if any stock items have GTIN
-        if self.instance and self.instance.pk and self.instance.has_stock_item_gtin:
-            self.fields['gtin'].disabled = True
-            self.fields['gtin'].help_text = "GTIN is disabled because one or more stock items already have GTIN values."
-
-    def save(self, commit=True):
-        # Call the parent save method to get the Item instance
-        item = super().save(commit=False)
-        
-        # Get the selected subcategory object from the form data
-        selected_subcategory = self.cleaned_data['subcategory']
-        
-        # Set the category field of the Item instance based on the subcategory
-        item.category = selected_subcategory.category
-        item.subcategory = selected_subcategory
-        
-        if commit:
-            item.save()
-        
-        return item
-
-class SubcategoryForm(forms.ModelForm):
-    name = forms.CharField(max_length=100, label="Subcategory Name")
-    class Meta:
-        model = Subcategory
-        fields = ['category', 'name']
+from django.utils import timezone
 
 
 class OrganizationForm(forms.ModelForm):
@@ -93,6 +20,17 @@ class OrganizationForm(forms.ModelForm):
 
 
 class StockItemForm(forms.ModelForm):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
     class Meta:
         model = StockItem
         fields = ['organization', 'quantity', 'location', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
@@ -109,208 +47,6 @@ class StockItemForm(forms.ModelForm):
         self.fields['notes'].help_text = "Public Notes specific to this stock entry"
 
 
-class ItemWithStockForm(forms.Form):
-    """Combined form for creating both Item and initial StockItem"""
-    # Item fields
-    name = forms.CharField(max_length=255, label="Item Name")
-    manufacturer = forms.CharField(
-        max_length=255, 
-        required=False, 
-        label="Manufacturer",
-        help_text="Product manufacturer or brand name",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Samsung, Apple, 3M'})
-    )
-    
-    # Single GTIN field with toggle
-    gtin = forms.CharField(
-        required=False, 
-        label="GTIN (Global Trade Item Number)",
-        help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1234567890123'})
-    )
-    gtin_applies_to = forms.ChoiceField(
-        choices=[
-            ('item', 'Entire Item (all variants share this GTIN)'),
-            ('variant', 'This Specific Variant Only'),
-        ],
-        initial='item',
-        widget=forms.RadioSelect,
-        label="GTIN applies to",
-    )
-    
-    detail = forms.CharField(
-        max_length=255,
-        required=False,
-        label="Variant Detail (Optional)",
-        help_text="Additional details like size, color, variant, etc.",
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Size L, Red, 16oz"}),
-    )
-    subcategory = forms.ModelChoiceField(
-        queryset=models.Subcategory.objects.all(),
-        label="Category"
-    )
-    url = forms.URLField(required=False, label="URL")
-    
-    # StockItem fields
-    organization = forms.ModelChoiceField(
-        queryset=Organization.objects.all(),
-        label="Received From Organization"
-    )
-    quantity = forms.IntegerField(min_value=1, initial=1, label=" Quantity")
-    items_per_box = forms.IntegerField(
-        min_value=1,
-        required=False,
-        label="Items Per Box (Optional)",
-        help_text="Number of individual items in a single box/package",
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'})
-    )
-    cost_per_item = forms.DecimalField(
-        max_digits=10,
-        decimal_places=4,
-        required=False,
-        label="Value per Qty (Optional)",
-        help_text="Value per individual item",
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
-    )
-    stock_location = forms.CharField(max_length=100, required=True, label="Stock Location")
-    date_received = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date'}),
-        label="Date Received"
-    )
-    expiration_date = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date'}),
-        required=False,
-        label="Expiration Date (optional for non-perishable items)"
-    )
-    lot_number = forms.CharField(max_length=100, required=False, label="Lot Number")
-    
-    stock_notes = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}), 
-        required=False, 
-        label="Stock Notes",
-        help_text="Public Notes specific to this stock entry",
-    )
-    notes_public = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Public Item Notes", help_text="Notes visible to all users")
-    notes_private = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Private Item Notes", help_text="Notes visible only to MAI members")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Set up subcategory choices grouped by category
-        subcategories = models.Subcategory.objects.select_related('category').all().order_by('category__name', 'name')
-        grouped_choices = []
-        current_category_name = None
-        category_group = []
-
-        for subcategory in subcategories:
-            if current_category_name and subcategory.category.name != current_category_name:
-                grouped_choices.append((current_category_name, category_group))
-                category_group = []
-            
-            category_group.append((subcategory.pk, subcategory.name))
-            current_category_name = subcategory.category.name
-
-        if category_group:
-            grouped_choices.append((current_category_name, category_group))
-
-        self.fields['subcategory'].choices = grouped_choices
-        self.fields['organization'].queryset = Organization.objects.all().order_by('name')
-    def clean_name(self):
-        """
-        Validates that the item name is unique.
-        """
-        # Get the cleaned data for this specific field
-        name = self.cleaned_data['name']
-
-        # Check if an Item with this name already exists (case-insensitive)
-        if models.Item.objects.filter(name__iexact=name).exists():
-            raise forms.ValidationError(
-                "An item with this name already exists. Please choose a different name.",
-                code='duplicate_name'
-            )
-
-        # Always return the cleaned data for this field
-        return name
-
-    def clean_gtin(self):
-        """
-        Validates that the GTIN is unique if provided.
-        """
-        gtin = self.cleaned_data.get('gtin', '').strip()
-
-
-        if gtin:
-            if len(gtin) > 14:
-                raise forms.ValidationError(
-                    "GTIN must be at most 14 characters long.",
-                    code='invalid_gtin_length'
-                )
-            # Check if GTIN exists on any item
-            if models.Item.objects.filter(gtin=gtin).exists():
-                existing_item = models.Item.objects.filter(gtin=gtin).first()
-                raise forms.ValidationError(
-                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'.",
-                    code='duplicate_item_gtin'
-                )
-            
-            # Check if GTIN exists on any stock item
-            if models.StockItem.objects.filter(gtin=gtin).exists():
-                existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
-                raise forms.ValidationError(
-                    f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'.",
-                    code='duplicate_stock_gtin'
-                )
-        
-        return gtin
-
-    def save(self, commit=True):
-        """Create both Item and initial StockItem"""
-        # The cleaned_data from the form is used to create both objects
-        data = self.cleaned_data
-
-        # Determine where to place the GTIN based on the toggle
-        gtin = data.get('gtin', '').strip()
-        gtin_applies_to = data.get('gtin_applies_to', 'item')
-        
-        item_gtin = gtin if gtin_applies_to == 'item' else ''
-        stock_gtin = gtin if gtin_applies_to == 'variant' else ''
-
-        # Create Item
-        selected_subcategory = data['subcategory']
-        item = models.Item(
-            name=data['name'],
-            manufacturer=data['manufacturer'],
-            gtin=item_gtin,
-            items_per_box=data.get('items_per_box'),
-            cost_per_item=data.get('cost_per_item'),
-            category=selected_subcategory.category,
-            subcategory=selected_subcategory,
-            url=data['url'],
-            notes_public=data['notes_public'],
-            notes_private=data['notes_private']
-        )
-        
-        if commit:
-            item.save()
-            
-            # Create initial StockItem
-            stock_item = StockItem(
-                item=item,
-                organization=data['organization'],
-                quantity=data['quantity'],
-                location=data['stock_location'],
-                gtin=stock_gtin,
-                detail=data['detail'],
-                date_received=data['date_received'],
-                expiration_date=data['expiration_date'],
-                lot_number=data['lot_number'],
-                notes=data['stock_notes']
-            )
-            stock_item.save()
-            return item, stock_item
-        
-        return item, None
-
 class ItemWithLocationChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: models.Item):
         # Get all locations from the stock items
@@ -318,6 +54,17 @@ class ItemWithLocationChoiceField(forms.ModelChoiceField):
 
 
 class StockItemEditForm(forms.ModelForm):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
     """Form for editing individual stock items"""
     class Meta:
         model = StockItem
@@ -340,10 +87,59 @@ class StockItemEditForm(forms.ModelForm):
 
 
 class Search_QuantityAdd(forms.Form):
+    def clean_date_received(self):
+        value = self.cleaned_data.get('date_received')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Date received must be between 1900 and 3000.')
+        return value
+
+    def clean_expiration_date(self):
+        value = self.cleaned_data.get('expiration_date')
+        if value and (value.year < 1900 or value.year > 3000):
+            raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
+        return value
+
+    def clean_gtin(self):
+        """Validates that the GTIN is unique across items if provided."""
+        gtin = self.cleaned_data.get('gtin', '').strip()
+
+        if gtin:
+            if len(gtin) > 14:
+                raise forms.ValidationError(
+                    "GTIN must be at most 14 characters long.",
+                    code='invalid_gtin_length'
+                )
+            
+            # Get the selected item for this check-in
+            selected_item = self.cleaned_data.get('item')
+            
+            # Check if GTIN exists on any OTHER item (not the current one)
+            existing_item = models.Item.objects.filter(gtin=gtin).first()
+            if existing_item and existing_item != selected_item:
+                raise forms.ValidationError(
+                    f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. GTINs must be unique across items.",
+                    code='duplicate_item_gtin'
+                )
+            
+            # Check if GTIN exists on stock items belonging to OTHER items
+            stock_filter = models.StockItem.objects.filter(gtin=gtin)
+            if selected_item:
+                stock_filter = stock_filter.exclude(item=selected_item)
+            
+            existing_stock = stock_filter.first()
+            if existing_stock:
+                raise forms.ValidationError(
+                    f"A stock item with GTIN '{gtin}' already exists for a different item: '{existing_stock.item.name}'. GTINs must be unique across items.",
+                    code='duplicate_cross_item_gtin'
+                )
+        
+        return gtin
+
     """Form for adding new stock (check-in) - creates new StockItem"""
-    item = ItemWithLocationChoiceField(
-        queryset=models.Item.active_objects.order_by("name"),
-        widget=forms.Select(attrs={"class": "form-select"})
+    item = forms.ModelChoiceField(
+        queryset=models.Item.active_objects.none(),  # Start with empty queryset for performance
+        widget=forms.Select(attrs={"class": "form-select"}),
+        empty_label="Search and select an item..."
     )
     detail = forms.CharField(
         max_length=255,
@@ -355,7 +151,8 @@ class Search_QuantityAdd(forms.Form):
     organization = forms.ModelChoiceField(
         queryset=Organization.objects.all().order_by('name'),
         widget=forms.Select(attrs={"class": "form-select"}),
-        label="Received From Organization"
+        label="Received From Organization",
+        empty_label="Select an organization"
     )
     quantity = forms.IntegerField(
         min_value=1,
@@ -401,11 +198,30 @@ class Search_QuantityAdd(forms.Form):
         # Check if a specific item is pre-selected (from URL)
         initial_item = kwargs.pop('initial_item', None)
         super().__init__(*args, **kwargs)
-        
-        # Disable GTIN field if the selected item has a GTIN
-        if initial_item and initial_item.gtin:
-            self.fields['gtin'].disabled = True
-            self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+
+        # If POST, ensure the selected item is in the queryset so validation passes
+        data = self.data or getattr(self, 'data', None)
+        item_id = None
+        if data and 'item' in data:
+            item_id = data.get('item')
+        elif self.initial.get('item'):
+            item_id = self.initial['item'].id
+        elif initial_item:
+            item_id = initial_item.id
+
+        if item_id:
+            self.fields['item'].queryset = models.Item.active_objects.filter(id=item_id)
+            # Disable GTIN field if the selected item has a GTIN
+            try:
+                item_obj = models.Item.active_objects.get(id=item_id)
+                if item_obj.gtin:
+                    self.fields['gtin'].disabled = True
+                    self.fields['gtin'].help_text = "GTIN is disabled because the item already has a GTIN value."
+            except models.Item.DoesNotExist:
+                pass
+        else:
+            # For the search interface, we'll populate this via AJAX
+            self.fields['item'].queryset = models.Item.active_objects.none()
 
 
 class Search_QuantityRemove(forms.Form):
@@ -448,10 +264,17 @@ class CheckOutForm(forms.ModelForm):
     
     class Meta:
         model = models.CheckOut
-        fields = ['organization', 'notes']
+        fields = ['organization', 'is_donation', 'notes']
         widgets = {
             'organization': forms.Select(attrs={'class': 'form-select'}),
+            'is_donation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional notes for this checkout...'}),
+        }
+        labels = {
+            'is_donation': 'This is a donation',
+        }
+        help_texts = {
+            'is_donation': 'Uncheck this box for internal transfers, sales, or other non-donation transactions',
         }
         
     def __init__(self, *args, **kwargs):
@@ -483,7 +306,7 @@ class CheckOutCompleteForm(forms.Form):
     total_weight = forms.DecimalField(
         max_digits=10,
         decimal_places=4,
-        required=True,
+        required=False,  # Will be validated conditionally
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0'}),
         label="Total Weight (lbs)",
     )
@@ -493,6 +316,26 @@ class CheckOutCompleteForm(forms.Form):
         label="Completion Notes",
         help_text="Additional notes about the checkout completion"
     )
+    
+    def __init__(self, *args, checkout=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.checkout = checkout
+        
+        # If this is a donation, weight is required
+        if checkout and checkout.is_donation:
+            self.fields['total_weight'].required = True
+            self.fields['total_weight'].help_text = "Weight is required for donations"
+        else:
+            self.fields['total_weight'].help_text = "Weight is optional for non-donations"
+    
+    def clean_total_weight(self):
+        total_weight = self.cleaned_data.get('total_weight')
+        
+        # If this is a donation checkout, weight is required
+        if self.checkout and self.checkout.is_donation and not total_weight:
+            raise forms.ValidationError("Total weight is required for donation checkouts")
+            
+        return total_weight
 
 
 class CheckOutItemEditForm(forms.ModelForm):
@@ -621,6 +464,7 @@ class AddToCheckOutForm(forms.Form):
             ).order_by('-created_at')
         if item:
             # Populate stock items for this item with available quantity
+            # Include all stock items regardless of surplus status
             stock_items = item.stock_items.filter(
                 quantity__gt=0
             ).order_by('detail', 'expiration_date', 'date_received')
@@ -658,6 +502,46 @@ class UserCreationForm(forms.Form):
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
 
+
+class UserEditForm(forms.ModelForm):
+    """Form for editing user profile information"""
+    
+    class Meta:
+        model = models.User
+        fields = ['username', 'email', 'first_name', 'last_name']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'})
+        }
+        help_texts = {
+            'username': 'Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.',
+            'user_picture': 'Optional URL to a profile picture image.',
+        }
+        
+    def __init__(self, *args, **kwargs):
+        self.user_being_edited = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+        
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        
+        # Check if username already exists (but allow the current user to keep their username)
+        if models.User.objects.filter(username=username).exclude(pk=self.user_being_edited.pk if self.user_being_edited else None).exists():
+            raise forms.ValidationError('A user with that username already exists.')
+            
+        return username
+        
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        
+        # Check if email already exists (but allow the current user to keep their email)
+        if models.User.objects.filter(email=email).exclude(pk=self.user_being_edited.pk if self.user_being_edited else None).exists():
+            raise forms.ValidationError('A user with that email already exists.')
+            
+        return email
+    
 class CrispyLoginForm(LoginForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

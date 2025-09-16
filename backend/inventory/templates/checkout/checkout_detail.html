@@ -1,44 +1,46 @@
 {% extends "shared/base.html" %} {% block body %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2>
-      {% if checkout.is_completed %}
-      <i class="material-icons text-success">check_circle</i>
-      {% else %}
-      <i class="material-icons text-primary">shopping_cart</i>
-      {% endif %} Checkout for {{ checkout.organization.name }}
-    </h2>
-    <p class="text-muted mb-0">
-      Created by {{ checkout.created_by.get_full_name|default:checkout.created_by.username }} on {{ checkout.created_at|date:"M d, Y H:i" }} {% if checkout.is_completed %}
-      <br />Completed by {{ checkout.completed_by.get_full_name|default:checkout.completed_by.username }} on {{ checkout.completed_at|date:"M d, Y H:i" }} {% endif %}
-    </p>
-  </div>
-  <div>
-    <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary"> <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts </a>
-
-    {% if not checkout.is_completed and checkout_items and perms.inventory.complete_checkout %} {% if checkout.has_insufficient_stock %}
-    <button class="btn btn-secondary" disabled title="Cannot complete checkout - insufficient stock for some items">
-      <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
-    </button>
+<div class="mb-4">
+  <h2>
+    {% if checkout.is_completed %}
+    <i class="material-icons text-success">check_circle</i>
     {% else %}
-    <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success"> <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout </a>
-    {% endif %} {% elif checkout.is_completed %} {% if perms.inventory.undo_checkout %}
-    <form
-      method="post"
-      action="{% url 'checkout_undo' checkout.id %}"
-      style="display: inline"
-      onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');"
-    >
-      {% csrf_token %}
-      <button type="submit" class="btn btn-warning"><i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout</button>
-    </form>
-    {% endif %} {% endif %} {% comment %} Delete button - only show for non-completed checkouts with delete permission {% endcomment %}
+    <i class="material-icons text-primary">shopping_cart</i>
+    {% endif %} Checkout for {{ checkout.organization.name }}
+  </h2>
+  <p class="text-muted mb-0">
+    Created by {{ checkout.created_by.get_full_name|default:checkout.created_by.username }} on {{ checkout.created_at|date:"M d, Y H:i" }} {% if checkout.is_completed %}
+    <br />Completed by {{ checkout.completed_by.get_full_name|default:checkout.completed_by.username }} on {{ checkout.completed_at|date:"M d, Y H:i" }} {% endif %}
+  </p>
 
-    <span>
-      {% if not checkout.is_completed and perms.inventory.delete_checkout %}
-      <a href="{% url 'checkout_delete' checkout.id %}" class="btn btn-outline-danger ms-2"> <i class="material-icons" style="vertical-align: middle">delete</i> Delete </a>
+  <div class="mt-3">
+    <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary mb-2">
+      <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts
+    </a>
+
+    {% if not checkout.is_completed and checkout_items and perms.inventory.complete_checkout %}
+      {% if checkout.has_insufficient_stock %}
+        <button class="btn btn-secondary mb-2" disabled title="Cannot complete checkout - insufficient stock for some items">
+          <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
+        </button>
+      {% else %}
+        <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success mb-2">
+          <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
+        </a>
       {% endif %}
-    </span>
+    {% elif checkout.is_completed and perms.inventory.undo_checkout %}
+      <form method="post" action="{% url 'checkout_undo' checkout.id %}" style="display: inline-block; margin-left: 8px;" onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-warning mb-2">
+          <i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout
+        </button>
+      </form>
+    {% endif %}
+
+    {% if not checkout.is_completed and perms.inventory.delete_checkout %}
+      <a href="{% url 'checkout_delete' checkout.id %}" class="btn btn-outline-danger mb-2" style="min-width: 200px;">
+        <i class="material-icons" style="vertical-align: middle">delete</i> Delete
+      </a>
+    {% endif %}
   </div>
 </div>
 
@@ -49,6 +51,17 @@
       <div class="card-body">
         <h4 class="text-primary">{{ checkout.total_items_count }}</h4>
         <small class="text-muted">Total Items</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <h6 class="{% if checkout.is_donation %}text-success{% else %}text-warning{% endif %}">
+          {% if checkout.is_donation %}
+          <i class="material-icons">favorite</i> Donation {% else %} <i class="material-icons">business</i> Non-Donation {% endif %}
+        </h6>
+        <small class="text-muted">Type</small>
       </div>
     </div>
   </div>
@@ -128,11 +141,22 @@
         </thead>
         <tbody>
           {% for item in checkout_items %}
+          {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
+          <tr class="table-danger">
+          {% elif item.stock_item.surplus_status == 'pending' %}
+          <tr class="table-warning">
+          {% else %}
           <tr>
+          {% endif %}
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none"> {{ item.stock_item.item.name }} </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+              {% endif %}
+              {% if item.stock_item.surplus_status == 'wanted' %}
+              <br /><span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
+              {% elif item.stock_item.surplus_status == 'pending' %}
+              <br /><span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
               {% endif %}
             </td>
             <td>
@@ -208,7 +232,7 @@
 {% if not checkout.is_completed and perms.inventory.change_checkout %}
 <div class="card mt-4">
   <div class="card-header">
-    <h5 class="mb-0"><i class="material-icons" style="vertical-align: middle">add</i> Add Items to Checkout</h5>
+    <h5 class="mb-0">Add Items to Checkout</h5>
   </div>
   <div class="card-body">
     <div class="mb-3">
@@ -301,7 +325,7 @@
         <tbody>
           {% for event in checkout_audit %}
           <tr onclick="viewDiff({{ event.json_data }});">
-            <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
+            <td>{{ event.created_at|date:"d-M-Y H:i:s" }}</td>
             <td>{{ event.user.get_full_name|default:event.user.username }}</td>
             <td>{{ event.event }}</td>
           </tr>
@@ -317,16 +341,16 @@
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="auditDiffModalLabel">Audit Event Details</h5>
+        <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <h6>Before</h6>
+        <h2>Before</h2>
         <pre id="audit_left"></pre>
 
-        <h6>After</h6>
+        <h2>After</h2>
         <pre id="audit_right"></pre>
       </div>
       <div class="modal-footer">
@@ -417,21 +441,32 @@
       // Clear any previous errors when opening modal
       clearFormErrors();
 
+      // Clear any previous info messages
+      const existingInfoAlerts = document.querySelectorAll('.alert-info');
+      existingInfoAlerts.forEach(alert => alert.remove());
+
       // Load stock items for this item
       fetch(`/api/items/${itemId}/stock-items/`)
         .then((response) => response.json())
         .then((data) => {
           stockItemSelect.innerHTML = '<option value="">Select stock item...</option>';
-          data.stock_items.forEach((stockItem) => {
-            stockItemSelect.innerHTML += `
-                        <option value="${stockItem.id}" 
-                                data-quantity="${stockItem.quantity}"
-                                data-location="${stockItem.location}"
-                                data-organization="${stockItem.organization}">
-                            ${stockItem.display_name}
-                        </option>
-                    `;
-          });
+          
+          if (data.stock_items.length === 0) {
+            stockItemSelect.innerHTML = '<option value="" disabled>No stock items available for checkout</option>';
+          } else {
+            data.stock_items.forEach((stockItem) => {
+              const surplusWarning = stockItem.surplus_status !== 'not_wanted' ? ' ⚠️' : '';
+              stockItemSelect.innerHTML += `
+                          <option value="${stockItem.id}" 
+                                  data-quantity="${stockItem.quantity}"
+                                  data-location="${stockItem.location}"
+                                  data-organization="${stockItem.organization}"
+                                  data-surplus-status="${stockItem.surplus_status}">
+                              ${stockItem.display_name}${surplusWarning}
+                          </option>
+                      `;
+            });
+          }
         })
         .catch((error) => {
           console.error("Error loading stock items:", error);
@@ -452,12 +487,45 @@
       this.classList.remove("is-invalid");
       document.getElementById("stockItemErrors").textContent = "";
 
+      // Clear any previous surplus warnings
+      const existingWarnings = document.querySelectorAll('.surplus-warning');
+      existingWarnings.forEach(warning => warning.remove());
+
       const selectedOption = this.options[this.selectedIndex];
       if (selectedOption.value) {
         const maxQuantity = selectedOption.dataset.quantity;
+        const surplusStatus = selectedOption.dataset.surplusStatus;
+        
         quantityInput.max = maxQuantity;
         quantityInput.value = Math.min(1, maxQuantity);
         quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
+        
+        // Show warning for surplus items based on checkout type
+        if (surplusStatus !== 'not_wanted') {
+          const isDonation = {{ checkout.is_donation|yesno:"true,false" }};
+          let shouldWarn = false;
+          let warningText = '';
+          let alertClass = 'alert-warning';
+          
+          if (surplusStatus === 'wanted' && isDonation) {
+            shouldWarn = true;
+            alertClass = 'alert-danger';
+            warningText = '<strong>Warning:</strong> This item is WANTED by surplus. Please confirm before adding to donation checkout.';
+          } else if (surplusStatus === 'pending') {
+            shouldWarn = true;
+            warningText = '<strong>Warning:</strong> This item is pending surplus review. Please confirm before adding to checkout.';
+          }
+          
+          if (shouldWarn) {
+            const warningDiv = document.createElement('div');
+            warningDiv.className = `alert ${alertClass} mt-2 surplus-warning`;
+            warningDiv.innerHTML = `
+              <i class="material-icons" style="vertical-align: middle; font-size: 16px;">warning</i>
+              ${warningText}
+            `;
+            selectedOption.parentNode.parentNode.appendChild(warningDiv);
+          }
+        }
       } else {
         quantityInput.max = "";
         quantityInput.value = "";
@@ -612,15 +680,22 @@
     leftBlockId = $("#audit_left").attr("id");
     rightBlockId = $("#audit_right").attr("id");
     $(document).jdd(leftBlockId, rightBlockId);
+  }
 
-    // Initialize DataTable for audit log if not already initialized
-    if (!$.fn.DataTable.isDataTable("#checkout_audit_table")) {
+  // Initialize DataTable for audit log
+  $(document).ready(function() {
+    if ($.fn.DataTable) {
+      $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
       $("#checkout_audit_table").DataTable({
+        lengthMenu: [
+          [10, 25, 50, 100, -1],
+          [10, 25, 50, 100, "All"],
+        ],
         order: [[0, "desc"]],
         pageLength: 10,
         responsive: true,
       });
     }
-  }
+  });
 </script>
 {% endblock %}

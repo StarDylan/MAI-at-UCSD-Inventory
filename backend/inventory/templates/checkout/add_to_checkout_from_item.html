@@ -30,7 +30,13 @@
         {% if item.manufacturer %}
         <p class="text-muted mb-1">{{ item.manufacturer }}</p>
         {% endif %}
-        <p class="mb-1"><strong>Category:</strong> {{ item.category.name }} > {{ item.subcategory.name }}</p>
+        <p class="mb-1"><strong>Tags:</strong> 
+          {% for tag in item.tags.all %}
+            <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">{{ tag.name }}</span>
+          {% empty %}
+            <em>No tags assigned</em>
+          {% endfor %}
+        </p>
         {% if item.gtin %}
         <p class="mb-1"><strong>GTIN:</strong> {{ item.gtin }}</p>
         {% endif %}

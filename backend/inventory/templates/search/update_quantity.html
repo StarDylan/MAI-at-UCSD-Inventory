@@ -1,16 +1,30 @@
 {% extends "shared/base.html" %} {% load crispy_forms_tags %} {% block body %}
 
-<h4>{{ action }} an item</h4>
+<h4>Check in a stock item</h4>
 
 <body>
-  <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>      <script
+        src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"
+    ></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js" defer></script>
+
+
+  <!-- Item details card -->
+  <div id="item-details-card" style="display:none; margin-bottom: 1rem;">
+    <div style="border:1px solid #dee2e6; border-radius:8px; padding:1rem; background:#f8f9fa;">
+      <h5 id="item-details-name" style="margin-bottom:0.5rem;"></h5>
+      <div id="item-details-manufacturer" style="color:#6c757d;"></div>
+      <div id="item-details-location" style="color:#6c757d;"></div>
+      <div id="item-details-quantity" style="color:#6c757d;"></div>
+    </div>
+  </div>
 
   <form method="POST" autocomplete="off">
     {% csrf_token %}
     <div class="form-group">{{ form|crispy }}</div>
-
     <p><input type="submit" class="btn btn-primary" value="Submit" /></p>
   </form>
 
@@ -20,14 +34,85 @@
   </div>
 
   <script>
-    $(document).ready(function() {
-        $('#{{ form.item.id_for_label }}').select2({  // init Select2 on form's select field
-            placeholder: "{{ form.item.label }}",
-            allowClear: true,
-            "box-sizing": "border-box",
-            "width": "100%"
-
-        });
+  $(document).ready(function() {
+    // Check if we have a pre-selected item
+    {% if selected_item %}
+    // If item is pre-selected from URL, just use a simple select dropdown
+    $('#{{ form.item.id_for_label }}').select2({
+      placeholder: "Item: {{ selected_item.name }}",
+      allowClear: false,
+      width: "100%"
+    });
+    // Show the item details card on page load
+    $('#item-details-name').text("{{ selected_item.name|escapejs }}");
+    {% if selected_item.manufacturer %}
+    $('#item-details-manufacturer').text('Manufacturer: {{ selected_item.manufacturer|escapejs }}');
+    {% else %}
+    $('#item-details-manufacturer').text('');
+    {% endif %}
+    {% if selected_item.aggregated_locations %}
+    $('#item-details-location').text('Location(s): {{ selected_item.aggregated_locations|escapejs }}');
+    {% else %}
+    $('#item-details-location').text('');
+    {% endif %}
+    $('#item-details-quantity').text('In stock: {{ selected_item.total_stock_quantity|default:0 }}');
+    $('#item-details-card').show();
+    {% else %}
+    // For normal search interface, use AJAX search
+    var itemDataCache = {};
+    $('#{{ form.item.id_for_label }}').select2({
+      placeholder: "Search for an item to check in...",
+      allowClear: true,
+      width: "100%",
+      ajax: {
+        url: '/api/items/search/',
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return {
+            q: params.term,
+            page: params.page || 1,
+            include_zero_stock: true  // Include items with 0 stock for check-in
+          };
+        },
+        processResults: function (data, params) {
+          params.page = params.page || 1;
+          // Cache item data by id for later lookup
+          data.items.forEach(function(item) { itemDataCache[item.id] = item; });
+          return {
+            results: data.items.map(function(item) {
+              return {
+                id: item.id,
+                text: item.name
+                  + (item.manufacturer ? ' - ' + item.manufacturer : '')
+              };
+            }),
+            pagination: {
+              more: data.has_more
+            }
+          };
+        },
+        cache: true
+      },
+      minimumInputLength: 2
+    });
+    // Show item details card when an item is selected
+    $('#{{ form.item.id_for_label }}').on('select2:select', function(e) {
+      var itemId = e.params.data.id;
+      var item = itemDataCache[itemId];
+      if (item) {
+        $('#item-details-name').text(item.name);
+        $('#item-details-manufacturer').text(item.manufacturer ? 'Manufacturer: ' + item.manufacturer : '');
+        $('#item-details-location').text(item.location ? 'Location(s): ' + item.location : '');
+        $('#item-details-quantity').text('In stock: ' + (item.total_stock_quantity || 0));
+        $('#item-details-card').show();
+      }
+    });
+    // Hide card if cleared
+    $('#{{ form.item.id_for_label }}').on('select2:clear', function(e) {
+      $('#item-details-card').hide();
+    });
+        {% endif %}
         {% if form.organization %}
         $('#{{ form.organization.id_for_label }}').select2({  // init Select2 on organization field
             placeholder: "{{ form.organization.label }}",
@@ -139,6 +224,10 @@
       }
     });
   </script>
+
+  <!-- Barcode Scanner for GTIN input -->
+  {% load static %}
+  <script src="{% static 'inventory/barcode-scanner-v24.js' %}"></script>
 
   {% endblock %}
 </body>

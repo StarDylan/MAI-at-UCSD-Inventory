@@ -1,0 +1,96 @@
+{% extends "shared/base.html" %}
+{% load static %}
+
+{% block title %}Upload Surplus Report{% endblock %}
+
+{% block body %}
+
+<h2>Upload Surplus Status Updates</h2>
+
+<div class="alert alert-info">
+  <h5><i class="material-icons">info</i> Instructions</h5>
+  <ol>
+    <li>Download the current surplus report using the "Export to Excel" function</li>
+    <li>Update the "Surplus Status" column with one of these values:
+      <ul>
+        <li><strong>pending</strong> - Surplus needs to check this item</li>
+        <li><strong>wanted</strong> - Wanted by surplus</li>
+        <li><strong>not_wanted</strong> - Not wanted by surplus</li>
+      </ul>
+    </li>
+    <li>Save the file and upload it here</li>
+  </ol>
+  <p><strong>Note:</strong> Only the "Surplus Status" column will be updated. Other changes will be ignored.</p>
+</div>
+
+
+
+<div class="card">
+  <div class="card-header">
+    <h5>Upload Excel File</h5>
+  </div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="excel_file">Choose Excel File:</label>
+        <input type="file" class="form-control-file" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+        <small class="form-text text-muted">Accepted formats: .xlsx, .xls</small>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="material-icons">upload</i>
+        Upload and Process
+      </button>
+      <a href="{% url 'surplus_summary' %}" class="btn btn-secondary">
+        <i class="material-icons">arrow_back</i>
+        Back to Summary
+      </a>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header">
+    <h5>Valid Surplus Status Values</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-4">
+        <div class="text-center p-3">
+          <span class="badge badge-warning badge-lg">
+            <i class="material-icons" style="font-size: 16px; vertical-align: middle;">access_time</i>
+            pending
+          </span>
+          <p class="mt-2 small">Surplus needs to check this item</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="text-center p-3">
+          <span class="badge badge-success badge-lg">
+            <i class="material-icons" style="font-size: 16px; vertical-align: middle;">check_circle</i>
+            wanted
+          </span>
+          <p class="mt-2 small">Wanted by surplus</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="text-center p-3">
+          <span class="badge badge-secondary badge-lg">
+            <i class="material-icons" style="font-size: 16px; vertical-align: middle;">cancel</i>
+            not_wanted
+          </span>
+          <p class="mt-2 small">Not wanted by surplus</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.badge-lg {
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+}
+</style>
+
+{% endblock %}

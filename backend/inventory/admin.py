@@ -41,24 +41,31 @@ class StockItemInline(admin.TabularInline):
 
 # ---------- Core data models ----------
 
-@admin.register(models.Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name")
-    search_fields = ("id", "name")
-    ordering = ("name",)
-    actions = (mark_deleted, restore_deleted)
+@admin.register(models.TagGroup)
+class TagGroupAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "color", "sort_order", "is_active")
+    search_fields = ("id", "name", "description")
+    ordering = ("sort_order", "name")
+    list_filter = ("is_active",)
     list_per_page = 25
 
 
-@admin.register(models.Subcategory)
-class SubcategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "category")
-    list_filter = ("category",)
-    search_fields = ("id", "name", "category__name")
-    ordering = ("category__name", "name")
-    autocomplete_fields = ("category",)
-    actions = (mark_deleted, restore_deleted)
+@admin.register(models.Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "tag_group", "color_display", "sort_order", "is_active")
+    list_filter = ("tag_group", "is_active")
+    search_fields = ("id", "name", "description", "tag_group__name")
+    ordering = ("tag_group__sort_order", "tag_group__name", "sort_order", "name")
+    autocomplete_fields = ("tag_group",)
     list_per_page = 25
+    
+    def color_display(self, obj):
+        """Display color information, showing when using group color"""
+        if obj.color:
+            return f"{obj.color} (custom)"
+        else:
+            return f"{obj.tag_group.color} (from group)"
+    color_display.short_description = "Color"
 
 
 @admin.register(models.Item)
@@ -66,24 +73,23 @@ class ItemAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "name",
-        "category",
-        "subcategory",
+        "tags_display_admin",
         "total_stock_display",
         "is_deleted",
         "url_link",
     )
-    list_filter = ("is_deleted", "category", "subcategory")
+    list_filter = ("is_deleted", "tags__tag_group", "tags")
     search_fields = (
         "id",
         "name",
         "url",
         "notes_public",
         "notes_private",
-        "category__name",
-        "subcategory__name",
+        "tags__name",
+        "tags__tag_group__name",
     )
     ordering = ("name",)
-    autocomplete_fields = ("category", "subcategory")
+    filter_horizontal = ("tags",)
     inlines = [ItemImageInline, StockItemInline]
     list_per_page = 25
 
@@ -96,16 +102,35 @@ class ItemAdmin(admin.ModelAdmin):
     @admin.display(description="Stock Items Total")
     def total_stock_display(self, obj):
         return obj.total_stock_quantity
+    
+    @admin.display(description="Tags")
+    def tags_display_admin(self, obj):
+        return obj.tags_display
 
 
 @admin.register(models.Image)
 class ImageAdmin(admin.ModelAdmin):
-    list_display = ("id", "item", "image_url", "public_id")
+    list_display = ("id", "item", "image_preview", "thumbnail_preview", "public_id")
     search_fields = ("id", "image_url", "item__name", "item__id")
     list_select_related = ("item",)
     autocomplete_fields = ("item",)
     ordering = ("item__name",)
     list_per_page = 25
+    fields = ("item", "image_url", "thumbnail_url", "public_id", "thumbnail_public_id")
+    readonly_fields = ("public_id", "thumbnail_public_id")
+    
+    @admin.display(description="Image Preview")
+    def image_preview(self, obj):
+        if obj.image_url:
+            return format_html('<img src="{}" style="max-width: 100px; max-height: 100px; object-fit: contain;" />', obj.image_url)
+        return "No image"
+    
+    @admin.display(description="Thumbnail Preview")
+    def thumbnail_preview(self, obj):
+        thumbnail_url = obj.get_thumbnail_url(width=50, height=50)
+        if thumbnail_url:
+            return format_html('<img src="{}" style="max-width: 50px; max-height: 50px; object-fit: contain;" />', thumbnail_url)
+        return "No thumbnail"
 
 
 @admin.register(models.Organization)
@@ -127,8 +152,9 @@ class StockItemAdmin(admin.ModelAdmin):
         "date_received",
         "expiration_date",
         "is_expired_display",
+        "surplus_status_display",
     )
-    list_filter = ("organization", "date_received", "expiration_date")
+    list_filter = ("organization", "date_received", "expiration_date", "surplus_status")
     search_fields = (
         "id",
         "item__name",
@@ -144,6 +170,20 @@ class StockItemAdmin(admin.ModelAdmin):
     @admin.display(description="Expired", boolean=True)
     def is_expired_display(self, obj):
         return obj.is_expired
+    
+    @admin.display(description="Surplus Status")
+    def surplus_status_display(self, obj):
+        status_colors = {
+            'pending': 'orange',
+            'wanted': 'green', 
+            'not_wanted': 'red'
+        }
+        color = status_colors.get(obj.surplus_status, 'gray')
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            color,
+            obj.surplus_status_display
+        )
 
 
 @admin.register(models.User)
@@ -240,40 +280,3 @@ class _ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
     def has_change_permission(self, request, obj=None): return False
     def has_delete_permission(self, request, obj=None): return False
-
-
-@admin.register(models.ErrorLog)
-class ErrorLogAdmin(_ReadOnlyAdmin):
-    list_display = ("date", "source", "log_level_name", "message_short", "module", "function_name", "line_num")
-    list_filter = ("log_level_name", "source", "module")
-    search_fields = ("message", "module", "function_name", "source", "exception", "thread_name")
-    date_hierarchy = "date"
-    ordering = ("-date",)
-    list_per_page = 50
-
-    @admin.display(description="Message")
-    def message_short(self, obj):
-        return (obj.message or "")[:120] + ("…" if obj.message and len(obj.message) > 120 else "")
-
-
-@admin.register(models.AccessLog)
-class AccessLogAdmin(_ReadOnlyAdmin):
-    list_display = ("date", "source", "log_level_name", "message_short", "module", "function_name", "line_num")
-    list_filter = ("log_level_name", "source", "module")
-    search_fields = ("message", "module", "function_name", "source", "thread_name")
-    date_hierarchy = "date"
-    ordering = ("-date",)
-    list_per_page = 50
-
-    @admin.display(description="Message")
-    def message_short(self, obj):
-        return (obj.message or "")[:120] + ("…" if obj.message and len(obj.message) > 120 else "")
-
-
-@admin.register(models.LatencyLog)
-class LatencyLogAdmin(_ReadOnlyAdmin):
-    list_display = ("date", "path", "time")
-    search_fields = ("path",)
-    date_hierarchy = "date"
-    ordering = ("-date", "-time")
-    list_per_page = 50

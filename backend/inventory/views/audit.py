@@ -10,7 +10,55 @@ from typing import Any, cast
 from django.http import HttpResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.views.generic import ListView
+from django.db.models import Q
 from inventory.models import AuditEvent
+
+
+class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    """
+    Display a paginated list of audit events with search functionality.
+    
+    Shows audit events with related user information, ordered by creation date.
+    Supports searching by user, event description, or entity type.
+    """
+    model = AuditEvent
+    template_name = 'audit/list.html'
+    context_object_name = 'events'
+    permission_required = 'inventory.view_auditevent'
+    paginate_by = 50  # Show 50 events per page
+    
+    def get_queryset(self):
+        search_query = self.request.GET.get('search', '').strip()
+        
+        # Base queryset with related user data for efficiency
+        queryset = AuditEvent.objects.select_related("user").order_by('-created_at')
+        
+        # Add search filtering if provided
+        if search_query:
+            queryset = queryset.filter(
+                Q(user__username__icontains=search_query) |
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(event__icontains=search_query) |
+                Q(entity_type__icontains=search_query)
+            )
+        
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('search', '')
+        
+        # Prepare JSON data for each event
+        for event in context['events']:
+            event.json_data = json.dumps({
+                'before': event.before,
+                'after': event.after,
+            })
+        
+        return context
 
 
 @login_required

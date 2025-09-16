@@ -1,7 +1,12 @@
 {% extends "shared/base.html" %} {% block body %}
 <div id="page">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">{{ item.name }}</h4>
+    <div class="d-flex align-items-center">
+      <button class="btn btn-link p-0 me-3" onclick="history.back()" title="Go back">
+        <i class="material-icons" style="font-size: 24px; color: #6c757d;">chevron_left</i>
+      </button>
+      <h4 class="mb-0">{{ item.name }}</h4>
+    </div>
     <div class="btn-group" role="group">
       {% if item.is_deleted %} 
         {% if perms.inventory.restore_deleteditem %}
@@ -24,7 +29,7 @@
 <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
 {% endif %} 
 {% if perms.inventory.change_checkout %}
-<a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Bulk Checkout</a>
+<a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Checkout</a>
 {% endif %} 
 
   <style type="text/css">
@@ -82,8 +87,14 @@
     {% endif %}
 
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
-      <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">label</i> Tags</span>
+      <span class="flex-fill text-right">
+        {% for tag in item.tags.all %}
+          <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">{{ tag.name }}</span>
+        {% empty %}
+          <em>No tags assigned</em>
+        {% endfor %}
+      </span>
     </div>
 
     {% if item.manufacturer %}
@@ -107,7 +118,7 @@
 
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Total Quantity</span>
-      <span class="flex-fill text-right">{{ item.total_stock_quantity }}</span>
+      <span class="flex-fill text-right">{{ total_items }}</span>
     </div>
 
     {% if item.items_per_box %}
@@ -144,16 +155,20 @@
             <tr>
               <th>Detail</th>
               <th>Quantity</th>
+              
+            {% if perms.inventory.view_internalstockingdetails %}
+            <th>Location</th>
+            {% endif %}
               <th>Expiration Date</th>
             {% if perms.inventory.view_internalstockingdetails %}
-              <th>Location</th>
-              <th>Origin Org</th>
               <th>Date Received</th>
               {% endif %}
               {% if not item.gtin %}
               <th>GTIN</th>
               {% endif %}
-              <th>Lot Number</th>
+              {% if perms.inventory.view_internalstockingdetails %}
+              <th>Surplus Status</th>
+              {% endif %}
               {% if perms.inventory.change_stockitem and not item.is_deleted %}
               <th>Actions</th>
               {% endif %}
@@ -164,6 +179,9 @@
             <tr {% if stock.is_expired %}class="table-danger" {% endif %}>
               <td>{{ stock.detail|default:"-" }}</td>
               <td>{{ stock.quantity }}</td>
+              {% if perms.inventory.view_internalstockingdetails %}
+                <td>{{ stock.location|default:"-" }}</td>
+                {% endif %}
               <td>
                   {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
                   <span class="badge badge-danger">Expired</span>
@@ -172,8 +190,6 @@
                   {% endif %}
             </td>
             {% if perms.inventory.view_internalstockingdetails %}
-              <td>{{ stock.location|default:"-" }}</td>
-                <td>{{ stock.organization.name }}</td>
                 <td>{{ stock.date_received|date:"M d, Y" }}</td>
                 {% endif %}
                 
@@ -186,7 +202,27 @@
                   {% endif %}
                 </td>
                 {% endif %}
-              <td>{{ stock.lot_number|default:"-" }}</td>
+              {% if perms.inventory.view_internalstockingdetails %}
+              <td>
+                {% if stock.surplus_status == 'pending' %}
+                  <span class="badge badge-warning">
+                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">access_time</i>
+                    Needs to Check
+                  </span>
+                {% elif stock.surplus_status == 'wanted' %}
+                  <span class="badge badge-danger">
+                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</i>
+                    Wanted
+                  </span>
+                {% elif stock.surplus_status == 'not_wanted' %}
+                  <span class="badge badge-secondary">
+                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">cancel</i>
+                    Not Wanted
+                  </span>
+                {% endif %}
+              </td>
+              {% endif %}
+
               {% if perms.inventory.change_stockitem and not item.is_deleted%}
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
@@ -198,7 +234,7 @@
             </tr>
             {% if stock.notes %}
             <tr>
-              <td colspan="{% if perms.inventory.change_stockitem %}9{% else %}8{% endif %}" class="text-muted small" style="padding-left: 2rem; border-top: none;"><strong>Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
+              <td colspan="{% if perms.inventory.change_stockitem %}10{% else %}9{% endif %}" class="text-muted small" style="padding-left: 2rem; border-top: none;"><strong>Notes:</strong> {{ stock.notes|linebreaksbr }}</td>
             </tr>
             {% endif %} {% endif %} {% endfor %}
           </tbody>

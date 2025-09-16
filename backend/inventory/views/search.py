@@ -41,7 +41,6 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             dict: Template context with form-specific data
         """
         context = super().get_context_data(**kwargs)
-        context['action'] = 'Check in'
         context['defaultQuantity'] = 1
         context["items"] = Item.active_objects.all().order_by('name')
         
@@ -139,7 +138,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         after_state = audit_log_state(stock_item)
         audit_log_event(
             self.request.user, 
-            f"Checked in {quantity} of item \"{item.name}\" from {location}", 
+            f"Checked-in {quantity} of \"{item.name}\" into location \"{location}\"", 
             before_state,
             after_state
         )
