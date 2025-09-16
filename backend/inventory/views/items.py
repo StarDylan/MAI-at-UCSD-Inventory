@@ -864,7 +864,7 @@ def public_search_api(request):
     Returns:
         JsonResponse: JSON response with items data and pagination info
     """
-    from django.db.models import Q, Sum, Case, When, IntegerField, Max, Count
+    from django.db.models import Q, Sum, Case, When, IntegerField, Count
     from django.utils import timezone
     
     # Get pagination parameters
@@ -889,8 +889,8 @@ def public_search_api(request):
     exclude_expired_param = request.GET.get('exclude_expired', 'false')
     exclude_expired = exclude_expired_param.lower() == 'true' if isinstance(exclude_expired_param, str) else bool(exclude_expired_param)
     
-    sort_by = request.GET.get('sort_by', 'date_added')
-    sort_order = request.GET.get('sort_order', 'desc' if sort_by == 'date_added' else 'asc')
+    sort_by = request.GET.get('sort_by', 'last_updated')
+    sort_order = request.GET.get('sort_order', 'desc')
     
     # Check user permissions
     has_internal_details_perm = request.user.has_perm('inventory.view_internalstockingdetails')
@@ -996,8 +996,7 @@ def public_search_api(request):
                 output_field=IntegerField()
             )
         ),
-        variant_count=Count('stock_items__detail', distinct=True),
-        latest_stock_date=Max('stock_items__date_received')
+        variant_count=Count('stock_items__detail', distinct=True)
     )
     
     # Apply expiration filter
@@ -1011,8 +1010,8 @@ def public_search_api(request):
     
     # Apply sorting
     sort_field = 'name'  # default
-    if sort_by == 'date_added':
-        sort_field = 'latest_stock_date'
+    if sort_by == 'last_updated':
+        sort_field = 'last_updated'
     elif sort_by == 'name':
         sort_field = 'name'
     elif sort_by == 'manufacturer':
@@ -1117,7 +1116,7 @@ def public_search_api(request):
             'variant_count': item.variant_count or 0,
             'image_url': image_url,
             'locations': locations,
-            'latest_stock_date': item.latest_stock_date.isoformat() if item.latest_stock_date else None,
+            'last_updated': item.last_updated.isoformat() if item.last_updated else None,
             'notes_public': item.notes_public,
             'url': item.url,
         })

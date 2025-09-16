@@ -436,13 +436,13 @@ class TagFilterForm(forms.Form):
     
     sort_by = forms.ChoiceField(
         choices=[
-            ('date_added', 'Date Added'),
+            ('last_updated', 'Last Updated'),
             ('name', 'Name'),
             ('manufacturer', 'Manufacturer'),
             ('tags', 'Tags'),
             ('quantity', 'Quantity'),
         ],
-        initial='date_added',
+        initial='last_updated',
         widget=forms.Select(attrs={'class': 'form-control'}),
         label="Sort By"
     )

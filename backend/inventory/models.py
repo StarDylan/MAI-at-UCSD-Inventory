@@ -2,6 +2,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models.functions import Lower
 from django.core.validators import URLValidator
 from django.db import models
+from django.db.models.signals import post_save, post_delete, m2m_changed
+from django.dispatch import receiver
+from django.utils import timezone
 import uuid
 
 from inventory.managers import ActiveManager
@@ -160,6 +163,9 @@ class Item(models.Model):
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
     url = models.TextField(validators=[URLValidator()], blank=True, default="")
+    
+    # Automatically updated timestamp fields
+    last_updated = models.DateTimeField(auto_now=True, help_text="Timestamp of last update to this item or its related data")
 
     is_deleted = models.BooleanField(default=False)
 
@@ -527,3 +533,40 @@ class AuditEvent(models.Model):
 
     def __str__(self):
         return f"[{self.created_at}] {self.entity_type}:{self.id} {self.event}"
+
+# Signals to automatically update Item.last_updated when related models change
+@receiver(post_save, sender=StockItem)
+def update_item_on_stock_save(sender, instance, **kwargs):
+    """Update Item.last_updated when a StockItem is saved"""
+    instance.item.last_updated = timezone.now()
+    instance.item.save(update_fields=['last_updated'])
+
+
+@receiver(post_delete, sender=StockItem)
+def update_item_on_stock_delete(sender, instance, **kwargs):
+    """Update Item.last_updated when a StockItem is deleted"""
+    instance.item.last_updated = timezone.now()
+    instance.item.save(update_fields=['last_updated'])
+
+
+@receiver(post_save, sender=Image)
+def update_item_on_image_save(sender, instance, **kwargs):
+    """Update Item.last_updated when an Image is saved"""
+    instance.item.last_updated = timezone.now()
+    instance.item.save(update_fields=['last_updated'])
+
+
+@receiver(post_delete, sender=Image)
+def update_item_on_image_delete(sender, instance, **kwargs):
+    """Update Item.last_updated when an Image is deleted"""
+    instance.item.last_updated = timezone.now()
+    instance.item.save(update_fields=['last_updated'])
+
+
+# Handle tag changes (many-to-many relationships)
+@receiver(m2m_changed, sender=Item.tags.through)
+def update_item_on_tags_change(sender, instance, action, **kwargs):
+    """Update Item.last_updated when tags are added or removed"""
+    if action in ['post_add', 'post_remove', 'post_clear']:
+        instance.last_updated = timezone.now()
+        instance.save(update_fields=['last_updated'])
