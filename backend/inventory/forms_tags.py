@@ -6,11 +6,8 @@ including tag group and tag management, as well as updated item forms
 that use tags instead of categories.
 """
 from django import forms
-from django.urls import reverse
 from .models import Tag, TagGroup, Organization, StockItem, Item
 from inventory import models
-from datetime import date
-from django.utils import timezone
 
 
 class TagGroupForm(forms.ModelForm):
@@ -189,15 +186,6 @@ class TaggedItemWithStockForm(forms.Form):
         help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1234567890123'})
     )
-    gtin_applies_to = forms.ChoiceField(
-        choices=[
-            ('item', 'Entire Item (only one size/variant)'),
-            ('variant', 'This Specific Variant Only'),
-        ],
-        initial='item',
-        widget=forms.RadioSelect,
-        label="GTIN applies to",
-    )
     
     detail = forms.CharField(
         max_length=255,
@@ -323,12 +311,15 @@ class TaggedItemWithStockForm(forms.Form):
         """Create both Item and initial StockItem"""
         data = self.cleaned_data
 
-        # Determine where to place the GTIN based on the toggle
         gtin = data.get('gtin', '').strip()
-        gtin_applies_to = data.get('gtin_applies_to', 'item')
-        
-        item_gtin = gtin if gtin_applies_to == 'item' else ''
-        stock_gtin = gtin if gtin_applies_to == 'variant' else ''
+        detail = data.get('detail', '').strip()
+        # If there is no variant/detail, set GTIN on item; otherwise, set on stock item
+        if not detail:
+            item_gtin = gtin
+            stock_gtin = ''
+        else:
+            item_gtin = ''
+            stock_gtin = gtin
 
         # Create Item with only tags - no legacy category fields
         item = models.Item(
