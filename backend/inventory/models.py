@@ -531,6 +531,8 @@ class AuditEvent(models.Model):
             ("view_allauditevents", "Can view all audit events"),
         ]
 
+    def __str__(self):
+        return f"[{self.created_at}] {self.entity_type}:{self.id} {self.event}"
 
 # Signals to automatically update Item.last_updated when related models change
 @receiver(post_save, sender=StockItem)
@@ -568,6 +570,3 @@ def update_item_on_tags_change(sender, instance, action, **kwargs):
     if action in ['post_add', 'post_remove', 'post_clear']:
         instance.last_updated = timezone.now()
         instance.save(update_fields=['last_updated'])
-
-    def __str__(self):
-        return f"[{self.created_at}] {self.entity_type}:{self.id} {self.event}"
