@@ -682,15 +682,6 @@ def items_search_api(request):
                         )
                     )
                 ))
-    
-    # Debug: Print search info
-    print(f"DEBUG items_search_api: Search conditions: {search_conditions}")
-    print(f"DEBUG items_search_api: Found {items_qs.count()} items")
-    if gtin_query or (general_query and len(general_query) >= 8):
-        for item in items_qs[:3]:
-            print(f"DEBUG items_search_api: Item {item.name} - Annotated Qty: {item.annotated_total_stock_quantity}")
-            actual_total = sum(si.quantity for si in item.stock_items.filter(quantity__gt=0))
-            print(f"DEBUG items_search_api: Item {item.name} - Actual Stock Total: {actual_total}")
                 
     # Apply stock quantity filter based on parameter
     if not include_zero_stock:
@@ -916,15 +907,12 @@ def public_search_api(request):
     
     # Apply search filter to stock items and their related items
     search_conditions = Q()
-    if search_query and len(search_query) >= 2:
-        print(f"DEBUG: Search query: '{search_query}'")
-        
+    if search_query and len(search_query) >= 2:        
         # Check if this looks like a GTIN (8+ digits, mostly numeric)
         is_gtin_search = len(search_query) >= 8 and search_query.replace('-', '').replace(' ', '').isdigit()
         
         if is_gtin_search:
             # For GTIN searches, only search GTIN fields to avoid duplicates
-            print("DEBUG: Detected GTIN search pattern")
             search_conditions = (
                 Q(item__gtin__exact=search_query) |  # Exact match for item-level GTIN
                 Q(gtin__exact=search_query)  # Exact match for stock item GTIN
@@ -938,7 +926,6 @@ def public_search_api(request):
                 Q(item__tags__tag_group__name__icontains=search_query)  # Search in tag group names
             )
         
-        print(f"DEBUG: Search conditions: {search_conditions}")
         # Add location search only for users with internal details permission
         if has_internal_details_perm:
             search_conditions |= Q(location__icontains=search_query)
@@ -986,11 +973,7 @@ def public_search_api(request):
     ).select_related()
     
     # Add distinct to prevent duplicates when joining with stock_items, tags, etc.
-    if search_conditions:
-        print(f"DEBUG: Items found before distinct: {items_query.count()}")
     items_query = items_query.distinct()
-    if search_conditions:
-        print(f"DEBUG: Items found after distinct: {items_query.count()}")
     
     # Annotate with stock information
     today = timezone.now().date()
@@ -1017,14 +1000,6 @@ def public_search_api(request):
         latest_stock_date=Max('stock_items__date_received')
     )
     
-    # Debug: Print stock quantities for GTIN searches
-    if search_conditions and search_query and len(search_query) >= 8:  # Likely a GTIN
-        for item in items_query[:5]:  # Check first 5 items
-            print(f"DEBUG: Item {item.name} - ID: {item.id} - Annotated Qty: {item.annotated_total_stock_quantity}")
-            # Check actual stock items
-            actual_total = sum(si.quantity for si in item.stock_items.filter(quantity__gt=0))
-            print(f"DEBUG: Item {item.name} - Actual Stock Total: {actual_total}")
-
     # Apply expiration filter
     if exclude_expired:
         # Only exclude items where ALL stock is expired (no valid stock remaining)
