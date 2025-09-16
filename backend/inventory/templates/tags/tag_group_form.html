@@ -1,0 +1,32 @@
+{% extends "shared/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Tag Group{% else %}Create Tag Group{% endif %}{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>{% if object %}Edit Tag Group{% else %}Create New Tag Group{% endif %}</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="material-icons">save</i> {% if object %}Update Tag Group{% else %}Create Tag Group{% endif %}
+                            </button>
+                            <a href="{% url 'tag_groups_list' %}" class="btn btn-secondary">
+                                <i class="material-icons">cancel</i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

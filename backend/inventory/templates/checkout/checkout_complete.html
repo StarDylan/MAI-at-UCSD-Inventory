@@ -5,10 +5,33 @@
 </div>
 
 <!-- Warning Alert -->
-<div class="alert alert-warning">
-  <h5><i class="material-icons">warning</i> Completing Checkout</h5>
-  <p class="mb-0">This will subtract all items from inventory and mark the checkout as completed. This action can be undone later if needed.</p>
+{% if has_surplus_items %}
+<div class="alert alert-danger">
+  <h5><i class="material-icons">warning</i> Surplus Items Warning</h5>
+  {% if checkout.is_donation %}
+  <p><strong>This donation checkout contains items with surplus restrictions.</strong> Please review:</p>
+  {% else %}
+  <p><strong>This checkout contains items pending surplus review.</strong> Please confirm approval:</p>
+  {% endif %}
+  <ul class="mb-2">
+    {% for item in surplus_items %}
+    <li>
+      <strong>{{ item.stock_item.item.name }}</strong> from {{ item.stock_item.location }}
+      {% if item.stock_item.surplus_status == 'wanted' %}
+      - <span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
+      {% else %}
+      - <span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if checkout.is_donation %}
+  <p class="mb-0">Items wanted by surplus or under review should not typically be donated.</p>
+  {% else %}
+  <p class="mb-0">Please confirm that pending items have been approved before checkout.</p>
+  {% endif %}
 </div>
+{% endif %}
 
 <!-- Checkout Summary -->
 <div class="row mb-4">
@@ -89,13 +112,24 @@
         </thead>
         <tbody>
           {% for item in checkout.checkout_items.all %}
+          {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
+          <tr class="table-danger">
+          {% elif item.stock_item.surplus_status == 'pending' %}
+          <tr class="table-warning">
+          {% else %}
           <tr>
+          {% endif %}
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none">
                 <strong>{{ item.stock_item.item.name }}</strong>
               </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+              {% endif %}
+              {% if item.stock_item.surplus_status == 'wanted' %}
+              <br /><span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
+              {% elif item.stock_item.surplus_status == 'pending' %}
+              <br /><span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
               {% endif %}
             </td>
             <td>

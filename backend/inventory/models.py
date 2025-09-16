@@ -1,40 +1,121 @@
 from django.contrib.auth.models import AbstractUser
 from django.db.models.functions import Lower
+from django.core.validators import URLValidator
 from django.db import models
 import uuid
 
 from inventory.managers import ActiveManager
 
-class Category(models.Model):
+class TagGroup(models.Model):
+    """
+    Groups for organizing tags into logical categories.
+    Examples: 'Medical Supplies', 'Office Equipment', 'Electronics', etc.
+    """
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, help_text="Name of the tag group (e.g., 'Medical Supplies')")
+    description = models.TextField(blank=True, default="", help_text="Optional description of this tag group")
+    color = models.CharField(
+        max_length=7, 
+        default="#6c757d", 
+        help_text="Hex color code for visual representation (e.g., #ff0000)"
+    )
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order for displaying tag groups")
+    is_active = models.BooleanField(default=True, help_text="Whether this tag group is active")
 
     class Meta:
-        db_table = "category"
-
+        db_table = "tag_group"
+        ordering = ['sort_order', 'name']
         constraints = [
-            models.UniqueConstraint(fields=['name'], name='unique_active_category_name')
+            models.UniqueConstraint(fields=['name'], name='unique_tag_group_name')
         ]
 
     def __str__(self):
         return self.name
+    
+    @property
+    def text_color(self):
+        """Calculate text color based on background luminance for optimal readability."""
+        hex_color = self.color.lstrip('#')
+        
+        # Convert hex to RGB
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+        except (ValueError, IndexError):
+            # Fallback for invalid color values
+            return '#000000'
+        
+        # Calculate luminance using the provided formula
+        luminance = (r * 0.299 + g * 0.587 + b * 0.114)
+        
+        # Return black text for light backgrounds, white text for dark backgrounds
+        return '#000000' if luminance > 186 else '#ffffff'
 
-class Subcategory(models.Model):
+
+class Tag(models.Model):
+    """
+    Individual tags that can be applied to items.
+    Each tag belongs to a tag group for organization.
+    """
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    category = models.ForeignKey(
-        Category,
-        related_name="subcategories",
+    name = models.CharField(max_length=100, help_text="Name of the tag (e.g., 'PPE', 'Disposable')")
+    description = models.TextField(blank=True, default="", help_text="Optional description of this tag")
+    tag_group = models.ForeignKey(
+        TagGroup,
+        related_name="tags",
         on_delete=models.PROTECT,
+        help_text="The group this tag belongs to"
     )
-    name = models.CharField(max_length=100)
+    color = models.CharField(
+        max_length=7, 
+        blank=True, 
+        default="", 
+        help_text="Hex color code (optional, inherits from tag group if empty)"
+    )
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order for displaying tags within group")
+    is_active = models.BooleanField(default=True, help_text="Whether this tag is active")
 
     class Meta:
+        db_table = "tag"
+        ordering = ['tag_group__sort_order', 'tag_group__name', 'sort_order', 'name']
         constraints = [
-            models.UniqueConstraint(fields=['name', 'category'], name='unique_active_subcategory_name')
+            models.UniqueConstraint(fields=['name'], name='unique_tag_name_global')
+        ]
+        permissions = [
+            ("hide_tag", "Can hide tags")
         ]
 
     def __str__(self):
-        return f"{self.category.name} / {self.name}"
+        return f"{self.tag_group.name}: {self.name}"
+    
+    @property
+    def display_color(self):
+        """Get the display color, falling back to tag group color if not set."""
+        return self.color or self.tag_group.color
+    
+    @property
+    def text_color(self):
+        """Calculate text color based on background luminance for optimal readability."""
+        hex_color = self.display_color.lstrip('#')
+        
+        # Convert hex to RGB
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+        except (ValueError, IndexError):
+            # Fallback for invalid color values
+            return '#000000'
+        
+        # Calculate luminance using the provided formula
+        luminance = (r * 0.299 + g * 0.587 + b * 0.114)
+        
+        # Return black text for light backgrounds, white text for dark backgrounds
+        return '#000000' if luminance > 186 else '#ffffff'
+
+
+
 
 
 class Organization(models.Model):
@@ -56,19 +137,13 @@ class Organization(models.Model):
 
 class Item(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    category = models.ForeignKey(
-        Category,
+    
+    # Tagging system - items can have multiple tags
+    tags = models.ManyToManyField(
+        Tag,
         related_name="items",
-        on_delete=models.PROTECT,
-        db_column="category_id",
-    )
-    subcategory = models.ForeignKey(
-        Subcategory,
-        related_name="items",
-        on_delete=models.PROTECT,
-        null=True,
         blank=True,
-        db_column="subcategory_id",
+        help_text="Tags assigned to this item for flexible categorization"
     )
 
     name = models.CharField(max_length=255)
@@ -84,7 +159,7 @@ class Item(models.Model):
     )
     notes_public = models.TextField(blank=True, default="")
     notes_private = models.TextField(blank=True, default="")
-    url = models.URLField(blank=True)
+    url = models.TextField(validators=[URLValidator()], blank=True, default="")
 
     is_deleted = models.BooleanField(default=False)
 
@@ -144,6 +219,29 @@ class Item(models.Model):
         gtins.extend(stock_gtins)
         
         return gtins
+    
+    # Tag-related methods
+    @property
+    def tag_groups_display(self):
+        """Get comma-separated list of tag groups for this item"""
+        tag_groups = self.tags.values_list('tag_group__name', flat=True).distinct()
+        return ', '.join(sorted(tag_groups)) if tag_groups else ""
+    
+    @property
+    def tags_display(self):
+        """Get comma-separated list of tag names for this item"""
+        tag_names = self.tags.values_list('name', flat=True).order_by('tag_group__sort_order', 'sort_order', 'name')
+        return ', '.join(tag_names) if tag_names else ""
+    
+    def get_tags_by_group(self):
+        """Get tags organized by tag group for this item"""
+        tags_by_group = {}
+        for tag in self.tags.select_related('tag_group').order_by('tag_group__sort_order', 'sort_order'):
+            group_name = tag.tag_group.name
+            if group_name not in tags_by_group:
+                tags_by_group[group_name] = []
+            tags_by_group[group_name].append(tag)
+        return tags_by_group
 
 
 class StockItem(models.Model):
@@ -159,6 +257,7 @@ class StockItem(models.Model):
         related_name="stock_items",
         on_delete=models.CASCADE,
         db_column="item_id",
+        db_index=True
     )
     organization = models.ForeignKey(
         Organization,
@@ -188,13 +287,8 @@ class StockItem(models.Model):
             ("download_surplus_report", "Can download surplus reports"),
             ("upload_surplus_report", "Can upload surplus reports"),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=['gtin'], 
-                condition=models.Q(gtin__gt=''),
-                name='unique_stockitem_gtin'
-            )
-        ]
+        # Removed unique constraint on GTIN to allow duplicate GTINs within stock items
+        # GTINs should only be unique across different items, not within stock items
 
     
     def __str__(self):
@@ -241,15 +335,52 @@ class User(AbstractUser):
 
 class Image(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    image_url = models.URLField()
+    image_url = models.URLField(help_text="Full-size image URL")
+    thumbnail_url = models.URLField(blank=True, default="", help_text="Thumbnail image URL for lists and previews")
     public_id = models.CharField(max_length=255, blank=True, null=True)
+    thumbnail_public_id = models.CharField(max_length=255, blank=True, default="", help_text="Cloudinary public ID for thumbnail")
     item = models.ForeignKey(
-        Item, related_name="images", on_delete=models.CASCADE, db_column="item_id"
+        Item, related_name="images", on_delete=models.CASCADE, db_column="item_id", db_index=True
     )
 
     def __str__(self):
         return self.image_url
-
+    
+    def get_thumbnail_url(self, width=150, height=150):
+        """
+        Get thumbnail URL using Cloudinary transformations.
+        Falls back to stored thumbnail_url or original image_url if transformations fail.
+        
+        Args:
+            width: Thumbnail width (default: 150)
+            height: Thumbnail height (default: 150)
+            
+        Returns:
+            Thumbnail URL string
+        """
+        # If we have a stored thumbnail_url, use it
+        if self.thumbnail_url:
+            return self.thumbnail_url
+            
+        # If we have a public_id, generate thumbnail URL via Cloudinary transformations
+        if self.public_id:
+            try:
+                from cloudinary.utils import cloudinary_url
+                thumbnail_url, _ = cloudinary_url(
+                    self.public_id,
+                    width=width,
+                    height=height,
+                    crop="fill",
+                    quality="auto",
+                    fetch_format="auto"
+                )
+                return thumbnail_url
+            except Exception:
+                # Fall back to original image if transformation fails
+                pass
+                
+        # Final fallback to original image
+        return self.image_url
 
 class CheckOut(models.Model):
     """
@@ -382,7 +513,7 @@ class AuditEvent(models.Model):
     entity_type = models.CharField(max_length=50, db_column="type", editable=False)
     entity_id = models.UUIDField(editable=False)
     user = models.ForeignKey(User, on_delete=models.PROTECT, editable=False)
-    event = models.CharField(max_length=255, editable=False)
+    event = models.TextField(editable=False)
     before = models.TextField(blank=True, default="", editable=False)
     after = models.TextField(blank=True, default="", editable=False)
 
@@ -396,56 +527,3 @@ class AuditEvent(models.Model):
 
     def __str__(self):
         return f"[{self.created_at}] {self.entity_type}:{self.id} {self.event}"
-
-
-# -----------------------
-# LOG DB MODELS
-# -----------------------
-# If you keep logs in a separate SQLite file (mai-log.db), you can place these in a
-# separate Django app and route them to a different DATABASES alias via a database router.
-
-class ErrorLog(models.Model):
-    date = models.DateTimeField()
-    source = models.CharField(max_length=255)
-    log_level = models.IntegerField()
-    log_level_name = models.CharField(max_length=50)
-    message = models.TextField()
-    args = models.TextField(blank=True, default="")
-    module = models.CharField(max_length=255, blank=True, default="")
-    function_name = models.CharField(max_length=255, blank=True, default="")
-    line_num = models.IntegerField(null=True, blank=True)
-    exception = models.TextField(blank=True, default="")
-    process = models.IntegerField(null=True, blank=True)
-    thread = models.CharField(max_length=255, blank=True, default="")
-    thread_name = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        db_table = "error_log"
-
-
-class AccessLog(models.Model):
-    date = models.DateTimeField()
-    source = models.CharField(max_length=255)
-    log_level = models.IntegerField()
-    log_level_name = models.CharField(max_length=50)
-    message = models.TextField()
-    args = models.TextField(blank=True, default="")
-    module = models.CharField(max_length=255, blank=True, default="")
-    function_name = models.CharField(max_length=255, blank=True, default="")
-    line_num = models.IntegerField(null=True, blank=True)
-    exception = models.TextField(blank=True, default="")
-    process = models.IntegerField(null=True, blank=True)
-    thread = models.CharField(max_length=255, blank=True, default="")
-    thread_name = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        db_table = "access_log"
-
-
-class LatencyLog(models.Model):
-    date = models.DateTimeField()
-    path = models.CharField(max_length=512)
-    time = models.IntegerField(help_text="Latency in milliseconds")
-
-    class Meta:
-        db_table = "latency_log"

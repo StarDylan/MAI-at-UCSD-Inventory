@@ -22,6 +22,33 @@ from inventory.models import Item, Image
 from .utils import audit_log_state, audit_log_event
 
 
+def generate_thumbnail_url(public_id, width=150, height=150):
+    """
+    Generate a thumbnail URL using Cloudinary transformations.
+    
+    Args:
+        public_id: Cloudinary public ID of the image
+        width: Thumbnail width (default: 150)
+        height: Thumbnail height (default: 150)
+        
+    Returns:
+        Thumbnail URL string using Cloudinary transformations
+    """
+    try:
+        thumbnail_url, _ = cloudinary_url(
+            public_id,
+            width=width,
+            height=height,
+            crop="fill",
+            quality="auto",
+            fetch_format="auto"
+        )
+        return thumbnail_url
+    except Exception as e:
+        logging.error(f"Thumbnail URL generation failed: {e}")
+        return None
+
+
 @login_required
 @permission_required('inventory.delete_image', raise_exception=True)
 def image_delete_list_view(request):
@@ -54,8 +81,9 @@ def image_upload_view(request, uuid):
     """
     Handle photo uploads for a specific item.
     
-    Accepts base64 encoded image data via POST request and uploads it to
-    Cloudinary. Creates a new Image record associated with the item.
+    Accepts base64 encoded image data via POST request and uploads both
+    full-size and thumbnail versions to Cloudinary. Creates a new Image 
+    record with both URLs.
     
     Args:
         request: HTTP request object (must be POST with JSON body)
@@ -99,7 +127,7 @@ def image_upload_view(request, uuid):
             version: int
 
         try:
-            # Upload image to Cloudinary
+            # Upload full-size image to Cloudinary
             upload_result = cast(
                 UploadResult, 
                 cloudinary.uploader.upload(image_data, resource_type="auto")
@@ -112,14 +140,23 @@ def image_upload_view(request, uuid):
                 quality="auto"
             )
             
+            # Generate thumbnail URL using Cloudinary transformations
+            thumbnail_url = generate_thumbnail_url(upload_result["public_id"])
+            
+            # Use the original image URL as fallback if thumbnail URL generation fails
+            if not thumbnail_url:
+                thumbnail_url = optimize_url
+            
         except Exception as e:
             logging.error(f"Cloudinary upload failed: {e}")
             raise Exception("Cloudinary upload failed")
 
-        # Create new Image record in database
+        # Create new Image record in database with both URLs
         new_image = Image.objects.create(
             image_url=optimize_url,
+            thumbnail_url=thumbnail_url,
             public_id=upload_result["public_id"],
+            thumbnail_public_id="",  # No separate thumbnail uploaded - using transformations
             item=item,
         )
 
@@ -149,7 +186,7 @@ def image_delete_view(request, uuid):
     Delete a specific image from the system.
     
     Removes the image record from the database and optionally deletes
-    it from Cloudinary based on system settings.
+    both full-size and thumbnail images from Cloudinary based on system settings.
     
     Args:
         request: HTTP request object
@@ -172,7 +209,10 @@ def image_delete_view(request, uuid):
     # Delete from Cloudinary if configured to do so
     if settings.DELETE_CLOUDINARY_IMAGES:
         try:
-            cloudinary.uploader.destroy(image.public_id)
+            # Delete the main image - thumbnails are generated via transformations
+            if image.public_id:
+                cloudinary.uploader.destroy(image.public_id)
+                
         except Exception as e:
             logging.error(f"Error deleting image from Cloudinary: {e}")
             raise e

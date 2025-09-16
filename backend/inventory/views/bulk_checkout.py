@@ -120,20 +120,16 @@ def checkout_detail_view(request, checkout_id):
     checkout_audit = AuditEvent.objects.filter(entity_id=checkout.id).select_related('user').order_by('-created_at')
 
     # Prepare audit events for template display
-    audit_events = []
     for event in checkout_audit:
-        audit_events.append({
-            'event': event,
-            'json_data': {
-                'before': event.before,
-                'after': event.after,
-            }
-        })
+        event.json_data = {
+            'before': event.before,
+            'after': event.after,
+        }
 
     context = {
         'checkout': checkout,
         'checkout_items': checkout_items,
-        'checkout_audit': audit_events,
+        'checkout_audit': checkout_audit,
         'can_edit': not checkout.is_completed,
     }
 
@@ -464,9 +460,30 @@ def checkout_complete_view(request, checkout_id):
     else:
         form = CheckOutCompleteForm(checkout=checkout)
     
+    # Check for problematic surplus items based on checkout type
+    checkout_items = checkout.checkout_items.select_related('stock_item__item').all()
+    
+    # For donations: warn about wanted items (since they shouldn't be donated)
+    # For non-donations: only warn about pending items (wanted items are fine for non-donations)
+    if checkout.is_donation:
+        problematic_items = [
+            item for item in checkout_items 
+            if item.stock_item.surplus_status in ['wanted', 'pending']
+        ]
+    else:
+        # Non-donation: only warn about pending items
+        problematic_items = [
+            item for item in checkout_items 
+            if item.stock_item.surplus_status == 'pending'
+        ]
+    
+    has_surplus_items = len(problematic_items) > 0
+    
     return render(request, 'checkout/checkout_complete.html', {
         'checkout': checkout,
         'form': form,
+        'has_surplus_items': has_surplus_items,
+        'surplus_items': problematic_items,
     })
 
 
@@ -588,12 +605,14 @@ def add_to_checkout_from_item_view(request, item_uuid):
 def get_stock_items_api(request, item_uuid):
     """
     API endpoint to get stock items for a specific item (for AJAX).
-    Only returns stock items with quantity greater than 0.
+    Returns all stock items with quantity greater than 0, including surplus status information for flagging.
     """
     item = get_object_or_404(Item, id=item_uuid)
-    stock_items = item.stock_items.filter(quantity__gt=0).order_by(
-        'detail', 'expiration_date', 'date_received'  # type: ignore
-    )
+    
+    # Include all stock items with quantity > 0, regardless of surplus status
+    stock_items = item.stock_items.filter(
+        quantity__gt=0
+    ).order_by('detail', 'expiration_date', 'date_received')
     
     data = []
     for stock_item in stock_items:
@@ -604,6 +623,8 @@ def get_stock_items_api(request, item_uuid):
             'quantity': stock_item.quantity,
             'organization': stock_item.organization.name,
             'expiration_date': stock_item.expiration_date.strftime('%Y-%m-%d') if stock_item.expiration_date else None,
+            'surplus_status': stock_item.surplus_status,
+            'surplus_status_display': stock_item.surplus_status_display,
             'display_name': f"{stock_item.detail} - {stock_item.location} ({stock_item.quantity} available)"
         })
     

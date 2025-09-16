@@ -30,11 +30,14 @@ class BarcodeScanner {
         const ais = {
             "01": { key: "gtin", isVariableLength: false, length: 14 },
             "10": { key: "lot", isVariableLength: true, length: 20 },
+            "13": { key: "packaging_date", isVariableLength: false, length: 6 },
             "17": { key: "expiration", isVariableLength: false, length: 6 },
+            "20": { key: "product_variant", isVariableLength: false, length: 2 },
             "21": { key: "serial", isVariableLength: true, length: 20 },
             "11": { key: "production_date", isVariableLength: false, length: 6 },
             "240": { key: "additional_id", isVariableLength: true, length: 30 },
             "91": { key: "company_internal", isVariableLength: true, length: 30 },
+            
         };
 
         const fixedLengthAis = {};
@@ -44,7 +47,18 @@ class BarcodeScanner {
             }
         }
 
+        // Remove any leading/trailing whitespace
+        remainingData = remainingData.trim();
+        
+        
+        
         while (remainingData.length > 0) {
+            
+            // Remove any leading GS characters
+            while (remainingData.charAt(0) === separator) {
+                remainingData = remainingData.substring(1);
+            }
+
             let aiCode = "";
             let dataField = "";
             
@@ -131,7 +145,21 @@ class BarcodeScanner {
             }
         }
         
-        return result;
+        // Check if we found any GS1 formatting
+        const hasGS1Formatting = data.includes("(") || data.includes(String.fromCharCode(29));
+        
+        if (hasGS1Formatting) {
+            if (Object.keys(result).length === 0) {
+                // GS1 format detected but no relevant data found
+                return { _gs1_no_data: true };
+            } else {
+                // GS1 format detected and some data was parsed
+                return result;
+            }
+        }
+        
+        // Return null if no GS1 formatting detected (not a GS1 barcode)
+        return null;
     }
 
     /**
@@ -267,8 +295,11 @@ class BarcodeScanner {
             this.isScanning = true;
             this.onResult = onResult;
             
-            // Create a Data Matrix code reader
-            const codeReader = new window.ZXing.BrowserDatamatrixCodeReader();
+            const codeReader = new window.ZXing.BrowserMultiFormatReader(null, {
+                // Specify the formats you want to read
+                formats: [window.ZXing.BarcodeFormat.DATA_MATRIX, window.ZXing.BarcodeFormat.UPC_A, window.ZXing.BarcodeFormat.UPC_E]
+            });
+
             this.codeReader = codeReader;
             
             // Get video input devices using the correct API
@@ -639,39 +670,59 @@ function createBarcodeScannerButton(gtinInput) {
  * Handle barcode scan result by parsing GS1 data and populating form fields
  */
 function handleBarcodeResult(gtinInput, barcodeData) {
-    const parsed = BarcodeScanner.parseGS1(barcodeData);
+    const trimmedData = barcodeData.trim();
     
-    // Set GTIN value
-    if (parsed.gtin) {
-        gtinInput.value = parsed.gtin
-        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    // Always try GS1 parsing first
+    const parsed = BarcodeScanner.parseGS1(trimmedData);
     
-    // Try to populate lot and expiration fields if they exist
-    const form = gtinInput.closest('form');
-    if (form) {
-        // Look for lot/batch number field
-        const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
-        for (const fieldName of lotFields) {
-            const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
-            if (lotInput && parsed.lot) {
-                lotInput.value = parsed.lot;
-                lotInput.dispatchEvent(new Event('input', { bubbles: true }));
-                break;
+    if (parsed && parsed._gs1_no_data) {
+        // GS1 format detected but no relevant data found
+        // Don't populate GTIN field - leave it empty
+        showGS1NoDataResult(gtinInput);
+    } else if (parsed && (parsed.gtin || parsed.lot || parsed.expiration)) {
+        // GS1 parsing successful - use parsed data
+        if (parsed.gtin) {
+            gtinInput.value = parsed.gtin;
+            gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // Try to populate lot and expiration fields if they exist
+        const form = gtinInput.closest('form');
+        if (form) {
+            // Look for lot/batch number field
+            const lotFields = ['lot_number', 'lot', 'batch', 'batch_number'];
+            for (const fieldName of lotFields) {
+                const lotInput = form.querySelector(`[name="${fieldName}"], #id_${fieldName}`);
+                if (lotInput && parsed.lot) {
+                    lotInput.value = parsed.lot;
+                    lotInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    break;
+                }
+            }
+            
+            // Look for expiration date field
+            const expirationInput = form.querySelector(`#id_expiration_date`);
+            if (expirationInput && parsed.expiration) {
+                // parsed.expiration looks like YYMMDD, convert to YYYY-MM-DD
+                expirationInput.value = parseGS1Date(parsed.expiration);
+                expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }
         
-        // Look for expiration date field
-        const expirationInput = form.querySelector(`#id_expiration_date`);
-        if (expirationInput && parsed.expiration) {
-            // parsed.expiration looks like YYMMDD, convert to YYYY-MM-DD
-            expirationInput.value = parseGS1Date(parsed.expiration);
-            expirationInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        // Show success message
+        showParseResult(gtinInput, trimmedData, parsed);
+    } else if (parsed && Object.keys(parsed).length > 0) {
+        // GS1 data was parsed but contains no useful fields (only serial, variant, etc.)
+        // Don't populate GTIN field - leave it empty
+        showGS1NoDataResult(gtinInput);
+    } else {
+        // Not a GS1 barcode or parsing failed - use raw barcode as GTIN
+        gtinInput.value = trimmedData;
+        gtinInput.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Show simple success message
+        showSimpleScanResult(gtinInput, trimmedData);
     }
-    
-    // Show success message
-    showParseResult(gtinInput, barcodeData, parsed);
 }
 
 function parseGS1Date(date) {
@@ -711,16 +762,74 @@ function showParseResult(gtinInput, barcodeData, parsed) {
         
         // Safety check: ensure container exists
         if (container && !message.parentNode) {
-            // Remove any existing parse result messages first
-            const existingMessages = container.querySelectorAll('.alert-success');
+            // Remove any existing barcode scan result messages first
+            const existingMessages = container.querySelectorAll('.alert-success, .alert-warning');
             existingMessages.forEach(existing => {
-                if (existing.innerHTML.includes('Parsed GS1 data:')) {
+                if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:') || existing.innerHTML.includes('GS1 barcode scanned')) {
                     existing.remove();
                 }
             });
             
             container.appendChild(message);
         }
+    }
+}
+
+/**
+ * Show simple scan result as a temporary message
+ */
+function showSimpleScanResult(gtinInput, scannedCode) {
+    const message = document.createElement('div');
+    message.className = 'alert alert-success alert-dismissible fade show mt-2';
+    message.innerHTML = `
+        <strong>Scanned barcode:</strong> ${scannedCode}
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    
+    const container = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
+    
+    // Safety check: ensure container exists
+    if (container && !message.parentNode) {
+        // Remove any existing barcode scan result messages first
+        const existingMessages = container.querySelectorAll('.alert-success, .alert-warning');
+        existingMessages.forEach(existing => {
+            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:') || existing.innerHTML.includes('GS1 barcode scanned')) {
+                existing.remove();
+            }
+        });
+        
+        container.appendChild(message);
+    }
+}
+
+/**
+ * Show GS1 no data result as a temporary message
+ */
+function showGS1NoDataResult(gtinInput) {
+    const message = document.createElement('div');
+    message.className = 'alert alert-warning alert-dismissible fade show mt-2';
+    message.innerHTML = `
+        <strong>GS1 barcode scanned but no relevant info found</strong>
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    
+    const container = gtinInput.closest('.form-group') || gtinInput.closest('.mb-3') || gtinInput.parentNode;
+    
+    // Safety check: ensure container exists
+    if (container && !message.parentNode) {
+        // Remove any existing barcode scan result messages first
+        const existingMessages = container.querySelectorAll('.alert-success, .alert-warning');
+        existingMessages.forEach(existing => {
+            if (existing.innerHTML.includes('Parsed GS1 data:') || existing.innerHTML.includes('Scanned barcode:') || existing.innerHTML.includes('GS1 barcode scanned')) {
+                existing.remove();
+            }
+        });
+        
+        container.appendChild(message);
     }
 }
 

@@ -2,10 +2,9 @@
 Spreadsheet import views for bulk adding new inventory items.
 
 This module handles Excel import functionality for bulk item creation,
-including template generation and import processing.
+including template generation and import processing using the new tagging system.
 """
 
-import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import datetime, date
@@ -16,8 +15,37 @@ from django.shortcuts import render, redirect
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
 
-from inventory.models import Item, StockItem, Organization, Category, Subcategory
+from inventory.models import Item, StockItem, Organization, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
+
+
+def find_tag(tag_name, tags_dict=None):
+    """
+    Find an existing tag by name (case-insensitive).
+    Tags are globally unique across all tag groups.
+    
+    Args:
+        tag_name: Name of the tag to find
+        tags_dict: Optional dictionary to cache tags for faster lookups
+        
+    Returns:
+        Tag: Found tag or None if not found
+    """
+    # Check cache first if provided
+    if tags_dict:
+        tag = tags_dict.get(tag_name.lower())
+        if tag:
+            return tag
+    
+    # Tags are now globally unique, so search across all tag groups
+    existing_tag = Tag.objects.filter(name__iexact=tag_name, is_active=True).first()
+    if existing_tag:
+        # Update cache if provided
+        if tags_dict is not None:
+            tags_dict[tag_name.lower()] = existing_tag
+        return existing_tag
+    
+    return None
 
 
 @login_required
@@ -36,7 +64,7 @@ def download_import_template(request):
     
     # Headers for import
     headers = [
-        'Item Name', 'Manufacturer', 'GTIN', 'Category', 'Subcategory', 
+        'Item Name', 'Manufacturer', 'GTIN', 'Tags', 
         'Items Per Box', 'Cost Per Item', 'URL', 'Public Notes', 'Private Notes',
         'Organization', 'Quantity', 'Location', 'Detail', 'Date Received', 
         'Expiration Date', 'Lot Number', 'Stock Notes'
@@ -51,7 +79,7 @@ def download_import_template(request):
     
     # Add sample data row for guidance
     sample_data = [
-        'Medical Gloves', 'Nitrile Brand', '1234567890123', 'Medical Supplies', 'PPE',
+        'Medical Gloves', 'Nitrile Brand', '1234567890123', 'PPE, Disposable', 
         '100', '0.15', 'https://example.com', 'Disposable nitrile gloves', 'Store in cool dry place',
         'UCSD Health', '1000', 'Storage Room A', 'Size Large', str(date.today()), 
         '', 'LOT2024001', 'Received in good condition'
@@ -62,7 +90,7 @@ def download_import_template(request):
         cell.font = Font(italic=True, color='808080')
     
     # Set column widths for better readability
-    column_widths = [15, 15, 15, 15, 15, 12, 12, 20, 20, 20, 15, 10, 15, 15, 12, 12, 12, 20]
+    column_widths = [15, 15, 15, 20, 12, 12, 20, 20, 20, 15, 10, 15, 15, 12, 12, 12, 20]
     for col, width in enumerate(column_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
     
@@ -73,8 +101,7 @@ def download_import_template(request):
         "",
         "Required Fields:",
         "- Item Name: Unique name for the item",
-        "- Category: Must match existing category name",
-        "- Subcategory: Must match existing subcategory name",
+        "- Tags: Comma-separated list of tag names (e.g., 'PPE, Disposable, Medical')",
         "- Organization: Must match existing organization name", 
         "- Quantity: Number of items (must be positive integer)",
         "- Location: Storage location for the stock",
@@ -93,25 +120,30 @@ def download_import_template(request):
         "- Lot Number: Batch identifier",
         "- Stock Notes: Notes specific to this stock entry",
         "",
+        "Tags Information:",
+        "- Use comma-separated tag names: 'PPE, Disposable, Medical'",
+        "- Tag names are case-insensitive and will be automatically matched",
+        "- All tags must already exist in the system - new tags will NOT be created automatically",
+        "- Multiple items can share the same tags",
+        "",
         "Important Notes:",
         "- If an item name already exists, new stock will be added to the existing item",
         "- When reusing existing items, only stock details (quantity, location, etc.) are used",
         "- GTIN placement: If Detail field is empty, GTIN goes on the Item; if Detail has content, GTIN goes on the Stock Item",
         "- GTINs must be unique within their respective location (Item or Stock Item)",
-        "- Categories and subcategories must already exist in the system",
         "- Organizations must already exist in the system",
         "- Dates should be in YYYY-MM-DD format",
         "- Delete the sample row before importing",
         "",
-        "Available Categories and Subcategories:",
+        "Available Tags (by Tag Group):",
     ]
     
-    # Add category/subcategory information
-    categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
-    for category in categories:
-        instructions.append(f"  {category.name}:")
-        for subcategory in category.subcategories.all().order_by('name'):
-            instructions.append(f"    - {subcategory.name}")
+    # Add tag group and tag information
+    tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+    for tag_group in tag_groups:
+        instructions.append(f"  {tag_group.name}:")
+        for tag in tag_group.tags.filter(is_active=True).order_by('sort_order', 'name'):
+            instructions.append(f"    - {tag.name}")
     
     instructions.append("")
     instructions.append("Available Organizations:")
@@ -155,11 +187,11 @@ def upload_spreadsheet(request):
         if 'excel_file' not in request.FILES:
             messages.error(request, 'No file was uploaded.')
             # Prepare context for the template
-            categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
-                'categories': categories,
+                'tag_groups': tag_groups,
                 'organizations': organizations,
             }
             return render(request, 'spreadsheet_import/upload.html', context)
@@ -169,11 +201,11 @@ def upload_spreadsheet(request):
         if not excel_file.name.endswith(('.xlsx', '.xls')):
             messages.error(request, 'Please upload a valid Excel file (.xlsx or .xls).')
             # Prepare context for the template
-            categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
-                'categories': categories,
+                'tag_groups': tag_groups,
                 'organizations': organizations,
             }
             return render(request, 'spreadsheet_import/upload.html', context)
@@ -185,7 +217,7 @@ def upload_spreadsheet(request):
             
             # Validate headers
             expected_headers = [
-                'Item Name', 'Manufacturer', 'GTIN', 'Category', 'Subcategory', 
+                'Item Name', 'Manufacturer', 'GTIN', 'Tags', 
                 'Items Per Box', 'Cost Per Item', 'URL', 'Public Notes', 'Private Notes',
                 'Organization', 'Quantity', 'Location', 'Detail', 'Date Received', 
                 'Expiration Date', 'Lot Number', 'Stock Notes'
@@ -194,11 +226,11 @@ def upload_spreadsheet(request):
             if ws.max_row < 1:
                 messages.error(request, 'The uploaded file appears to be empty.')
                 # Prepare context for the template
-                categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
                 organizations = Organization.objects.all().order_by('name')
                 
                 context = {
-                    'categories': categories,
+                    'tag_groups': tag_groups,
                     'organizations': organizations,
                 }
                 return render(request, 'spreadsheet_import/upload.html', context)
@@ -207,30 +239,23 @@ def upload_spreadsheet(request):
             if actual_headers != expected_headers:
                 messages.error(request, 'Invalid file format. Please use the template from the download function.')
                 # Prepare context for the template
-                categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
                 organizations = Organization.objects.all().order_by('name')
                 
                 context = {
-                    'categories': categories,
+                    'tag_groups': tag_groups,
                     'organizations': organizations,
                 }
                 return render(request, 'spreadsheet_import/upload.html', context)
             
             # Process data rows
-            created_count = 0
             error_count = 0
             errors = []
             
             # Prefetch all data to avoid N+1 queries in the loop
             organizations_dict = {org.name.lower(): org for org in Organization.objects.all()}
-            categories_dict = {cat.name.lower(): cat for cat in Category.objects.all()}
-            # For subcategories, create a nested dict: {category_name_lower: {subcat_name_lower: subcat_obj}}
-            subcategories_dict = {}
-            for subcat in Subcategory.objects.select_related('category').all():
-                cat_name_lower = subcat.category.name.lower()
-                if cat_name_lower not in subcategories_dict:
-                    subcategories_dict[cat_name_lower] = {}
-                subcategories_dict[cat_name_lower][subcat.name.lower()] = subcat
+            # Create tag lookup dictionary: {tag_name_lower: tag_obj}
+            tags_dict = {tag.name.lower(): tag for tag in Tag.objects.all()}
             
             # First pass: validate all data
             items_to_create = []
@@ -243,37 +268,31 @@ def upload_spreadsheet(request):
                     item_name = str(ws.cell(row=row_num, column=1).value or '').strip()
                     manufacturer = str(ws.cell(row=row_num, column=2).value or '').strip()
                     gtin = str(ws.cell(row=row_num, column=3).value or '').strip()
-                    category_name = str(ws.cell(row=row_num, column=4).value or '').strip()
-                    subcategory_name = str(ws.cell(row=row_num, column=5).value or '').strip()
-                    items_per_box = ws.cell(row=row_num, column=6).value
-                    cost_per_item = ws.cell(row=row_num, column=7).value
-                    url = str(ws.cell(row=row_num, column=8).value or '').strip()
-                    public_notes = str(ws.cell(row=row_num, column=9).value or '').strip()
-                    private_notes = str(ws.cell(row=row_num, column=10).value or '').strip()
-                    organization_name = str(ws.cell(row=row_num, column=11).value or '').strip()
-                    quantity = ws.cell(row=row_num, column=12).value
-                    location = str(ws.cell(row=row_num, column=13).value or '').strip()
-                    detail = str(ws.cell(row=row_num, column=14).value or '').strip()
-                    date_received = ws.cell(row=row_num, column=15).value
-                    expiration_date = ws.cell(row=row_num, column=16).value
-                    lot_number = str(ws.cell(row=row_num, column=17).value or '').strip()
-                    stock_notes = str(ws.cell(row=row_num, column=18).value or '').strip()
+                    tags_str = str(ws.cell(row=row_num, column=4).value or '').strip()
+                    items_per_box = ws.cell(row=row_num, column=5).value
+                    cost_per_item = ws.cell(row=row_num, column=6).value
+                    url = str(ws.cell(row=row_num, column=7).value or '').strip()
+                    public_notes = str(ws.cell(row=row_num, column=8).value or '').strip()
+                    private_notes = str(ws.cell(row=row_num, column=9).value or '').strip()
+                    organization_name = str(ws.cell(row=row_num, column=10).value or '').strip()
+                    quantity = ws.cell(row=row_num, column=11).value
+                    location = str(ws.cell(row=row_num, column=12).value or '').strip()
+                    detail = str(ws.cell(row=row_num, column=13).value or '').strip()
+                    date_received = ws.cell(row=row_num, column=14).value
+                    expiration_date = ws.cell(row=row_num, column=15).value
+                    lot_number = str(ws.cell(row=row_num, column=16).value or '').strip()
+                    stock_notes = str(ws.cell(row=row_num, column=17).value or '').strip()
                     
                     # Skip empty rows
                     if not item_name:
                         continue
                     
-                    # Validate required fields
-                    if not category_name:
-                        errors.append(f"Row {row_num}: Category is required")
-                        error_count += 1
-                        continue
+                    # Parse tags (comma-separated)
+                    tag_names = []
+                    if tags_str:
+                        tag_names = [name.strip() for name in tags_str.split(',') if name.strip()]
                     
-                    if not subcategory_name:
-                        errors.append(f"Row {row_num}: Subcategory is required")
-                        error_count += 1
-                        continue
-                        
+                    # Validate required fields
                     if not organization_name:
                         errors.append(f"Row {row_num}: Organization is required")
                         error_count += 1
@@ -306,28 +325,23 @@ def upload_spreadsheet(request):
                     reference_item_data = None
                     if existing_item:
                         reference_item_data = {
-                            'category_name': existing_item.category.name,
-                            'subcategory_name': existing_item.subcategory.name if existing_item.subcategory else ''
+                            'tag_names': [tag.name for tag in existing_item.tags.all()]
                         }
                     elif item_from_current_import:
                         reference_item_data = {
-                            'category_name': item_from_current_import['category_name'],
-                            'subcategory_name': item_from_current_import['subcategory_name']
+                            'tag_names': item_from_current_import['tag_names']
                         }
                     
                     # If we have a reference (existing or from current import), validate consistency
                     if reference_item_data:
-                        # Check for category/subcategory consistency
-                        if reference_item_data['category_name'].lower() != category_name.lower():
+                        # Check for tag consistency - warn if tags differ but don't fail
+                        existing_tag_names = set(tag.lower() for tag in reference_item_data['tag_names'])
+                        new_tag_names = set(tag.lower() for tag in tag_names)
+                        if existing_tag_names != new_tag_names:
                             existing_source = "database" if existing_item else "earlier in this import"
-                            errors.append(f"Row {row_num}: Item '{item_name}' exists in {existing_source} with category '{reference_item_data['category_name']}', but row specifies '{category_name}'")
-                            error_count += 1
-                            continue
-                        if reference_item_data['subcategory_name'] and reference_item_data['subcategory_name'].lower() != subcategory_name.lower():
-                            existing_source = "database" if existing_item else "earlier in this import"
-                            errors.append(f"Row {row_num}: Item '{item_name}' exists in {existing_source} with subcategory '{reference_item_data['subcategory_name']}', but row specifies '{subcategory_name}'")
-                            error_count += 1
-                            continue
+                            existing_tags_str = ', '.join(reference_item_data['tag_names'])
+                            new_tags_str = ', '.join(tag_names)
+                            messages.warning(request, f"Row {row_num}: Item '{item_name}' exists in {existing_source} with tags '{existing_tags_str}', but row specifies '{new_tags_str}'. Using existing tags.")
                     
                     # Validate GTIN uniqueness if provided
                     if gtin:
@@ -353,19 +367,21 @@ def upload_spreadsheet(request):
                                 error_count += 1
                                 continue
                     
-                    # Validate category using pre-fetched dictionary
-                    category = categories_dict.get(category_name.lower())
-                    if not category:
-                        errors.append(f"Row {row_num}: Category '{category_name}' not found")
-                        error_count += 1
-                        continue
+                    # Validate and collect tags - throw error if any tag doesn't exist
+                    valid_tags = []
+                    for tag_name in tag_names:
+                        tag = tags_dict.get(tag_name.lower())
+                        if not tag:
+                            # Check if it exists in database but not in cache
+                            tag = find_tag(tag_name, tags_dict)
+                            if not tag:
+                                errors.append(f"Row {row_num}: Tag '{tag_name}' does not exist. Please create the tag first or use an existing tag.")
+                                error_count += 1
+                                continue
+                        valid_tags.append(tag)
                     
-                    # Validate subcategory using pre-fetched dictionary
-                    category_subcats = subcategories_dict.get(category_name.lower(), {})
-                    subcategory = category_subcats.get(subcategory_name.lower())
-                    if not subcategory:
-                        errors.append(f"Row {row_num}: Subcategory '{subcategory_name}' not found in category '{category_name}'")
-                        error_count += 1
+                    # Skip this row if any tag validation failed
+                    if error_count > 0 and any(f"Row {row_num}:" in error for error in errors[-len(tag_names):]):
                         continue
                     
                     # Validate organization using pre-fetched dictionary
@@ -420,7 +436,7 @@ def upload_spreadsheet(request):
                     elif not isinstance(date_received, date):
                         try:
                             date_received = date_received.date() if hasattr(date_received, 'date') else date.today()
-                        except:
+                        except Exception:
                             errors.append(f"Row {row_num}: Invalid Date Received format")
                             error_count += 1
                             continue
@@ -437,10 +453,21 @@ def upload_spreadsheet(request):
                         elif not isinstance(expiration_date, date):
                             try:
                                 expiration_date = expiration_date.date() if hasattr(expiration_date, 'date') else None
-                            except:
+                            except Exception:
                                 expiration_date = None
                     else:
                         expiration_date = None
+                    
+                    # Process tags - all tags must exist
+                    tag_objects = []
+                    if tags_str:
+                        tag_names = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+                        for tag_name in tag_names:
+                            tag_obj = find_tag(tag_name, tags_dict)
+                            if not tag_obj:
+                                # This should not happen since we validated earlier, but just in case
+                                raise ValueError(f"Tag '{tag_name}' not found")
+                            tag_objects.append(tag_obj)
                     
                     # Determine where GTIN should be placed based on detail field
                     gtin_on_stock_item = bool(detail.strip())
@@ -453,20 +480,18 @@ def upload_spreadsheet(request):
                     # If creating new item, track it for subsequent rows
                     if will_create_new_item:
                         items_in_current_import[item_name_lower] = {
-                            'category_name': category_name,
-                            'subcategory_name': subcategory_name,
+                            'tag_names': tag_names,
                             'item_data': {
                                 'name': item_name,
                                 'manufacturer': manufacturer,
                                 'gtin': item_gtin,
-                                'category': category,
-                                'subcategory': subcategory,
                                 'items_per_box': items_per_box,
                                 'cost_per_item': cost_per_item,
                                 'url': url,
                                 'notes_public': public_notes,
                                 'notes_private': private_notes,
-                            }
+                            },
+                            'tags': tag_objects,
                         }
                     
                     # Store validated data for creation
@@ -474,18 +499,18 @@ def upload_spreadsheet(request):
                         'row_num': row_num,
                         'existing_item': existing_item,  # None if creating new item
                         'item_name_lower': item_name_lower,  # For tracking within import
+                        'valid_tags': valid_tags,  # Tags to assign to the item
                         'item_data': {
                             'name': item_name,
                             'manufacturer': manufacturer,
                             'gtin': item_gtin,
-                            'category': category,
-                            'subcategory': subcategory,
                             'items_per_box': items_per_box,
                             'cost_per_item': cost_per_item,
                             'url': url,
                             'notes_public': public_notes,
                             'notes_private': private_notes,
                         },
+                        'tags': tag_objects,
                         'stock_data': {
                             'organization': organization,
                             'quantity': quantity,
@@ -534,6 +559,11 @@ def upload_spreadsheet(request):
                             # Create new Item
                             item = Item(**item_data['item_data'])
                             item.save()
+                            
+                            # Assign tags to the new item
+                            if item_data['valid_tags']:
+                                item.tags.set(item_data['valid_tags'])
+                            
                             created_item_count += 1
                             created_items_map[item_name_lower] = item
                             
@@ -579,21 +609,21 @@ def upload_spreadsheet(request):
         except Exception as e:
             messages.error(request, f'Error processing file: {str(e)}')
             # Prepare context for the template
-            categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
-                'categories': categories,
+                'tag_groups': tag_groups,
                 'organizations': organizations,
             }
             return render(request, 'spreadsheet_import/upload.html', context)
     
     # Prepare context for the template
-    categories = Category.objects.prefetch_related('subcategories').all().order_by('name')
+    tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
     organizations = Organization.objects.all().order_by('name')
     
     context = {
-        'categories': categories,
+        'tag_groups': tag_groups,
         'organizations': organizations,
     }
     

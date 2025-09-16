@@ -49,13 +49,11 @@ def dashboard_view(request):
         "inventory.view_user",
         "inventory.view_allauditevent",
         "inventory.view_deleteditem",
-        "inventory.add_category",
-        "inventory.add_subcategory",
         "inventory.add_organization",
-        "inventory.delete_category",
-        "inventory.delete_subcategory",
         "inventory.delete_image",
-        "inventory.view_organization"
+        "inventory.view_organization",
+        "inventory.view_tag",
+        "inventory.view_taggroup",
     ]
 
     if any(user.has_perm(perm) for perm in permissions):

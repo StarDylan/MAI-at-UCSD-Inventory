@@ -1,0 +1,45 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Delete Tag Group{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h3><i class="material-icons">warning</i> Delete Tag Group</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5>Are you sure you want to delete "{{ tag_group.name }}"?</h5>
+                        <p><strong>This action cannot be undone.</strong></p>
+                        
+                        {% if tag_group.tags.count > 0 %}
+                            <p class="mb-0">
+                                <strong>Warning:</strong> This tag group contains {{ tag_group.tags.count }} tag{{ tag_group.tags.count|pluralize }}.
+                                Deleting this group will also delete all its tags and remove them from any items they're assigned to.
+                            </p>
+                            <ul class="mt-2">
+                                {% for tag in tag_group.tags.all %}
+                                    <li>{{ tag.name }} ({{ tag.items.count }} item{{ tag.items.count|pluralize }})</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="material-icons">delete_forever</i> Yes, Delete Tag Group
+                        </button>
+                        <a href="{% url 'tag_groups_list' %}" class="btn btn-secondary">
+                            <i class="material-icons">cancel</i> Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

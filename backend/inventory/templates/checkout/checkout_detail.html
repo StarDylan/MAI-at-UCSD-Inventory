@@ -28,9 +28,9 @@
         </a>
       {% endif %}
     {% elif checkout.is_completed and perms.inventory.undo_checkout %}
-      <form method="post" action="{% url 'checkout_undo' checkout.id %}" style="display: block; margin-bottom: 8px;" onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');">
+      <form method="post" action="{% url 'checkout_undo' checkout.id %}" style="display: inline-block; margin-left: 8px;" onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');">
         {% csrf_token %}
-        <button type="submit" class="btn btn-warning" style="width: 100%;">
+        <button type="submit" class="btn btn-warning mb-2">
           <i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout
         </button>
       </form>
@@ -141,11 +141,22 @@
         </thead>
         <tbody>
           {% for item in checkout_items %}
+          {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
+          <tr class="table-danger">
+          {% elif item.stock_item.surplus_status == 'pending' %}
+          <tr class="table-warning">
+          {% else %}
           <tr>
+          {% endif %}
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none"> {{ item.stock_item.item.name }} </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
+              {% endif %}
+              {% if item.stock_item.surplus_status == 'wanted' %}
+              <br /><span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
+              {% elif item.stock_item.surplus_status == 'pending' %}
+              <br /><span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
               {% endif %}
             </td>
             <td>
@@ -314,8 +325,8 @@
         <tbody>
           {% for event in checkout_audit %}
           <tr onclick="viewDiff({{ event.json_data }});">
-            <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
-            <td>{{ event.event.user.get_full_name|default:event.event.user.username }}</td>
+            <td>{{ event.created_at|date:"d-M-Y H:i:s" }}</td>
+            <td>{{ event.user.get_full_name|default:event.user.username }}</td>
             <td>{{ event.event }}</td>
           </tr>
           {% endfor %}
@@ -330,16 +341,16 @@
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="auditDiffModalLabel">Audit Event Details</h5>
+        <h5 class="modal-title" id="auditDiffModalLabel">Difference</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <h6>Before</h6>
+        <h2>Before</h2>
         <pre id="audit_left"></pre>
 
-        <h6>After</h6>
+        <h2>After</h2>
         <pre id="audit_right"></pre>
       </div>
       <div class="modal-footer">
@@ -430,21 +441,32 @@
       // Clear any previous errors when opening modal
       clearFormErrors();
 
+      // Clear any previous info messages
+      const existingInfoAlerts = document.querySelectorAll('.alert-info');
+      existingInfoAlerts.forEach(alert => alert.remove());
+
       // Load stock items for this item
       fetch(`/api/items/${itemId}/stock-items/`)
         .then((response) => response.json())
         .then((data) => {
           stockItemSelect.innerHTML = '<option value="">Select stock item...</option>';
-          data.stock_items.forEach((stockItem) => {
-            stockItemSelect.innerHTML += `
-                        <option value="${stockItem.id}" 
-                                data-quantity="${stockItem.quantity}"
-                                data-location="${stockItem.location}"
-                                data-organization="${stockItem.organization}">
-                            ${stockItem.display_name}
-                        </option>
-                    `;
-          });
+          
+          if (data.stock_items.length === 0) {
+            stockItemSelect.innerHTML = '<option value="" disabled>No stock items available for checkout</option>';
+          } else {
+            data.stock_items.forEach((stockItem) => {
+              const surplusWarning = stockItem.surplus_status !== 'not_wanted' ? ' ⚠️' : '';
+              stockItemSelect.innerHTML += `
+                          <option value="${stockItem.id}" 
+                                  data-quantity="${stockItem.quantity}"
+                                  data-location="${stockItem.location}"
+                                  data-organization="${stockItem.organization}"
+                                  data-surplus-status="${stockItem.surplus_status}">
+                              ${stockItem.display_name}${surplusWarning}
+                          </option>
+                      `;
+            });
+          }
         })
         .catch((error) => {
           console.error("Error loading stock items:", error);
@@ -465,12 +487,45 @@
       this.classList.remove("is-invalid");
       document.getElementById("stockItemErrors").textContent = "";
 
+      // Clear any previous surplus warnings
+      const existingWarnings = document.querySelectorAll('.surplus-warning');
+      existingWarnings.forEach(warning => warning.remove());
+
       const selectedOption = this.options[this.selectedIndex];
       if (selectedOption.value) {
         const maxQuantity = selectedOption.dataset.quantity;
+        const surplusStatus = selectedOption.dataset.surplusStatus;
+        
         quantityInput.max = maxQuantity;
         quantityInput.value = Math.min(1, maxQuantity);
         quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
+        
+        // Show warning for surplus items based on checkout type
+        if (surplusStatus !== 'not_wanted') {
+          const isDonation = {{ checkout.is_donation|yesno:"true,false" }};
+          let shouldWarn = false;
+          let warningText = '';
+          let alertClass = 'alert-warning';
+          
+          if (surplusStatus === 'wanted' && isDonation) {
+            shouldWarn = true;
+            alertClass = 'alert-danger';
+            warningText = '<strong>Warning:</strong> This item is WANTED by surplus. Please confirm before adding to donation checkout.';
+          } else if (surplusStatus === 'pending') {
+            shouldWarn = true;
+            warningText = '<strong>Warning:</strong> This item is pending surplus review. Please confirm before adding to checkout.';
+          }
+          
+          if (shouldWarn) {
+            const warningDiv = document.createElement('div');
+            warningDiv.className = `alert ${alertClass} mt-2 surplus-warning`;
+            warningDiv.innerHTML = `
+              <i class="material-icons" style="vertical-align: middle; font-size: 16px;">warning</i>
+              ${warningText}
+            `;
+            selectedOption.parentNode.parentNode.appendChild(warningDiv);
+          }
+        }
       } else {
         quantityInput.max = "";
         quantityInput.value = "";
@@ -625,15 +680,22 @@
     leftBlockId = $("#audit_left").attr("id");
     rightBlockId = $("#audit_right").attr("id");
     $(document).jdd(leftBlockId, rightBlockId);
+  }
 
-    // Initialize DataTable for audit log if not already initialized
-    if (!$.fn.DataTable.isDataTable("#checkout_audit_table")) {
+  // Initialize DataTable for audit log
+  $(document).ready(function() {
+    if ($.fn.DataTable) {
+      $.fn.dataTable.moment("DD-MMM-YYYY HH:mm:ss");
       $("#checkout_audit_table").DataTable({
+        lengthMenu: [
+          [10, 25, 50, 100, -1],
+          [10, 25, 50, 100, "All"],
+        ],
         order: [[0, "desc"]],
         pageLength: 10,
         responsive: true,
       });
     }
-  }
+  });
 </script>
 {% endblock %}

@@ -1,0 +1,48 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Delete Tag{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h3><i class="material-icons">warning</i> Delete Tag</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5>Are you sure you want to delete "{{ tag.name }}"?</h5>
+                        <p><strong>This action cannot be undone.</strong></p>
+                        
+                        <p>
+                            Tag Group: <span class="badge" style="background-color: {{ tag.tag_group.color }}; color: {{ tag.tag_group.text_color }};">{{ tag.tag_group.name }}</span>
+                        </p>
+                        
+                        {% if tag.items.count > 0 %}
+                            <p class="mb-0">
+                                <strong>Warning:</strong> This tag is assigned to {{ tag.items.count }} item{{ tag.items.count|pluralize }}.
+                                Deleting this tag will remove it from all items.
+                            </p>
+                        {% else %}
+                            <p class="mb-0 text-success">
+                                <i class="material-icons">check_circle</i> This tag is not assigned to any items and can be safely deleted.
+                            </p>
+                        {% endif %}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="material-icons">delete_forever</i> Yes, Delete Tag
+                        </button>
+                        <a href="{% url 'tag_list' %}" class="btn btn-secondary">
+                            <i class="material-icons">cancel</i> Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

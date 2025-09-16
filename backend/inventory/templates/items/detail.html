@@ -1,7 +1,12 @@
 {% extends "shared/base.html" %} {% block body %}
 <div id="page">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">{{ item.name }}</h4>
+    <div class="d-flex align-items-center">
+      <button class="btn btn-link p-0 me-3" onclick="history.back()" title="Go back">
+        <i class="material-icons" style="font-size: 24px; color: #6c757d;">chevron_left</i>
+      </button>
+      <h4 class="mb-0">{{ item.name }}</h4>
+    </div>
     <div class="btn-group" role="group">
       {% if item.is_deleted %} 
         {% if perms.inventory.restore_deleteditem %}
@@ -82,8 +87,14 @@
     {% endif %}
 
     <div class="d-flex list-group-item flex-row">
-      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">category</i> Category</span>
-      <span class="flex-fill text-right">{{ item.category.name }} > {{ item.subcategory.name }}</span>
+      <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">label</i> Tags</span>
+      <span class="flex-fill text-right">
+        {% for tag in item.tags.all %}
+          <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">{{ tag.name }}</span>
+        {% empty %}
+          <em>No tags assigned</em>
+        {% endfor %}
+      </span>
     </div>
 
     {% if item.manufacturer %}
@@ -107,7 +118,7 @@
 
     <div class="d-flex list-group-item flex-row">
       <span class="font-weight-bold padding-bottom-3 vertical-align-middle"><i class="material-icons">insert_chart_outlined</i> Total Quantity</span>
-      <span class="flex-fill text-right">{{ item.total_stock_quantity }}</span>
+      <span class="flex-fill text-right">{{ total_items }}</span>
     </div>
 
     {% if item.items_per_box %}
