@@ -113,7 +113,7 @@
           <div class="col-md-3">
             <label for="sort-by" class="form-label">Sort By</label>
             <select class="form-control" id="sort-by">
-              <option value="date_added">Date Added</option>
+              <option value="last_updated">Last Updated</option>
               <option value="name">Name</option>
               <option value="manufacturer">Manufacturer</option>
               <option value="quantity">Quantity</option>
@@ -1111,7 +1111,7 @@
       tags: urlParams.get('tags') || '',
       excluded_tags: urlParams.get('excluded_tags') || '',
       exclude_expired: urlParams.get('exclude_expired') === 'true',
-      sort_by: urlParams.get('sort_by') || 'date_added',
+      sort_by: urlParams.get('sort_by') || 'last_updated',
       sort_order: urlParams.get('sort_order') || 'desc',
       location: urlParams.get('location') || '',
     };
@@ -1490,7 +1490,7 @@
       }
 
       $('#exclude-expired').prop('checked', false);
-      $('#sort-by').val('date_added');
+      $('#sort-by').val('last_updated');
       $('#sort-order').val('desc');
 
       // Update counts and reload items
