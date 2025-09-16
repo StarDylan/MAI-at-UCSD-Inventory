@@ -375,9 +375,7 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             try:
                 # Try to find organization by name (case-insensitive)
                 from inventory.models import Organization
-                print(org_param)
                 org = Organization.objects.get(name__iexact=org_param)
-                print(org)
                 initial['organization'] = org
             except (Organization.DoesNotExist, ValueError):
                 # If organization not found, ignore this parameter
