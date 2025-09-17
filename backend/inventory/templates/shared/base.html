@@ -43,19 +43,18 @@
   <body>
     <div class="container">
       <!-- Django Messages Display -->
-      {% if messages %}
-        {% for message in messages %}
-          <div class="alert {{ message.tags }} alert-dismissible fade show mt-3" role="alert">
-            {{ message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-        {% endfor %}
-      {% endif %}
+      {% if messages %} {% for message in messages %}
+      <div class="alert {{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      {% endfor %} {% endif %}
       <!-- Optional JavaScript -->
       <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-      <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>      <script
+      <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+      <script
         src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
         integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
         crossorigin="anonymous"
@@ -69,11 +68,8 @@
       <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
       <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.11.1/sorting/datetime-moment.js"></script>
       <script src="{% static 'inventory/jdd-v2.min.js' %}"></script>
-      
-      {% block body %} {% endblock %}
-      
 
-      {% if SENTRY_DSN %}
+      {% block body %} {% endblock %} {% if SENTRY_DSN %}
       <script
         src="https://browser.sentry-cdn.com/10.8.0/bundle.tracing.replay.feedback.min.js"
         integrity="sha384-Yy2UXIFrWRfe56w1BuJ8/pgltHwWyYP4Q7dYKueJ/c6RG8B/bPJmGv+TBTQSuTSv"
