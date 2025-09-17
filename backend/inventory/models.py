@@ -139,6 +139,19 @@ class Organization(models.Model):
 
 
 class Item(models.Model):
+    def get_details_gtins(self):
+        """
+        Return a list of dicts with detail and gtin for all related StockItems, excluding those with both empty.
+        Used for populating JS detail suggestions in the check-in template.
+        """
+        details = []
+        for si in self.stock_items.all():
+            if si.detail.strip() or si.gtin.strip():
+                details.append({
+                    'detail': si.detail,
+                    'gtin': si.gtin
+                })
+        return details
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     
     # Tagging system - items can have multiple tags

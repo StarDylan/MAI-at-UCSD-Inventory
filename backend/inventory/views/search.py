@@ -50,6 +50,8 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             try:
                 selected_item = Item.active_objects.get(id=item_uuid)
                 context['selected_item'] = selected_item
+                # Add details_gtins for JS template
+                context['selected_item'].details_gtins = selected_item.get_details_gtins()
             except Item.DoesNotExist:
                 pass
                 
