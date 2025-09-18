@@ -3,28 +3,39 @@
 <h4>Check in a stock item</h4>
 
 <body>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>      <script
-        src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
-        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
-        crossorigin="anonymous"
-    ></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js" defer></script>
 
-
   <!-- Item details card -->
-  <div id="item-details-card" style="display:none; margin-bottom: 1rem;">
-    <div style="border:1px solid #dee2e6; border-radius:8px; padding:1rem; background:#f8f9fa;">
-      <h5 id="item-details-name" style="margin-bottom:0.5rem;"></h5>
-      <div id="item-details-manufacturer" style="color:#6c757d;"></div>
-      <div id="item-details-location" style="color:#6c757d;"></div>
-      <div id="item-details-quantity" style="color:#6c757d;"></div>
+  <div id="item-details-card" style="display: none; margin-bottom: 1rem">
+    <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; background: #f8f9fa">
+      <h5 id="item-details-name" style="margin-bottom: 0.5rem"></h5>
+      <div id="item-details-manufacturer" style="color: #6c757d"></div>
+      <div id="item-details-location" style="color: #6c757d"></div>
+      <div id="item-details-quantity" style="color: #6c757d"></div>
     </div>
   </div>
 
   <form method="POST" autocomplete="off">
     {% csrf_token %}
     <div class="form-group">{{ form|crispy }}</div>
+    <div id="detail-suggestions-container" style="display: none; margin-bottom: 1rem; margin-left: 1rem">
+      <h6 style="color: #6c757d; margin-bottom: 0.5rem; margin-top: 0.5rem">Suggested Details</h6>
+      <ul id="detail-suggestions-list" style="list-style: none; padding: 0; margin: 0"></ul>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Move the detail suggestions container right after the detail input
+        var detailInput = document.getElementById("id_detail");
+        var detailSuggestions = document.getElementById("detail-suggestions-container");
+        if (detailInput && detailSuggestions) {
+          var formGroup = detailInput.closest(".form-group") || detailInput.closest(".mb-3");
+          if (formGroup) {
+            formGroup.parentNode.insertBefore(detailSuggestions, formGroup.nextSibling);
+          }
+        }
+      });
+    </script>
     <p><input type="submit" class="btn btn-primary" value="Submit" /></p>
   </form>
 
@@ -34,195 +45,395 @@
   </div>
 
   <script>
-  $(document).ready(function() {
-    // Check if we have a pre-selected item
-    {% if selected_item %}
-    // If item is pre-selected from URL, just use a simple select dropdown
-    $('#{{ form.item.id_for_label }}').select2({
-      placeholder: "Item: {{ selected_item.name }}",
-      allowClear: false,
-      width: "100%"
-    });
-    // Show the item details card on page load
-    $('#item-details-name').text("{{ selected_item.name|escapejs }}");
-    {% if selected_item.manufacturer %}
-    $('#item-details-manufacturer').text('Manufacturer: {{ selected_item.manufacturer|escapejs }}');
-    {% else %}
-    $('#item-details-manufacturer').text('');
-    {% endif %}
-    {% if selected_item.aggregated_locations %}
-    $('#item-details-location').text('Location(s): {{ selected_item.aggregated_locations|escapejs }}');
-    {% else %}
-    $('#item-details-location').text('');
-    {% endif %}
-    $('#item-details-quantity').text('In stock: {{ selected_item.total_stock_quantity|default:0 }}');
-    $('#item-details-card').show();
-    {% else %}
-    // For normal search interface, use AJAX search
-    var itemDataCache = {};
-    $('#{{ form.item.id_for_label }}').select2({
-      placeholder: "Search for an item to check in...",
-      allowClear: true,
-      width: "100%",
-      ajax: {
-        url: '/api/items/search/',
-        dataType: 'json',
-        delay: 250,
-        data: function (params) {
-          return {
-            q: params.term,
-            page: params.page || 1,
-            include_zero_stock: true  // Include items with 0 stock for check-in
-          };
-        },
-        processResults: function (data, params) {
-          params.page = params.page || 1;
-          // Cache item data by id for later lookup
-          data.items.forEach(function(item) { itemDataCache[item.id] = item; });
-          return {
-            results: data.items.map(function(item) {
-              return {
-                id: item.id,
-                text: item.name
-                  + (item.manufacturer ? ' - ' + item.manufacturer : '')
-              };
-            }),
-            pagination: {
-              more: data.has_more
-            }
-          };
-        },
-        cache: true
-      },
-      minimumInputLength: 2
-    });
-    // Show item details card when an item is selected
-    $('#{{ form.item.id_for_label }}').on('select2:select', function(e) {
-      var itemId = e.params.data.id;
-      var item = itemDataCache[itemId];
-      if (item) {
-        $('#item-details-name').text(item.name);
-        $('#item-details-manufacturer').text(item.manufacturer ? 'Manufacturer: ' + item.manufacturer : '');
-        $('#item-details-location').text(item.location ? 'Location(s): ' + item.location : '');
-        $('#item-details-quantity').text('In stock: ' + (item.total_stock_quantity || 0));
-        $('#item-details-card').show();
-      }
-    });
-    // Hide card if cleared
-    $('#{{ form.item.id_for_label }}').on('select2:clear', function(e) {
-      $('#item-details-card').hide();
-    });
-        {% endif %}
-        {% if form.organization %}
-        $('#{{ form.organization.id_for_label }}').select2({  // init Select2 on organization field
-            placeholder: "{{ form.organization.label }}",
-            allowClear: true,
-            "box-sizing": "border-box",
-            "width": "100%"
+    $(document).ready(function() {
+      // Check if we have a pre-selected item
+      {% if selected_item %}
+      // If item is pre-selected from URL, just use a simple select dropdown
+      $('#{{ form.item.id_for_label }}').select2({
+        placeholder: "Item: {{ selected_item.name }}",
+        allowClear: false,
+        width: "100%"
+      });
+        // Populate itemDataCache with selected_item data for JS features
+        var itemDataCache = {};
+        itemDataCache["{{ selected_item.id }}"] = {
+          id: "{{ selected_item.id }}",
+          name: "{{ selected_item.name|escapejs }}",
+          manufacturer: {% if selected_item.manufacturer %}"{{ selected_item.manufacturer|escapejs }}"{% else %}null{% endif %},
+          location: {% if selected_item.aggregated_locations %}"{{ selected_item.aggregated_locations|escapejs }}"{% else %}null{% endif %},
+          total_stock_quantity: {{ selected_item.total_stock_quantity|default:0 }},
+          has_item_gtin: {% if selected_item.has_item_gtin %}true{% else %}false{% endif %},
+          details_gtins: {% if selected_item.details_gtins %}{{ selected_item.details_gtins|safe }}{% else %}[] {% endif %}
+        };
 
+      // Show the item details card on page load
+      $('#item-details-name').text("{{ selected_item.name|escapejs }}");
+      {% if selected_item.manufacturer %}
+      $('#item-details-manufacturer').text('Manufacturer: {{ selected_item.manufacturer|escapejs }}');
+      {% else %}
+      $('#item-details-manufacturer').text('');
+      {% endif %}
+      {% if selected_item.aggregated_locations %}
+      $('#item-details-location').text('Location(s): {{ selected_item.aggregated_locations|escapejs }}');
+      {% else %}
+      $('#item-details-location').text('');
+      {% endif %}
+      $('#item-details-quantity').text('In stock: {{ selected_item.total_stock_quantity|default:0 }}');
+      $('#item-details-card').show();
+        // Show details/GTINs immediately on page load if item is pre-selected
+        $(function() {
+          var itemId = $('#{{ form.item.id_for_label }}').val();
+          if (itemId && itemDataCache[itemId]) {
+            // Always show suggestions container, show variants if present, else show 'no variants' message
+            var detailsArr = itemDataCache[itemId].details_gtins;
+            if (!Array.isArray(detailsArr)) detailsArr = [];
+            showDetailsSuggestions(detailsArr);
+            document.getElementById('detail-suggestions-container').style.display = '';
+          } else {
+            document.getElementById('detail-suggestions-container').style.display = 'none';
+          }
         });
-        {% endif %}
+      {% else %}
+      // For normal search interface, use AJAX search
+      var itemDataCache = {};
+      $('#{{ form.item.id_for_label }}').select2({
+        placeholder: "Search for an item to check in...",
+        allowClear: true,
+        width: "100%",
+        ajax: {
+          url: '/api/items/search/',
+          dataType: 'json',
+          delay: 250,
+          data: function (params) {
+            return {
+              q: params.term,
+              page: params.page || 1,
+              include_zero_stock: true  // Include items with 0 stock for check-in
+            };
+          },
+          processResults: function (data, params) {
+            params.page = params.page || 1;
+            // Cache item data by id for later lookup
+            data.items.forEach(function(item) { itemDataCache[item.id] = item; });
+            return {
+              results: data.items.map(function(item) {
+                return {
+                  id: item.id,
+                  text: item.name
+                    + (item.manufacturer ? ' - ' + item.manufacturer : '')
+                };
+              }),
+              pagination: {
+                more: data.has_more
+              }
+            };
+          },
+          cache: true
+        },
+        minimumInputLength: 2
+      });
+          // Show item details card and details/GTINs when an item is selected
+      $('#{{ form.item.id_for_label }}').on('select2:select', function(e) {
+        var itemId = e.params.data.id;
+        var item = itemDataCache[itemId];
+        if (item) {
+          $('#item-details-name').text(item.name);
+          $('#item-details-manufacturer').text(item.manufacturer ? 'Manufacturer: ' + item.manufacturer : '');
+          $('#item-details-location').text(item.location ? 'Location(s): ' + item.location : '');
+          $('#item-details-quantity').text('In stock: ' + (item.total_stock_quantity || 0));
+          $('#item-details-card').show();
+          // Only show suggestions if detail input is empty
+          var detailInput = document.getElementById('id_detail');
+          if (detailInput && detailInput.value.trim() === '') {
+            showDetailsSuggestions(item.details_gtins);
+            document.getElementById('detail-suggestions-container').style.display = '';
+          } else {
+            document.getElementById('detail-suggestions-container').style.display = 'none';
+          }
+          var gtinInput = document.getElementById('id_gtin');
+          if (gtinInput) {
+            if (item.has_item_gtin) {
+              gtinInput.disabled = true;
+              gtinInput.value = '';
+              let helpText = document.getElementById('id_gtin_helptext');
+              if (helpText) {
+                helpText.textContent = 'GTIN is disabled because one or more stock items already have GTIN values.';
+              }
+            } else {
+              gtinInput.disabled = false;
+              let helpText = document.getElementById('id_gtin_helptext');
+              if (helpText) helpText.textContent = 'Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number';
+            }
+          }
+        }
+      });
+      // Hide card if cleared
+      $('#{{ form.item.id_for_label }}').on('select2:clear', function(e) {
+        $('#item-details-card').hide();
+      });
+          {% endif %}
+          {% if form.organization %}
+          $('#{{ form.organization.id_for_label }}').select2({  // init Select2 on organization field
+              placeholder: "{{ form.organization.label }}",
+              allowClear: true,
+              "box-sizing": "border-box",
+              "width": "100%"
+
+          });
+          {% endif %}
+          // Detail autocomplete and GTIN autofill using details from Select2 response
+          function showDetailsSuggestions(detailsArr) {
+            const detailList = document.getElementById('detail-suggestions-list');
+            const gtinInput = document.getElementById('id_gtin');
+            const detailInput = document.getElementById('id_detail');
+            // Separate item-level GTIN and variant details
+            let itemGtin = null;
+            let variants = [];
+            if (detailsArr && detailsArr.length > 0) {
+              detailsArr.forEach(function(detailObj) {
+                if (detailObj.detail && detailObj.detail.trim() !== '') {
+                  variants.push({ detail: detailObj.detail, gtin: detailObj.gtin || '' });
+                } else if (detailObj.gtin) {
+                  itemGtin = detailObj.gtin;
+                }
+              });
+            }
+            // Filter variants by what's in the detail box
+            let filterText = detailInput ? detailInput.value.trim().toLowerCase() : '';
+            let gtinValue = gtinInput ? gtinInput.value.trim() : '';
+            let filteredVariants = variants.filter(function(variantObj) {
+              // Hide exact matches for detail and GTIN
+              if (variantObj.detail.toLowerCase() === filterText && (gtinValue === '' || variantObj.gtin === gtinValue)) return false;
+              return variantObj.detail.toLowerCase().includes(filterText);
+            });
+            // If no filter, show all
+            if (!filterText) filteredVariants = variants.filter(function(variantObj) {
+              // Hide if both detail and GTIN match
+              if (detailInput && gtinInput && detailInput.value.trim().toLowerCase() === variantObj.detail.toLowerCase() && (gtinValue === '' || variantObj.gtin === gtinValue)) return false;
+              return true;
+            });
+            detailList.innerHTML = '';
+            // Always show the suggestions container
+            document.getElementById('detail-suggestions-container').style.display = '';
+            if (filteredVariants.length > 0) {
+              filteredVariants.forEach(function(variantObj) {
+                const li = document.createElement('li');
+                li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s; display: flex; align-items: center; gap: 0.5rem;";
+                li.style.cursor = 'pointer';
+                const detailSpan = document.createElement('span');
+                detailSpan.textContent = variantObj.detail;
+                li.appendChild(detailSpan);
+                // GTIN display
+                if (variantObj.gtin) {
+                  const gtinSpan = document.createElement('span');
+                  gtinSpan.className = 'ms-2 text-success';
+                  gtinSpan.style.fontSize = '0.875rem';
+                  gtinSpan.textContent = ` [GTIN: ${variantObj.gtin}]`;
+                  li.appendChild(gtinSpan);
+                }
+                li.addEventListener('mouseenter', function () { this.classList.add('active'); });
+                li.addEventListener('mouseleave', function () { this.classList.remove('active'); });
+                li.addEventListener('click', function () {
+                  if (detailInput) detailInput.value = variantObj.detail;
+                  let gtinUpdated = false;
+                  if (gtinInput && variantObj.gtin) {
+                    gtinInput.value = variantObj.gtin;
+                    gtinUpdated = true;
+                  }
+                  document.getElementById('detail-suggestions-container').style.display = 'none';
+                  // Show success alert below detail input
+                  let container = detailInput.closest('.form-group') || detailInput.closest('.mb-3') || detailInput.parentNode;
+                  if (container) {
+                    // Remove any previous success alerts
+                    let existing = container.querySelectorAll('.alert-success');
+                    existing.forEach(function(msg) {
+                      if (msg.innerHTML.includes('Updated detail to')) msg.remove();
+                    });
+                    const message = document.createElement('div');
+                    message.className = 'alert alert-success alert-dismissible fade show mt-2';
+                    message.innerHTML = `<strong>Updated detail to:</strong> ${variantObj.detail}` + (gtinUpdated ? ` and <strong>GTIN to:</strong> ${variantObj.gtin}` : '') + ` from existing stock <button type=\"button\" class=\"close\" data-dismiss=\"alert\"><span aria-hidden=\"true\">&times;</span></button>`;
+                    container.appendChild(message);
+                  }
+                });
+                detailList.appendChild(li);
+              });
+              // Enable GTIN input for variants
+              if (gtinInput) gtinInput.disabled = false;
+            } else {
+              // No variants available
+              const li = document.createElement('li');
+              li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; background-color: #f8f9fa; color: #6c757d; text-align: center;";
+              li.textContent = 'No existing variants available for this item.';
+              detailList.appendChild(li);
+              // If item-level GTIN exists, show it and disable GTIN input
+              if (itemGtin) {
+                if (gtinInput) {
+                  gtinInput.value = itemGtin;
+                  gtinInput.disabled = true;
+                }
+              } else {
+                // No item-level GTIN, keep GTIN input enabled
+                if (gtinInput) gtinInput.disabled = false;
+              }
+            }
+          }
+          // Show/hide suggestions as user types in detail box
+          $('#id_detail').on('input', function() {
+            var itemId = $('#{{ form.item.id_for_label }}').val();
+            var detailVal = this.value.trim();
+            if (itemId && itemDataCache[itemId] && itemDataCache[itemId].details_gtins) {
+              if (detailVal === '') {
+                showDetailsSuggestions(itemDataCache[itemId].details_gtins);
+                document.getElementById('detail-suggestions-container').style.display = '';
+              } else {
+                document.getElementById('detail-suggestions-container').style.display = 'none';
+              }
+            }
+          });
+
+          // Show details/GTINs immediately on page load if item is pre-selected
+          $(function() {
+            var itemId = $('#{{ form.item.id_for_label }}').val();
+            if (itemId && itemDataCache[itemId] && itemDataCache[itemId].details_gtins) {
+              showDetailsSuggestions(itemDataCache[itemId].details_gtins);
+            } else {
+              document.getElementById('detail-suggestions-container').style.display = 'none';
+            }
+          });
     });
 
     // Stock Location autocomplete functionality
-    document.addEventListener("DOMContentLoaded", function () {
-      const stockLocationInput = document.getElementById("id_location");
-      const stockLocationSuggestionsContainer = document.getElementById("stock-location-suggestions-container");
-      const stockLocationSuggestionsList = document.getElementById("stock-location-suggestions-list");
-      let allStockLocations = [];
-      let stockLocationTimeout;
+      document.addEventListener("DOMContentLoaded", function () {
+        const stockLocationInput = document.getElementById("id_location");
+        const stockLocationSuggestionsContainer = document.getElementById("stock-location-suggestions-container");
+        const stockLocationSuggestionsList = document.getElementById("stock-location-suggestions-list");
+        let allStockLocations = [];
+        let stockLocationTimeout;
 
-      if (stockLocationInput) {
-        // Disable browser autocomplete
-        stockLocationInput.setAttribute("autocomplete", "off");
+        if (stockLocationInput) {
+          // Disable browser autocomplete
+          stockLocationInput.setAttribute("autocomplete", "off");
 
-        // Position the suggestions container after the stock location input
-        const stockLocationFormGroup = stockLocationInput.closest(".form-group") || stockLocationInput.closest(".mb-3");
-        if (stockLocationFormGroup && stockLocationSuggestionsContainer) {
-          stockLocationFormGroup.parentNode.insertBefore(stockLocationSuggestionsContainer, stockLocationFormGroup.nextSibling);
-        }
-
-        // Load stock locations from API
-        function loadStockLocations() {
-          fetch("/api/stock-locations/autocomplete/")
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.locations) {
-                allStockLocations = data.locations;
-              }
-            })
-            .catch((error) => console.log("Error loading stock locations:", error));
-        }
-
-        function renderStockLocationSuggestions(matches) {
-          stockLocationSuggestionsList.innerHTML = "";
-          if (matches.length === 0) {
-            stockLocationSuggestionsContainer.style.display = "none";
-            return;
+          // Position the suggestions container after the stock location input
+          const stockLocationFormGroup = stockLocationInput.closest(".form-group") || stockLocationInput.closest(".mb-3");
+          if (stockLocationFormGroup && stockLocationSuggestionsContainer) {
+            stockLocationFormGroup.parentNode.insertBefore(stockLocationSuggestionsContainer, stockLocationFormGroup.nextSibling);
           }
 
-          matches.slice(0, 5).forEach((location) => {
-            // Limit to 5 suggestions
-            const li = document.createElement("li");
-            li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s;";
-            li.textContent = location;
+          // Load stock locations from API
+          function loadStockLocations() {
+            fetch("/api/stock-locations/autocomplete/")
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.locations) {
+                  allStockLocations = data.locations;
+                }
+              })
+              .catch((error) => console.log("Error loading stock locations:", error));
+          }
 
-            // Add hover effect
-            li.addEventListener("mouseenter", function () {
-              this.style.backgroundColor = "#f8f9fa";
-            });
-            li.addEventListener("mouseleave", function () {
-              this.style.backgroundColor = "#fff";
-            });
-
-            // Add click handler
-            li.addEventListener("click", function () {
-              stockLocationInput.value = location;
+          function renderStockLocationSuggestions(matches) {
+            stockLocationSuggestionsList.innerHTML = "";
+            if (matches.length === 0) {
               stockLocationSuggestionsContainer.style.display = "none";
-              stockLocationInput.focus();
+              return;
+            }
+
+            matches.slice(0, 5).forEach((location) => {
+              // Limit to 5 suggestions
+              const li = document.createElement("li");
+              li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s;";
+              li.textContent = location;
+
+              // Add hover effect
+              li.addEventListener("mouseenter", function () {
+                this.style.backgroundColor = "#f8f9fa";
+              });
+              li.addEventListener("mouseleave", function () {
+                this.style.backgroundColor = "#fff";
+              });
+
+              // Add click handler
+              li.addEventListener("click", function () {
+                stockLocationInput.value = location;
+                stockLocationSuggestionsContainer.style.display = "none";
+                stockLocationInput.focus();
+              });
+
+              stockLocationSuggestionsList.appendChild(li);
             });
 
-            stockLocationSuggestionsList.appendChild(li);
+            stockLocationSuggestionsContainer.style.display = "";
+          }
+
+          function searchStockLocations(query) {
+            if (!query || query.length < 1) {
+              stockLocationSuggestionsContainer.style.display = "none";
+              return;
+            }
+
+            const matches = allStockLocations.filter((location) => location.toLowerCase().includes(query.toLowerCase()));
+
+            // Check if there's an exact match (case-insensitive)
+            const hasExactMatch = allStockLocations.some((location) => location.toLowerCase() === query.toLowerCase());
+
+            // Only hide suggestions if there's an exact match, otherwise show matches
+            if (hasExactMatch) {
+              stockLocationSuggestionsContainer.style.display = "none";
+            } else {
+              renderStockLocationSuggestions(matches);
+            }
+          }
+
+          stockLocationInput.addEventListener("input", function () {
+            const query = this.value.trim();
+
+            filteredVariants.forEach(function(variant) {
+                  // Find the detailObj for this variant to get its GTIN
+                  var detailObj = detailsArr.find(function(obj) { return obj.detail === variant; });
+                  const li = document.createElement('li');
+                  li.style.cssText = "padding: 0.5rem 1rem; border: 1px solid #dee2e6; margin-bottom: -1px; background-color: #fff; cursor: pointer; transition: background-color 0.2s; display: flex; justify-content: space-between; align-items: center;";
+                  // Main detail text
+                  const detailSpan = document.createElement('span');
+                  detailSpan.textContent = variant;
+                  li.appendChild(detailSpan);
+                  // GTIN display
+                  if (detailObj && detailObj.gtin) {
+                    const gtinSpan = document.createElement('span');
+                    gtinSpan.style.color = '#28a745';
+                    gtinSpan.style.fontSize = '0.875rem';
+                    gtinSpan.textContent = `[GTIN(s): ${detailObj.gtin}]`;
+                    li.appendChild(gtinSpan);
+                  }
+                  li.addEventListener('mouseenter', function () { this.style.backgroundColor = '#f8f9fa'; });
+                  li.addEventListener('mouseleave', function () { this.style.backgroundColor = '#fff'; });
+                  li.addEventListener('click', function () {
+                    if (detailInput) detailInput.value = variant;
+                    let gtinUpdated = false;
+                    if (gtinInput && detailObj && detailObj.gtin) {
+                      gtinInput.value = detailObj.gtin;
+                      gtinUpdated = true;
+                    }
+                    document.getElementById('detail-suggestions-container').style.display = 'none';
+                    // Show toast notification
+                    showToast(`Updated detail to "${variant}"${gtinUpdated ? ` and GTIN to "${detailObj.gtin}"` : ''} from existing stock.`);
+                  });
+                  detailList.appendChild(li);
+                });
+
+            // Clear previous timeout
+            clearTimeout(stockLocationTimeout);
+
+            // Add delay before searching stock locations
+            stockLocationTimeout = setTimeout(() => {
+              searchStockLocations(query);
+            }, 200); // 200ms delay for stock location suggestions
           });
 
-          stockLocationSuggestionsContainer.style.display = "";
+          // Load stock locations on page load
+          loadStockLocations();
         }
-
-        function searchStockLocations(query) {
-          if (!query || query.length < 1) {
-            stockLocationSuggestionsContainer.style.display = "none";
-            return;
-          }
-
-          const matches = allStockLocations.filter((location) => location.toLowerCase().includes(query.toLowerCase()));
-
-          // Check if there's an exact match (case-insensitive)
-          const hasExactMatch = allStockLocations.some((location) => location.toLowerCase() === query.toLowerCase());
-
-          // Only hide suggestions if there's an exact match, otherwise show matches
-          if (hasExactMatch) {
-            stockLocationSuggestionsContainer.style.display = "none";
-          } else {
-            renderStockLocationSuggestions(matches);
-          }
-        }
-
-        stockLocationInput.addEventListener("input", function () {
-          const query = this.value.trim();
-
-          // Clear previous timeout
-          clearTimeout(stockLocationTimeout);
-
-          // Add delay before searching stock locations
-          stockLocationTimeout = setTimeout(() => {
-            searchStockLocations(query);
-          }, 200); // 200ms delay for stock location suggestions
         });
-
-        // Load stock locations on page load
-        loadStockLocations();
-      }
-    });
   </script>
 
   <!-- Barcode Scanner for GTIN input -->

@@ -61,6 +61,7 @@ urlpatterns = [
     path('api/stock-locations/autocomplete/', items.stock_location_autocomplete_api, name='stock_location_autocomplete_api'),
     path('api/items/search/', items.items_search_api, name='items_search_api'),
     path('api/public-search/', items.public_search_api, name='public_search_api'),
+    path('api/items/<uuid:item_id>/details-gtins/', items.item_details_gtins_api, name='item_details_gtins_api'),
     path('api/items/<uuid:item_uuid>/stock-items/', bulk_checkout.get_stock_items_api, name='get_stock_items_api'),
     
     # Image Management

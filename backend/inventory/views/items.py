@@ -783,18 +783,28 @@ def items_search_api(request):
     # Get total count before applying limit
     total_count = len(items_qs)
 
-    # Build response with GTINs and locations
+    # Build response with GTINs, locations, and details for each item
     items_list = []
     for item in items_qs[:limit]:  # Apply the requested limit
         gtins = []
         if item['gtin']:
             gtins.append(item['gtin'])
         gtins.extend(stock_gtins_by_item.get(item['id'], []))
-        # Deduplicate GTINs while preserving order (item GTIN first)
         gtins = list(dict.fromkeys(gtins))
-        # Aggregate locations for this item
         locations = locations_by_item.get(item['id'], set())
         location_str = ", ".join(sorted(locations)) if locations else ""
+
+        # Gather details/GTINs for this item
+        details = []
+        # Add item-level GTIN if present and no variants
+        if item['gtin']:
+            details.append({'detail': '', 'gtin': item['gtin']})
+        # Add all stock item variants (details/gtin)
+        for stock_item in stock_items:
+            if getattr(stock_item, 'item_id', None) == item['id'] and getattr(stock_item, 'detail', None):
+                if stock_item.detail:
+                    details.append({'detail': stock_item.detail, 'gtin': stock_item.gtin})
+
         items_list.append({
             'id': str(item['id']),
             'name': item['name'],
@@ -802,6 +812,8 @@ def items_search_api(request):
             'gtins': gtins,
             'total_stock_quantity': item['annotated_total_stock_quantity'] or 0,
             'location': location_str,
+            'details_gtins': details,
+            'has_item_gtin': bool(item['gtin']),
         })
     
     return JsonResponse({
@@ -1131,3 +1143,19 @@ def public_search_api(request):
             'view_internal_stocking_details': has_internal_details_perm,
         },
     })
+
+def item_details_gtins_api(request, item_id):
+    """
+    API endpoint to get all details and GTINs for a given item.
+    Returns a JSON list of {detail, gtin} for each stock item variant, plus the item-level GTIN if present.
+    """
+    item = get_object_or_404(models.Item, id=item_id)
+    details = []
+    # Add item-level GTIN if present and no variants
+    if item.gtin:
+        details.append({'detail': '', 'gtin': item.gtin})
+    # Add all stock item variants
+    stock_items = models.StockItem.objects.filter(item=item, detail__isnull=False).exclude(detail='')
+    for si in stock_items:
+        details.append({'detail': si.detail, 'gtin': si.gtin})
+    return JsonResponse({'details': details})
