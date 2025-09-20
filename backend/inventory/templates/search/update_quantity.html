@@ -81,9 +81,9 @@
     <!-- GTIN Field -->
     <div class="form-group mb-3">
       <label for="id_gtin" class="form-label">GTIN (Global Trade Item Number)</label>
-    <input type="text" name="gtin" id="id_gtin" class="form-control" placeholder="e.g. 1234567890123" value="{{ form.gtin.value|default:'' }}" {% if selected_item.has_item_gtin %}disabled style="flex: 1 1 0%;"{% endif %}>
+    <input type="text" name="gtin" id="id_gtin" class="form-control" placeholder="e.g. 1234567890123" value="{{ form.gtin.value|default:'' }}" {% if item_has_gtin %}disabled style="flex: 1 1 0%;"{% endif %}>
       <div id="id_gtin_helptext" class="form-text">
-        {% if selected_item.has_item_gtin %}
+        {% if item_has_gtin %}
           GTIN is disabled because one or more stock items already have GTIN values.
         {% else %}
           Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number

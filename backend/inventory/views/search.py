@@ -50,13 +50,16 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             try:
                 selected_item = Item.active_objects.get(id=item_uuid)
                 context['selected_item'] = selected_item
-                context['selected_item'].has_item_gtin = selected_item.gtin is not None
+                context['item_has_gtin'] = selected_item.gtin.strip() != ""
                 # Add details_gtins for JS template
                 context['selected_item'].details_gtins = selected_item.get_details_gtins()
             except Item.DoesNotExist:
                 pass
+        
+        if "item_has_gtin" not in context:
+            context['item_has_gtin'] = False
                 
-        return context
+        return context  
 
     def get_form_kwargs(self):
         """
