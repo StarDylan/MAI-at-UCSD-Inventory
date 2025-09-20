@@ -636,33 +636,47 @@ def items_search_api(request):
             search_conditions = Q(gtin__exact=exact_gtin_match) | Q(stock_items__gtin__exact=exact_gtin_match)
     
     if not use_exact_gtin_priority:
-        # Build normal search conditions (AND logic - all conditions must match)
-        if general_query:
-            # Check if this looks like a GTIN (8+ digits, mostly numeric)
-            is_gtin_search = len(general_query) >= 8 and general_query.replace('-', '').replace(' ', '').isdigit()
+        # First, handle the case where we have both a GTIN query and name/manufacturer queries
+        if gtin_query and (name_query or manufacturer_query):
+            # Create two separate condition sets - one for GTIN and one for name/manufacturer
+            gtin_conditions = Q(gtin__exact=gtin_query) | Q(stock_items__gtin__exact=gtin_query)
+            text_conditions = Q()
             
-            if is_gtin_search:
-                # For GTIN searches, only search GTIN fields to avoid duplicates
-                search_conditions &= (
-                    Q(gtin__exact=general_query) |  # Exact match for item-level GTIN
-                    Q(stock_items__gtin__exact=general_query)  # Exact match for stock item GTIN
-                )
-            else:
-                # General search across text fields (OR within this condition)
-                search_conditions &= (
-                    Q(name__icontains=general_query) | 
-                    Q(manufacturer__icontains=general_query)
-                )
-        
-        if name_query:
-            search_conditions &= Q(name__icontains=name_query)
-        
-        if manufacturer_query:
-            search_conditions &= Q(manufacturer__icontains=manufacturer_query)
-        
-        if gtin_query:
-            search_conditions &= (Q(gtin__exact=gtin_query) | Q(stock_items__gtin__exact=gtin_query))  # Exact match for both item and stock item GTIN
-    
+            if name_query:
+                text_conditions |= Q(name__icontains=name_query)
+            
+            if manufacturer_query:
+                text_conditions |= Q(manufacturer__icontains=manufacturer_query)
+            
+            # Use OR logic between GTIN and name/manufacturer conditions
+            search_conditions = gtin_conditions | text_conditions
+        else:
+            # Handle each query type separately with AND logic between different query types
+            if general_query:
+                # Check if this looks like a GTIN (8+ digits, mostly numeric)
+                is_gtin_search = len(general_query) >= 8 and general_query.replace('-', '').replace(' ', '').isdigit()
+                
+                if is_gtin_search:
+                    # For GTIN searches, only search GTIN fields to avoid duplicates
+                    search_conditions &= (
+                        Q(gtin__exact=general_query) |  # Exact match for item-level GTIN
+                        Q(stock_items__gtin__exact=general_query)  # Exact match for stock item GTIN
+                    )
+                else:
+                    # General search across text fields (OR within this condition)
+                    search_conditions &= (
+                        Q(name__icontains=general_query) | 
+                        Q(manufacturer__icontains=general_query)
+                    )
+            
+            if name_query:
+                search_conditions &= Q(name__icontains=name_query)
+            
+            if manufacturer_query:
+                search_conditions &= Q(manufacturer__icontains=manufacturer_query)
+            
+            if gtin_query and not (name_query or manufacturer_query):
+                search_conditions &= (Q(gtin__exact=gtin_query) | Q(stock_items__gtin__exact=gtin_query))  # Exact match for both item and stock item GTIN
     
     # Build the base queryset similar to view_subcategory_items
     items_query = models.Item.active_objects

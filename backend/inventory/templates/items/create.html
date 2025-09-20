@@ -273,16 +273,25 @@
     searchTimeout = setTimeout(() => {
       const searchParams = {};
 
-      if (itemNameInput && itemNameInput.value.trim()) {
-        searchParams.name = itemNameInput.value.trim();
+      // Get values from inputs
+      const nameValue = itemNameInput ? itemNameInput.value.trim() : "";
+      const gtinValue = gtinInput ? gtinInput.value.trim() : "";
+      const manufacturerValue = manufacturerInput ? manufacturerInput.value.trim() : "";
+
+      // Check if GTIN looks like a valid GTIN (8+ digits)
+      const isGtinSearch = gtinValue && gtinValue.length >= 8 && /^\d+$/.test(gtinValue.replace(/[\s-]/g, ""));
+
+      // Always include all non-empty parameters
+      if (nameValue) {
+        searchParams.name = nameValue;
       }
 
-      if (gtinInput && gtinInput.value.trim()) {
-        searchParams.gtin = gtinInput.value.trim();
+      if (gtinValue) {
+        searchParams.gtin = gtinValue;
       }
 
-      if (manufacturerInput && manufacturerInput.value.trim()) {
-        searchParams.manufacturer = manufacturerInput.value.trim();
+      if (manufacturerValue) {
+        searchParams.manufacturer = manufacturerValue;
       }
 
       searchItems(searchParams);
@@ -340,13 +349,33 @@
       return;
     }
 
+    // Check if we have a GTIN parameter that looks like a valid GTIN
+    const gtinValue = searchParams.gtin || "";
+    const isGtinSearch = gtinValue && gtinValue.length >= 8 && /^\d+$/.test(gtinValue.replace(/[\s-]/g, ""));
+
     // Build query string from search parameters
     const queryParams = new URLSearchParams();
-    Object.entries(searchParams).forEach(([key, value]) => {
-      if (value && value.trim()) {
-        queryParams.append(key, value.trim());
+
+    // If we have what looks like a valid GTIN, prioritize it
+    if (isGtinSearch) {
+      // First try an exact GTIN search
+      queryParams.append("gtin", gtinValue.trim());
+
+      // Also pass name and manufacturer as fallback if they exist
+      if (searchParams.name) {
+        queryParams.append("name", searchParams.name.trim());
       }
-    });
+      if (searchParams.manufacturer) {
+        queryParams.append("manufacturer", searchParams.manufacturer.trim());
+      }
+    } else {
+      // Regular search - add all parameters
+      Object.entries(searchParams).forEach(([key, value]) => {
+        if (value && value.trim()) {
+          queryParams.append(key, value.trim());
+        }
+      });
+    }
 
     // Add limit parameter for top 5 results
     queryParams.append("limit", "5");
@@ -467,7 +496,27 @@
   itemsList.addEventListener("click", function (e) {
     if (e.target.classList.contains("checkin-btn")) {
       const itemId = e.target.closest("li").getAttribute("data-id");
-      window.location.href = `/search/check_in/${itemId}/`;
+
+      // Get the values from the form fields
+      const expirationDate = document.getElementById("id_expiration_date")?.value || "";
+      const lotNumber = document.getElementById("id_lot_number")?.value || "";
+      const detail = document.getElementById("id_detail")?.value || "";
+
+      // Build the URL with query parameters
+      let url = `/search/check_in/${itemId}/`;
+      const params = new URLSearchParams();
+
+      if (expirationDate) params.append("expiration_date", expirationDate);
+      if (lotNumber) params.append("lot_number", lotNumber);
+      if (detail) params.append("detail", detail);
+
+      // Add the query parameters to the URL if any exist
+      const queryString = params.toString();
+      if (queryString) {
+        url += "?" + queryString;
+      }
+
+      window.location.href = url;
     }
   });
 
