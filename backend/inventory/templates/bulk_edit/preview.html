@@ -1,0 +1,211 @@
+<!--
+  bulk_edit/preview.html - Preview changes before applying them
+  
+  This template displays the changes that will be made to the inventory
+  based on the uploaded spreadsheet, allowing the user to review and
+  confirm before executing the changes.
+-->
+
+{% extends "shared/base.html" %}
+{% load static %}
+
+{% block title %}Preview Bulk Edit Changes{% endblock %}
+
+{% block body %}
+<div class="container">
+  <h1 class="mb-4">Preview Changes</h1>
+  
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> Review the changes below carefully before applying them to your inventory.
+  </div>
+  
+  {% if not changes_detected %}
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle"></i> No changes were detected in the uploaded spreadsheet.
+    </div>
+    <a href="{% url 'bulk_edit' %}" class="btn btn-primary">
+      <i class="fas fa-arrow-left"></i> Back to Bulk Edit
+    </a>
+  {% else %}
+    <!-- Item Changes Section -->
+    {% if item_changes %}
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Item Changes ({{ item_changes|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Field</th>
+                  <th>Old Value</th>
+                  <th>New Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for change in item_changes %}
+                  <tr>
+                    <td>{{ change.item_name }}</td>
+                    <td>{{ change.field }}</td>
+                    <td>{{ change.old_value }}</td>
+                    <td>{{ change.new_value }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- Stock Item Changes Section -->
+    {% if stock_item_changes %}
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Stock Item Changes ({{ stock_item_changes|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Stock Detail</th>
+                  <th>Field</th>
+                  <th>Old Value</th>
+                  <th>New Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for change in stock_item_changes %}
+                  <tr>
+                    <td>{{ change.item_name }}</td>
+                    <td>{{ change.detail }}</td>
+                    <td>{{ change.field }}</td>
+                    <td>{{ change.old_value }}</td>
+                    <td>{{ change.new_value }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- Stock Item Moves Section -->
+    {% if stock_item_moves %}
+      <div class="card mb-4">
+        <div class="card-header bg-warning">
+          <h5 class="mb-0">Stock Item Moves ({{ stock_item_moves|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Stock Detail</th>
+                  <th>Quantity</th>
+                  <th>From Item</th>
+                  <th>To Item</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for move in stock_item_moves %}
+                  <tr>
+                    <td>{{ move.detail }}</td>
+                    <td>{{ move.quantity }}</td>
+                    <td>{{ move.from_item }}</td>
+                    <td>{{ move.to_item }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- New Items Section -->
+    {% if new_items %}
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">New Items ({{ new_items|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Manufacturer</th>
+                  <th>Tags</th>
+                  <th>GTIN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in new_items %}
+                  <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.manufacturer }}</td>
+                    <td>{{ item.tags }}</td>
+                    <td>{{ item.gtin }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- New Stock Items Section -->
+    {% if new_stock_items %}
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">New Stock Items ({{ new_stock_items|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Detail</th>
+                  <th>Quantity</th>
+                  <th>Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for stock in new_stock_items %}
+                  <tr>
+                    <td>{{ stock.item_name }}</td>
+                    <td>{{ stock.detail }}</td>
+                    <td>{{ stock.quantity }}</td>
+                    <td>{{ stock.location }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+      <a href="{% url 'bulk_edit' %}" class="btn btn-secondary">
+        <i class="fas fa-times"></i> Cancel
+      </a>
+      <form method="post" action="{% url 'execute_inventory_changes' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-check"></i> Apply Changes
+        </button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -26,13 +26,15 @@
 
 <br />
 
-{% if perms.inventory.change_item or perms.inventory.add_item or perms.inventory.add_viaspreadsheet_item or perms.inventory.view_checkout %}
+{% if perms.inventory.change_item or perms.inventory.add_item or perms.inventory.add_viaspreadsheet_item or perms.inventory.view_checkout or perms.inventory.bulkedit_item %}
 <h5>Update</h5>
 <div class="list-group">
   {% if perms.inventory.add_item %}
   <a href="{% url 'create_item' %}" class="list-group-item list-group-item-action">Add a new item</a>
   {% endif %} {% if perms.inventory.add_viaspreadsheet_item %}
   <a href="{% url 'spreadsheet_import_upload' %}" class="list-group-item list-group-item-action">Import items from spreadsheet</a>
+  {% endif %} {% if perms.inventory.bulkedit_item %}
+  <a href="{% url 'bulk_edit' %}" class="list-group-item list-group-item-action">Bulk Edit Items</a>
   {% endif %} {% if perms.inventory.change_item %}
   <a href="{% url 'search_check_in' %}" class="list-group-item list-group-item-action">Search and check in a stock item</a>
   {% endif %} {% if perms.inventory.view_checkout %}

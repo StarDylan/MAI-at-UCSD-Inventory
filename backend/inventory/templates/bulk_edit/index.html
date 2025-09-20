@@ -1,0 +1,120 @@
+<!--
+  bulk_edit/index.html - Main bulk edit interface for the inventory system
+  
+  This template displays the bulk edit page where users can:
+  - Download the current inventory as a spreadsheet
+  - Upload a modified spreadsheet
+  - Preview changes before applying them
+-->
+
+{% extends "shared/base.html" %}
+{% load static %}
+
+{% block title %}Bulk Edit Inventory{% endblock %}
+
+{% block body %}
+<div class="container">
+  <h1 class="mb-4">Bulk Edit Inventory</h1>
+  
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Instructions</h5>
+    </div>
+    <div class="card-body">
+      <p>Use this tool to make bulk edits to your inventory. The process works as follows:</p>
+      <ol>
+        <li>Download a spreadsheet of your entire inventory</li>
+        <li>Make changes to the spreadsheet (edit details, move stock items between items, etc.)</li>
+        <li>Upload the modified spreadsheet</li>
+        <li>Review the changes that will be made</li>
+        <li>Confirm and execute the changes</li>
+      </ol>
+      <p><strong>Important:</strong> All changes will be logged in the audit trail with your username.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Download Section -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">Step 1: Download Inventory</h5>
+        </div>
+        <div class="card-body">
+          <p>Download a spreadsheet containing all your inventory items and stock items.</p>
+          <p>The spreadsheet includes instructions on how to make changes.</p>
+          <a href="{% url 'download_inventory_spreadsheet' %}" class="btn btn-success">
+            <i class="fas fa-download"></i> Download Inventory Spreadsheet
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Upload Section -->
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Step 2: Upload Modified Spreadsheet</h5>
+        </div>
+        <div class="card-body">
+          <p>After making your changes, upload the modified spreadsheet here.</p>
+          <p>You'll be able to review all changes before they're applied.</p>
+          <form method="post" action="{% url 'upload_inventory_spreadsheet' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="excel_file" class="form-label">Select Excel File</label>
+              <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+            </div>
+            <button type="submit" class="btn btn-info">
+              <i class="fas fa-upload"></i> Upload and Preview Changes
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card mb-4">
+    <div class="card-header bg-warning">
+      <h5 class="mb-0">What You Can Do</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h6>Edit Item Details</h6>
+          <ul>
+            <li>Change item names, manufacturers, GTINs, etc.</li>
+            <li>Update tags (must use existing tags)</li>
+            <li>Modify cost information and other properties</li>
+          </ul>
+          
+          <h6>Edit Stock Items</h6>
+          <ul>
+            <li>Update quantities, locations, details, etc.</li>
+            <li>Change expiration dates and other properties</li>
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6>Move Stock Items Between Items</h6>
+          <ul>
+            <li>Change the Item ID of a stock item to move it</li>
+            <li>Combine multiple items by moving all stock to one item</li>
+          </ul>
+          
+          <h6>Remove Items</h6>
+          <ul>
+            <li>Items with no stock items will be removed</li>
+            <li>Set stock item quantity to 0 to remove it</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Add any JavaScript needed for the bulk edit page
+</script>
+{% endblock %}

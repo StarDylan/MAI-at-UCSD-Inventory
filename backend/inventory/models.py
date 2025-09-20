@@ -195,6 +195,7 @@ class Item(models.Model):
             ("view_internalstockingdetails", "Can view internal stocking"),
             ("view_advancedpropertiesitem", "Can view advanced properties"),
             ("add_viaspreadsheet_item", "Can add items via spreadsheet"),
+            ("bulkedit_item", "Can bulk edit items via spreadsheet"),
         ]
         constraints = [
             models.UniqueConstraint(Lower('name'), name='unique_item_name'),

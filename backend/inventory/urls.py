@@ -14,6 +14,7 @@ from inventory.views import (
     audit_api,
     auth,
     bulk_checkout,
+    bulk_edit,
     dashboard,
     images,
     items,
@@ -94,6 +95,13 @@ urlpatterns = [
     # Spreadsheet Import
     path('import/spreadsheet/', spreadsheet_import.upload_spreadsheet, name='spreadsheet_import_upload'),
     path('import/template/', spreadsheet_import.download_import_template, name='download_import_template'),
+    
+    # Bulk Edit
+    path('bulk-edit/', bulk_edit.BulkEditView.as_view(), name='bulk_edit'),
+    path('bulk-edit/download/', bulk_edit.download_inventory_spreadsheet, name='download_inventory_spreadsheet'),
+    path('bulk-edit/upload/', bulk_edit.upload_inventory_spreadsheet, name='upload_inventory_spreadsheet'),
+    path('bulk-edit/preview/', bulk_edit.preview_changes, name='bulk_edit_preview'),
+    path('bulk-edit/execute/', bulk_edit.execute_changes, name='execute_inventory_changes'),
     
     # Tag Management
     path('tags/groups/', tags.TagGroupListView.as_view(), name='tag_groups_list'),
