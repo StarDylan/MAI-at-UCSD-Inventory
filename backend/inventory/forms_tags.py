@@ -129,6 +129,25 @@ class TaggedItemForm(forms.ModelForm):
             # Create a dictionary for quick lookup
             self.prefetched_tags_dict = {str(tag.id): tag for tag in prefetched_tags}
 
+    def clean_name(self):
+        """Validates that the item name is unique when editing."""
+        name = self.cleaned_data.get('name', '').strip()
+        
+        # Check if name exists on any other non-deleted item (excluding current item if editing)
+        queryset = models.Item.active_objects.filter(name__iexact=name)
+        if self.instance and self.instance.pk:
+            # If editing an existing item, exclude it from the check
+            queryset = queryset.exclude(pk=self.instance.pk)
+        
+        existing_item = queryset.first()
+        if existing_item:
+            raise forms.ValidationError(
+                "An item with this name already exists. Please choose a different name.",
+                code='duplicate_name'
+            )
+        
+        return name
+        
     def clean_gtin(self):
         """Validates that the GTIN is unique across items if provided."""
         gtin = self.cleaned_data.get('gtin', '').strip()
@@ -140,8 +159,8 @@ class TaggedItemForm(forms.ModelForm):
                     code='invalid_gtin_length'
                 )
             
-            # Check if GTIN exists on any other item (excluding current item if editing)
-            queryset = models.Item.objects.filter(gtin=gtin)
+            # Check if GTIN exists on any other non-deleted item (excluding current item if editing)
+            queryset = models.Item.active_objects.filter(gtin=gtin)
             if self.instance and self.instance.pk:
                 # If editing an existing item, exclude it from the check
                 queryset = queryset.exclude(pk=self.instance.pk)
@@ -153,8 +172,8 @@ class TaggedItemForm(forms.ModelForm):
                     code='duplicate_item_gtin'
                 )
             
-            # Check if GTIN exists on stock items belonging to other items
-            stock_queryset = models.StockItem.objects.filter(gtin=gtin)
+            # Check if GTIN exists on stock items belonging to other non-deleted items
+            stock_queryset = models.StockItem.objects.filter(gtin=gtin, item__is_deleted=False)
             if self.instance and self.instance.pk:
                 # If editing an existing item, exclude stock items of this item
                 stock_queryset = stock_queryset.exclude(item=self.instance)
@@ -281,7 +300,7 @@ class TaggedItemWithStockForm(forms.Form):
     def clean_name(self):
         """Validates that the item name is unique."""
         name = self.cleaned_data['name']
-        if models.Item.objects.filter(name__iexact=name).exists():
+        if models.Item.active_objects.filter(name__iexact=name).exists():
             raise forms.ValidationError(
                 "An item with this name already exists. Please choose a different name.",
                 code='duplicate_name'
@@ -298,8 +317,8 @@ class TaggedItemWithStockForm(forms.Form):
                     "GTIN must be at most 14 characters long.",
                     code='invalid_gtin_length'
                 )
-            # Check if GTIN exists on any item
-            existing_item = models.Item.objects.filter(gtin=gtin).first()
+            # Check if GTIN exists on any non-deleted item
+            existing_item = models.Item.active_objects.filter(gtin=gtin).first()
             if existing_item:
                 raise forms.ValidationError(
                     f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. GTINs must be unique across items.",
@@ -307,9 +326,9 @@ class TaggedItemWithStockForm(forms.Form):
                 )
             
             # Check if GTIN exists on any stock item (this will be allowed once the new item is created)
-            # For now, we only check that it doesn't exist on stock items of OTHER items
+            # For now, we only check that it doesn't exist on stock items of OTHER non-deleted items
             # Since this is a new item creation, any existing stock item GTIN would belong to another item
-            existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
+            existing_stock = models.StockItem.objects.filter(gtin=gtin, item__is_deleted=False).first()
             if existing_stock:
                 raise forms.ValidationError(
                     f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'. GTINs must be unique across items.",

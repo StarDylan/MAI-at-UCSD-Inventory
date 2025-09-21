@@ -195,14 +195,6 @@ class Item(models.Model):
             ("view_advancedpropertiesitem", "Can view advanced properties"),
             ("add_viaspreadsheet_item", "Can add items via spreadsheet"),
         ]
-        constraints = [
-            models.UniqueConstraint(Lower('name'), name='unique_item_name'),
-            models.UniqueConstraint(
-                fields=['gtin'], 
-                condition=models.Q(gtin__gt=''),
-                name='unique_item_gtin'
-            )
-        ]
 
     def __str__(self):
         return self.name

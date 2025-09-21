@@ -142,6 +142,7 @@ def item_restore_view(request, uuid):
     Restore a previously deleted item.
     
     Undoes the soft delete operation by marking the item as active again.
+    Validates that the item's name and GTIN are still unique before restoration.
     
     Args:
         request: HTTP request object
@@ -155,6 +156,36 @@ def item_restore_view(request, uuid):
         PermissionDenied: If user doesn't have restore_deleteditem permission
     """
     item = get_object_or_404(Item.objects, id=uuid)
+    
+    # Validate name uniqueness before restoration
+    if Item.active_objects.filter(name__iexact=item.name).exists():
+        messages.error(request, f'Cannot restore item "{item.name}" because an active item with this name already exists.')
+        return redirect('view_deleted_items')
+    
+    # Validate GTIN uniqueness before restoration (if the item has a GTIN)
+    if item.gtin:
+        # Check if GTIN exists on any other active item
+        if Item.active_objects.filter(gtin=item.gtin).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because an active item with the same GTIN already exists.')
+            return redirect('view_deleted_items')
+        
+        # Check if GTIN exists on stock items belonging to other active items
+        if StockItem.objects.filter(gtin=item.gtin, item__is_deleted=False).exclude(item=item).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because a stock item with the same GTIN already exists for another active item.')
+            return redirect('view_deleted_items')
+    
+    # Check if any of the item's stock items have GTINs that conflict with active items
+    stock_items_with_gtin = StockItem.objects.filter(item=item).exclude(gtin='').values_list('gtin', flat=True)
+    for stock_gtin in stock_items_with_gtin:
+        # Check if this stock GTIN exists on any active item
+        if Item.active_objects.filter(gtin=stock_gtin).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because one of its stock items has a GTIN that matches an active item.')
+            return redirect('view_deleted_items')
+        
+        # Check if this stock GTIN exists on stock items belonging to other active items
+        if StockItem.objects.filter(gtin=stock_gtin, item__is_deleted=False).exclude(item=item).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because one of its stock items has a GTIN that conflicts with another active stock item.')
+            return redirect('view_deleted_items')
     
     # Log the state before restoration
     before_state = audit_log_state(item)
@@ -274,7 +305,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
         after_state = audit_log_state(self.object)
         audit_log_event(
             self.request.user, 
-            f"Updated item \"{before_model.name}\"", 
+            f"Updated item \"{ before_model.name }\"", 
             before_state, 
             after_state
         )
@@ -290,6 +321,19 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
             str: URL to the updated item's detail view
         """
         return reverse_lazy('view_item', kwargs={'uuid': self.object.pk})
+        
+    def form_invalid(self, form):
+        """
+        Handle form validation errors.
+        
+        Args:
+            form: Invalid ItemForm instance
+            
+        Returns:
+            HttpResponse: Rendered template with form errors
+        """
+        # Add any additional error handling or logging here if needed
+        return super().form_invalid(form)
 
 
 class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
