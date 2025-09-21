@@ -112,7 +112,7 @@ class TagGroupListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         return TagGroup.objects.prefetch_related(
             Prefetch(
                 'tags',
-                queryset=Tag.objects.order_by('sort_order', 'name')
+                queryset=Tag.objects.order_by('name')
             )
         ).filter(is_active=True).order_by('sort_order', 'name')
     
@@ -240,8 +240,7 @@ class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             items_count=Count('items')
         ).order_by(
             'tag_group__sort_order', 
-            'tag_group__name', 
-            'sort_order', 
+            'tag_group__name',
             'name'
         )
     
@@ -269,7 +268,6 @@ class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         ).order_by(
             'tag_group__sort_order',
             'tag_group__name', 
-            'sort_order',
             'name'
         )
         
@@ -483,7 +481,6 @@ def tag_bulk_create_view(request):
                     tag = Tag.objects.create(
                         name=name,
                         tag_group=tag_group,
-                        sort_order=i * 10  # Space them out for easy reordering
                     )
                     
                     audit_log_event(
@@ -526,7 +523,6 @@ def api_hidden_tags(request):
     ).order_by(
         'tag_group__sort_order',
         'tag_group__name',
-        'sort_order',
         'name'
     )
     

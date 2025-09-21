@@ -139,10 +139,10 @@ def download_import_template(request):
     ]
     
     # Add tag group and tag information
-    tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+    tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('name')
     for tag_group in tag_groups:
         instructions.append(f"  {tag_group.name}:")
-        for tag in tag_group.tags.filter(is_active=True).order_by('sort_order', 'name'):
+        for tag in tag_group.tags.filter(is_active=True).order_by('name'):
             instructions.append(f"    - {tag.name}")
     
     instructions.append("")
@@ -187,7 +187,7 @@ def upload_spreadsheet(request):
         if 'excel_file' not in request.FILES:
             messages.error(request, 'No file was uploaded.')
             # Prepare context for the template
-            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
@@ -201,7 +201,7 @@ def upload_spreadsheet(request):
         if not excel_file.name.endswith(('.xlsx', '.xls')):
             messages.error(request, 'Please upload a valid Excel file (.xlsx or .xls).')
             # Prepare context for the template
-            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+            tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('name')
             organizations = Organization.objects.all().order_by('name')
             
             context = {
@@ -226,7 +226,7 @@ def upload_spreadsheet(request):
             if ws.max_row < 1:
                 messages.error(request, 'The uploaded file appears to be empty.')
                 # Prepare context for the template
-                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('name')
                 organizations = Organization.objects.all().order_by('name')
                 
                 context = {
@@ -239,7 +239,7 @@ def upload_spreadsheet(request):
             if actual_headers != expected_headers:
                 messages.error(request, 'Invalid file format. Please use the template from the download function.')
                 # Prepare context for the template
-                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('sort_order', 'name')
+                tag_groups = TagGroup.objects.prefetch_related('tags').filter(is_active=True).order_by('name')
                 organizations = Organization.objects.all().order_by('name')
                 
                 context = {

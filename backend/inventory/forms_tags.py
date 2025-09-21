@@ -40,17 +40,15 @@ class TagForm(forms.ModelForm):
     
     class Meta:
         model = Tag
-        fields = ['name', 'tag_group', 'description', 'color', 'sort_order']
+        fields = ['name', 'tag_group', 'description', 'color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. PPE, Disposable, Electronics'}),
             'tag_group': forms.Select(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Optional description...'}),
             'color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
-            'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'})
         }
         help_texts = {
             'color': 'Custom color for this tag',
-            'sort_order': 'Order within the tag group (lower numbers appear first)'
         }
     
     def __init__(self, *args, **kwargs):
@@ -106,7 +104,6 @@ class TaggedItemForm(forms.ModelForm):
         ).select_related('tag_group').order_by(
             'tag_group__sort_order',  # First sort by tag group sort order
             'tag_group__name',        # Then by tag group name
-            'sort_order',             # Then by tag sort order within group
             'name'                    # Finally by tag name for consistent display
         )
         
@@ -126,7 +123,6 @@ class TaggedItemForm(forms.ModelForm):
             ).select_related('tag_group').order_by(
                 'tag_group__sort_order',
                 'tag_group__name',
-                'sort_order',
                 'name'
             )
             
@@ -276,7 +272,6 @@ class TaggedItemWithStockForm(forms.Form):
         ).select_related('tag_group').order_by(
             'tag_group__sort_order', 
             'tag_group__name', 
-            'sort_order', 
             'name'
         )
         self.fields['tags'].queryset = active_tags
@@ -478,6 +473,5 @@ class TagFilterForm(forms.Form):
         ).select_related('tag_group').order_by(
             'tag_group__sort_order',
             'tag_group__name',
-            'sort_order',
             'name'
         )

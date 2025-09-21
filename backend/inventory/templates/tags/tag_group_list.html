@@ -48,7 +48,7 @@
             <div class="card-body">
               {% if tag_group.description %}
               <p class="card-text text-muted">{{ tag_group.description }}</p>
-              {% endif %} {% for tag in tag_group.tags.all|dictsort:"sort_order"|dictsort:"name" %} {% if tag.is_active %}
+              {% endif %} {% for tag in tag_group.tags.all|dictsort:"name" %} {% if tag.is_active %}
               <span class="badge mr-1 mb-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }}"> {{ tag.name }} </span>
               {% else %}
               <span

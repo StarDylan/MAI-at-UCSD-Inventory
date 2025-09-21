@@ -886,7 +886,7 @@ def public_search_view(request):
     tag_groups = models.TagGroup.objects.filter(is_active=True).prefetch_related(
         Prefetch(
             'tags',
-            queryset=models.Tag.objects.filter(is_active=True).order_by('sort_order', 'name')
+            queryset=models.Tag.objects.filter(is_active=True).order_by('name')
         )
     ).order_by('sort_order', 'name')
     
@@ -1125,7 +1125,7 @@ def public_search_api(request):
         
         # Get all tags and sort them properly for tags_display
         all_tags = list(item.tags.all())
-        all_tags.sort(key=lambda t: (t.tag_group.sort_order or 0, t.sort_order or 0, t.name))
+        all_tags.sort(key=lambda t: (t.tag_group.sort_order or 0, t.name))
         
         # Compute tags_display using prefetched data to avoid N+1 query
         tags_display = ', '.join(tag.name for tag in all_tags) if all_tags else ""
