@@ -99,15 +99,15 @@ class TaggedItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Organize tags by tag group for better UX
+        # Organize tags by tag group for better UX with consistent sorting
         active_tags = Tag.objects.filter(
             is_active=True, 
             tag_group__is_active=True
         ).select_related('tag_group').order_by(
-            'tag_group__sort_order', 
-            'tag_group__name', 
-            'sort_order', 
-            'name'
+            'tag_group__sort_order',  # First sort by tag group sort order
+            'tag_group__name',        # Then by tag group name
+            'sort_order',             # Then by tag sort order within group
+            'name'                    # Finally by tag name for consistent display
         )
         
         self.fields['tags'].queryset = active_tags
@@ -123,7 +123,12 @@ class TaggedItemForm(forms.ModelForm):
             # when rendering the form
             prefetched_tags = Tag.objects.filter(
                 id__in=self.instance.tags.values_list('id', flat=True)
-            ).select_related('tag_group')
+            ).select_related('tag_group').order_by(
+                'tag_group__sort_order',
+                'tag_group__name',
+                'sort_order',
+                'name'
+            )
             
             # Create a dictionary for quick lookup
             self.prefetched_tags_dict = {str(tag.id): tag for tag in prefetched_tags}
