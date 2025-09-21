@@ -11,7 +11,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.views.generic import FormView
 
-from inventory.forms import Search_QuantityAdd, Search_QuantityRemove
+from inventory.forms import Search_QuantityAdd
 from inventory.models import Item, StockItem
 from .utils import audit_log_state, audit_log_event
 
@@ -50,12 +50,16 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             try:
                 selected_item = Item.active_objects.get(id=item_uuid)
                 context['selected_item'] = selected_item
+                context['item_has_gtin'] = selected_item.gtin.strip() != ""
                 # Add details_gtins for JS template
                 context['selected_item'].details_gtins = selected_item.get_details_gtins()
             except Item.DoesNotExist:
                 pass
+        
+        if "item_has_gtin" not in context:
+            context['item_has_gtin'] = False
                 
-        return context
+        return context  
 
     def get_form_kwargs(self):
         """
@@ -78,12 +82,14 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         Get initial form data.
         
         If an item_uuid is provided in the URL, pre-populate the item field.
+        Also check for URL parameters to pre-populate other fields.
         
         Returns:
             dict: Initial form data
         """
         initial = super().get_initial()
         
+        # Pre-populate item if item_uuid is provided in URL path
         item_uuid = self.kwargs.get('item_uuid')
         if item_uuid:
             try:
@@ -91,6 +97,26 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                 initial['item'] = selected_item
             except Item.DoesNotExist:
                 pass
+        
+        # Check for URL query parameters to pre-populate fields
+        # Expiration date
+        if 'expiration_date' in self.request.GET:
+            try:
+                from datetime import datetime
+                date_str = self.request.GET['expiration_date']
+                parsed_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                initial['expiration_date'] = parsed_date
+            except (ValueError, TypeError):
+                # If date parsing fails, ignore this parameter
+                pass
+        
+        # Lot number
+        if 'lot_number' in self.request.GET:
+            initial['lot_number'] = self.request.GET['lot_number']
+        
+        # Detail
+        if 'detail' in self.request.GET:
+            initial['detail'] = self.request.GET['detail']
                 
         return initial
 
