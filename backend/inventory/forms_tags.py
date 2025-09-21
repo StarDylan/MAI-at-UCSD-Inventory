@@ -116,6 +116,17 @@ class TaggedItemForm(forms.ModelForm):
         if self.instance and self.instance.pk and self.instance.has_stock_item_gtin:
             self.fields['gtin'].disabled = True
             self.fields['gtin'].help_text = "GTIN is disabled because one or more stock items already have GTIN values."
+            
+        # Prefetch tags for the instance to avoid N+1 queries
+        if self.instance and self.instance.pk:
+            # Ensure instance.tags is prefetched with tag_group to avoid N+1 queries
+            # when rendering the form
+            prefetched_tags = Tag.objects.filter(
+                id__in=self.instance.tags.values_list('id', flat=True)
+            ).select_related('tag_group')
+            
+            # Create a dictionary for quick lookup
+            self.prefetched_tags_dict = {str(tag.id): tag for tag in prefetched_tags}
 
     def clean_gtin(self):
         """Validates that the GTIN is unique across items if provided."""

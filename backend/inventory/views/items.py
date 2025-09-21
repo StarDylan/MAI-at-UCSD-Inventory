@@ -225,6 +225,33 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     form_class = TaggedItemForm
     template_name = "items/edit.html"
     permission_required = 'inventory.change_item'
+    
+    def get_object(self, queryset=None):
+        """
+        Override get_object to prefetch related tags with their tag_groups
+        to avoid N+1 queries when rendering the form.
+        """
+        if queryset is None:
+            queryset = self.get_queryset()
+            
+        # Use prefetch_related to efficiently load tags and their tag_groups
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                'tags',
+                queryset=models.Tag.objects.filter(
+                    is_active=True, 
+                    tag_group__is_active=True
+                ).select_related('tag_group')
+            )
+        )
+        
+        # Get the object using the pk from the URL
+        pk = self.kwargs.get(self.pk_url_kwarg)
+        if pk is not None:
+            queryset = queryset.filter(pk=pk)
+            
+        obj = queryset.get()
+        return obj
 
     def form_valid(self, form):
         """
