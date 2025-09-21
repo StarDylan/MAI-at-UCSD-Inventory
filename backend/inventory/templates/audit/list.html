@@ -41,7 +41,7 @@
     <tbody id="table">
       {% for event in events %}
       <tr onclick="viewDiff({{ event.json_data }});" style="cursor: pointer;">
-        <td>{{ event.created_at|date:"M d, Y H:i:s" }}</td>
+        <td class="audit-timestamp" data-timestamp="{{ event.created_at|date:'c' }}">{{ event.created_at|date:"M d, Y H:i:s" }}</td>
         <td>{{ event.entity_type }}</td>
         <td>{{ event.user.get_full_name|default:event.user.username }}</td>
         <td>{{ event.event }}</td>
@@ -152,6 +152,22 @@
 </div>
 
 <script type="text/javascript">
+  // Format all audit timestamps when the page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    formatAuditTimestamps();
+  });
+
+  // Function to format all audit timestamps on the page
+  function formatAuditTimestamps() {
+    document.querySelectorAll('.audit-timestamp').forEach(function(element) {
+      const timestamp = element.getAttribute('data-timestamp');
+      if (timestamp) {
+        const date = new Date(timestamp);
+        element.textContent = date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      }
+    });
+  }
+  
   function viewDiff(event) {
     var modal = $("#auditDiffModal").modal();
     console.log(event);

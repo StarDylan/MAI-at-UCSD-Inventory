@@ -79,7 +79,7 @@
                         {% endif %}
                       </div>
                       <div class="tags-in-group">
-                        {% for tag in tag_group.tags.all %}
+                        {% for tag in tag_group.tags.all|dictsort:"sort_order"|dictsort:"name" %}
                         <div
                           class="tag-item"
                           data-tag-id="{{ tag.id }}"

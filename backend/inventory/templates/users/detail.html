@@ -202,8 +202,11 @@
 
         function renderAuditRow(event) {
           var safeJson = JSON.stringify(event.json_data || {before: event.before, after: event.after});
+          // Format the date using the browser's locale with medium date and short time
+          var date = new Date(event.created_at);
+          var formattedDate = date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
           return `<tr onclick='viewDiff(${safeJson})' style="cursor:pointer;">
-            <td>${event.created_at}</td>
+            <td>${formattedDate}</td>
             <td>${event.entity_type}</td>
             <td>${event.user}</td>
             <td>${event.event}</td>

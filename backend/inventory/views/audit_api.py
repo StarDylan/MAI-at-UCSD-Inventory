@@ -28,7 +28,7 @@ def audit_by_user_api(request, user_id):
     data = []
     for event in events:
         data.append({
-            'created_at': event.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'created_at': event.created_at.isoformat(),
             'entity_type': event.entity_type,
             'user': str(event.user),
             'event': event.event,
@@ -64,7 +64,7 @@ def audit_on_user_api(request, user_id):
     data = []
     for event in events:
         data.append({
-            'created_at': event.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'created_at': event.created_at.isoformat(),
             'entity_type': event.entity_type,
             'user': str(event.user),
             'event': event.event,
