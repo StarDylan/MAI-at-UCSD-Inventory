@@ -1,15 +1,25 @@
-{% extends "shared/base.html" %} {% block body %}
+{% extends "shared/base.html" %} {% block body %} {% load crispy_forms_tags %}
 
-{% load crispy_forms_tags %}
+<style>
+  /* Custom styles for field errors */
+  .field-with-errors .invalid-feedback {
+    display: block !important;
+  }
+  .field-error {
+    color: #dc3545;
+    font-size: 0.875em;
+    margin-top: 0.25rem;
+  }
+</style>
 
 <h4>Edit Stock Item</h4>
 <p><strong>Item:</strong> {{ object.item.name }}</p>
 <p><strong>Original Organization:</strong> {{ object.organization.name }}</p>
 
 <form method="post">
-  {% csrf_token %}
-
-  {{ form|crispy }}
+  {% csrf_token %} {% if form.non_field_errors %}
+  <div class="alert alert-danger">{% for error in form.non_field_errors %} {{ error }} {% endfor %}</div>
+  {% endif %} {% crispy form %}
 
   <p>
     <input type="submit" class="btn btn-primary" value="Update Stock Item" />

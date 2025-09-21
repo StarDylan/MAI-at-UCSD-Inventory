@@ -2,16 +2,16 @@
 Views for tag and tag group management.
 """
     
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.template import loader
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib import messages
-from django.views.generic import UpdateView, CreateView, ListView, DeleteView
+from django.views.generic import UpdateView, CreateView, ListView
 from django.views.decorators.http import require_GET, require_POST
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 import json
 
 from inventory.models import Tag, TagGroup
@@ -110,7 +110,10 @@ class TagGroupListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     
     def get_queryset(self):
         return TagGroup.objects.prefetch_related(
-            'tags'
+            Prefetch(
+                'tags',
+                queryset=Tag.objects.order_by('name')
+            )
         ).filter(is_active=True).order_by('sort_order', 'name')
     
     def get_context_data(self, **kwargs):
@@ -237,8 +240,7 @@ class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             items_count=Count('items')
         ).order_by(
             'tag_group__sort_order', 
-            'tag_group__name', 
-            'sort_order', 
+            'tag_group__name',
             'name'
         )
     
@@ -263,7 +265,11 @@ class TagListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             is_active=False
         ).annotate(
             items_count=Count('items')
-        ).order_by('tag_group__name', 'name')
+        ).order_by(
+            'tag_group__sort_order',
+            'tag_group__name', 
+            'name'
+        )
         
         # Check if we should focus on a specific tag group
         focus_group = self.request.GET.get('focus_group')
@@ -475,7 +481,6 @@ def tag_bulk_create_view(request):
                     tag = Tag.objects.create(
                         name=name,
                         tag_group=tag_group,
-                        sort_order=i * 10  # Space them out for easy reordering
                     )
                     
                     audit_log_event(
@@ -508,13 +513,18 @@ def tag_bulk_create_view(request):
     template = loader.get_template('tags/tag_bulk_create.html')
     return HttpResponse(template.render(context, request))
 
+
 @login_required
 @permission_required("inventory.view_tag", raise_exception=True)
 def api_hidden_tags(request):
     """API endpoint to get hidden tags"""
-    hidden_tags = Tag.objects.filter(is_active=False).annotate(
+    hidden_tags = Tag.objects.select_related('tag_group').filter(is_active=False).annotate(
         items_count=Count('items')
-    ).order_by('name')
+    ).order_by(
+        'tag_group__sort_order',
+        'tag_group__name',
+        'name'
+    )
     
     tags_data = []
     for tag in hidden_tags:

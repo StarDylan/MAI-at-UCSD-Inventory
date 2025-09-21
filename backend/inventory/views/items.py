@@ -142,6 +142,7 @@ def item_restore_view(request, uuid):
     Restore a previously deleted item.
     
     Undoes the soft delete operation by marking the item as active again.
+    Validates that the item's name and GTIN are still unique before restoration.
     
     Args:
         request: HTTP request object
@@ -155,6 +156,36 @@ def item_restore_view(request, uuid):
         PermissionDenied: If user doesn't have restore_deleteditem permission
     """
     item = get_object_or_404(Item.objects, id=uuid)
+    
+    # Validate name uniqueness before restoration
+    if Item.active_objects.filter(name__iexact=item.name).exists():
+        messages.error(request, f'Cannot restore item "{item.name}" because an active item with this name already exists.')
+        return redirect('view_deleted_items')
+    
+    # Validate GTIN uniqueness before restoration (if the item has a GTIN)
+    if item.gtin:
+        # Check if GTIN exists on any other active item
+        if Item.active_objects.filter(gtin=item.gtin).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because an active item with the same GTIN already exists.')
+            return redirect('view_deleted_items')
+        
+        # Check if GTIN exists on stock items belonging to other active items
+        if StockItem.objects.filter(gtin=item.gtin, item__is_deleted=False).exclude(item=item).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because a stock item with the same GTIN already exists for another active item.')
+            return redirect('view_deleted_items')
+    
+    # Check if any of the item's stock items have GTINs that conflict with active items
+    stock_items_with_gtin = StockItem.objects.filter(item=item).exclude(gtin='').values_list('gtin', flat=True)
+    for stock_gtin in stock_items_with_gtin:
+        # Check if this stock GTIN exists on any active item
+        if Item.active_objects.filter(gtin=stock_gtin).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because one of its stock items has a GTIN that matches an active item.')
+            return redirect('view_deleted_items')
+        
+        # Check if this stock GTIN exists on stock items belonging to other active items
+        if StockItem.objects.filter(gtin=stock_gtin, item__is_deleted=False).exclude(item=item).exists():
+            messages.error(request, f'Cannot restore item "{item.name}" because one of its stock items has a GTIN that conflicts with another active stock item.')
+            return redirect('view_deleted_items')
     
     # Log the state before restoration
     before_state = audit_log_state(item)
@@ -225,6 +256,33 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     form_class = TaggedItemForm
     template_name = "items/edit.html"
     permission_required = 'inventory.change_item'
+    
+    def get_object(self, queryset=None):
+        """
+        Override get_object to prefetch related tags with their tag_groups
+        to avoid N+1 queries when rendering the form.
+        """
+        if queryset is None:
+            queryset = self.get_queryset()
+            
+        # Use prefetch_related to efficiently load tags and their tag_groups
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                'tags',
+                queryset=models.Tag.objects.filter(
+                    is_active=True, 
+                    tag_group__is_active=True
+                ).select_related('tag_group')
+            )
+        )
+        
+        # Get the object using the pk from the URL
+        pk = self.kwargs.get(self.pk_url_kwarg)
+        if pk is not None:
+            queryset = queryset.filter(pk=pk)
+            
+        obj = queryset.get()
+        return obj
 
     def form_valid(self, form):
         """
@@ -247,7 +305,7 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
         after_state = audit_log_state(self.object)
         audit_log_event(
             self.request.user, 
-            f"Updated item \"{before_model.name}\"", 
+            f"Updated item \"{ before_model.name }\"", 
             before_state, 
             after_state
         )
@@ -263,6 +321,19 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
             str: URL to the updated item's detail view
         """
         return reverse_lazy('view_item', kwargs={'uuid': self.object.pk})
+        
+    def form_invalid(self, form):
+        """
+        Handle form validation errors.
+        
+        Args:
+            form: Invalid ItemForm instance
+            
+        Returns:
+            HttpResponse: Rendered template with form errors
+        """
+        # Add any additional error handling or logging here if needed
+        return super().form_invalid(form)
 
 
 class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -859,7 +930,7 @@ def public_search_view(request):
     tag_groups = models.TagGroup.objects.filter(is_active=True).prefetch_related(
         Prefetch(
             'tags',
-            queryset=models.Tag.objects.filter(is_active=True).order_by('sort_order', 'name')
+            queryset=models.Tag.objects.filter(is_active=True).order_by('name')
         )
     ).order_by('sort_order', 'name')
     
@@ -1098,7 +1169,7 @@ def public_search_api(request):
         
         # Get all tags and sort them properly for tags_display
         all_tags = list(item.tags.all())
-        all_tags.sort(key=lambda t: (t.tag_group.sort_order or 0, t.sort_order or 0, t.name))
+        all_tags.sort(key=lambda t: (t.tag_group.sort_order or 0, t.name))
         
         # Compute tags_display using prefetched data to avoid N+1 query
         tags_display = ', '.join(tag.name for tag in all_tags) if all_tags else ""

@@ -40,17 +40,15 @@ class TagForm(forms.ModelForm):
     
     class Meta:
         model = Tag
-        fields = ['name', 'tag_group', 'description', 'color', 'sort_order']
+        fields = ['name', 'tag_group', 'description', 'color']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. PPE, Disposable, Electronics'}),
             'tag_group': forms.Select(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Optional description...'}),
             'color': forms.TextInput(attrs={'type': 'color', 'class': 'form-control form-control-color'}),
-            'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'})
         }
         help_texts = {
             'color': 'Custom color for this tag',
-            'sort_order': 'Order within the tag group (lower numbers appear first)'
         }
     
     def __init__(self, *args, **kwargs):
@@ -99,15 +97,14 @@ class TaggedItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Organize tags by tag group for better UX
+        # Organize tags by tag group for better UX with consistent sorting
         active_tags = Tag.objects.filter(
             is_active=True, 
             tag_group__is_active=True
         ).select_related('tag_group').order_by(
-            'tag_group__sort_order', 
-            'tag_group__name', 
-            'sort_order', 
-            'name'
+            'tag_group__sort_order',  # First sort by tag group sort order
+            'tag_group__name',        # Then by tag group name
+            'name'                    # Finally by tag name for consistent display
         )
         
         self.fields['tags'].queryset = active_tags
@@ -116,7 +113,41 @@ class TaggedItemForm(forms.ModelForm):
         if self.instance and self.instance.pk and self.instance.has_stock_item_gtin:
             self.fields['gtin'].disabled = True
             self.fields['gtin'].help_text = "GTIN is disabled because one or more stock items already have GTIN values."
+            
+        # Prefetch tags for the instance to avoid N+1 queries
+        if self.instance and self.instance.pk:
+            # Ensure instance.tags is prefetched with tag_group to avoid N+1 queries
+            # when rendering the form
+            prefetched_tags = Tag.objects.filter(
+                id__in=self.instance.tags.values_list('id', flat=True)
+            ).select_related('tag_group').order_by(
+                'tag_group__sort_order',
+                'tag_group__name',
+                'name'
+            )
+            
+            # Create a dictionary for quick lookup
+            self.prefetched_tags_dict = {str(tag.id): tag for tag in prefetched_tags}
 
+    def clean_name(self):
+        """Validates that the item name is unique when editing."""
+        name = self.cleaned_data.get('name', '').strip()
+        
+        # Check if name exists on any other non-deleted item (excluding current item if editing)
+        queryset = models.Item.active_objects.filter(name__iexact=name)
+        if self.instance and self.instance.pk:
+            # If editing an existing item, exclude it from the check
+            queryset = queryset.exclude(pk=self.instance.pk)
+        
+        existing_item = queryset.first()
+        if existing_item:
+            raise forms.ValidationError(
+                "An item with this name already exists. Please choose a different name.",
+                code='duplicate_name'
+            )
+        
+        return name
+        
     def clean_gtin(self):
         """Validates that the GTIN is unique across items if provided."""
         gtin = self.cleaned_data.get('gtin', '').strip()
@@ -128,8 +159,8 @@ class TaggedItemForm(forms.ModelForm):
                     code='invalid_gtin_length'
                 )
             
-            # Check if GTIN exists on any other item (excluding current item if editing)
-            queryset = models.Item.objects.filter(gtin=gtin)
+            # Check if GTIN exists on any other non-deleted item (excluding current item if editing)
+            queryset = models.Item.active_objects.filter(gtin=gtin)
             if self.instance and self.instance.pk:
                 # If editing an existing item, exclude it from the check
                 queryset = queryset.exclude(pk=self.instance.pk)
@@ -141,8 +172,8 @@ class TaggedItemForm(forms.ModelForm):
                     code='duplicate_item_gtin'
                 )
             
-            # Check if GTIN exists on stock items belonging to other items
-            stock_queryset = models.StockItem.objects.filter(gtin=gtin)
+            # Check if GTIN exists on stock items belonging to other non-deleted items
+            stock_queryset = models.StockItem.objects.filter(gtin=gtin, item__is_deleted=False)
             if self.instance and self.instance.pk:
                 # If editing an existing item, exclude stock items of this item
                 stock_queryset = stock_queryset.exclude(item=self.instance)
@@ -260,7 +291,6 @@ class TaggedItemWithStockForm(forms.Form):
         ).select_related('tag_group').order_by(
             'tag_group__sort_order', 
             'tag_group__name', 
-            'sort_order', 
             'name'
         )
         self.fields['tags'].queryset = active_tags
@@ -270,7 +300,7 @@ class TaggedItemWithStockForm(forms.Form):
     def clean_name(self):
         """Validates that the item name is unique."""
         name = self.cleaned_data['name']
-        if models.Item.objects.filter(name__iexact=name).exists():
+        if models.Item.active_objects.filter(name__iexact=name).exists():
             raise forms.ValidationError(
                 "An item with this name already exists. Please choose a different name.",
                 code='duplicate_name'
@@ -287,8 +317,8 @@ class TaggedItemWithStockForm(forms.Form):
                     "GTIN must be at most 14 characters long.",
                     code='invalid_gtin_length'
                 )
-            # Check if GTIN exists on any item
-            existing_item = models.Item.objects.filter(gtin=gtin).first()
+            # Check if GTIN exists on any non-deleted item
+            existing_item = models.Item.active_objects.filter(gtin=gtin).first()
             if existing_item:
                 raise forms.ValidationError(
                     f"An item with GTIN '{gtin}' already exists: '{existing_item.name}'. GTINs must be unique across items.",
@@ -296,9 +326,9 @@ class TaggedItemWithStockForm(forms.Form):
                 )
             
             # Check if GTIN exists on any stock item (this will be allowed once the new item is created)
-            # For now, we only check that it doesn't exist on stock items of OTHER items
+            # For now, we only check that it doesn't exist on stock items of OTHER non-deleted items
             # Since this is a new item creation, any existing stock item GTIN would belong to another item
-            existing_stock = models.StockItem.objects.filter(gtin=gtin).first()
+            existing_stock = models.StockItem.objects.filter(gtin=gtin, item__is_deleted=False).first()
             if existing_stock:
                 raise forms.ValidationError(
                     f"A stock item with GTIN '{gtin}' already exists for item '{existing_stock.item.name}'. GTINs must be unique across items.",
@@ -462,6 +492,5 @@ class TagFilterForm(forms.Form):
         ).select_related('tag_group').order_by(
             'tag_group__sort_order',
             'tag_group__name',
-            'sort_order',
             'name'
         )

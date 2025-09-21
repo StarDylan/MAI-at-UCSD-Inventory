@@ -76,12 +76,11 @@ class Tag(models.Model):
         default="", 
         help_text="Hex color code (optional, inherits from tag group if empty)"
     )
-    sort_order = models.PositiveIntegerField(default=0, help_text="Order for displaying tags within group")
     is_active = models.BooleanField(default=True, help_text="Whether this tag is active")
 
     class Meta:
         db_table = "tag"
-        ordering = ['tag_group__sort_order', 'tag_group__name', 'sort_order', 'name']
+        ordering = ['tag_group__sort_order', 'tag_group__name', 'name']
         constraints = [
             models.UniqueConstraint(fields=['name'], name='unique_tag_name_global')
         ]
@@ -196,14 +195,6 @@ class Item(models.Model):
             ("view_advancedpropertiesitem", "Can view advanced properties"),
             ("add_viaspreadsheet_item", "Can add items via spreadsheet"),
         ]
-        constraints = [
-            models.UniqueConstraint(Lower('name'), name='unique_item_name'),
-            models.UniqueConstraint(
-                fields=['gtin'], 
-                condition=models.Q(gtin__gt=''),
-                name='unique_item_gtin'
-            )
-        ]
 
     def __str__(self):
         return self.name
@@ -249,13 +240,13 @@ class Item(models.Model):
     @property
     def tags_display(self):
         """Get comma-separated list of tag names for this item"""
-        tag_names = self.tags.values_list('name', flat=True).order_by('tag_group__sort_order', 'sort_order', 'name')
+        tag_names = self.tags.values_list('name', flat=True).order_by('tag_group__sort_order', 'name')
         return ', '.join(tag_names) if tag_names else ""
     
     def get_tags_by_group(self):
         """Get tags organized by tag group for this item"""
         tags_by_group = {}
-        for tag in self.tags.select_related('tag_group').order_by('tag_group__sort_order', 'sort_order'):
+        for tag in self.tags.select_related('tag_group').order_by('tag_group__sort_order', 'name'):
             group_name = tag.tag_group.name
             if group_name not in tags_by_group:
                 tags_by_group[group_name] = []

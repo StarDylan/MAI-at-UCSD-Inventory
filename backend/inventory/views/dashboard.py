@@ -21,7 +21,7 @@ def index_view(request):
     Returns:
         HttpResponseRedirect: Redirect to dashboard page
     """
-    return HttpResponseRedirect(reverse("dashboard"))
+    return HttpResponseRedirect(reverse("public_search"))
 
 
 def dashboard_view(request):

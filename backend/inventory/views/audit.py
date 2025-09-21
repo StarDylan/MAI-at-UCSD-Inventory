@@ -27,7 +27,11 @@ class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     template_name = 'audit/list.html'
     context_object_name = 'events'
     permission_required = 'inventory.view_auditevent'
-    paginate_by = 50  # Show 50 events per page
+    paginate_by = 100  # Show 100 events per page by default
+    
+    def get_paginate_by(self, queryset):
+        """Allow user to select page size via query parameter"""
+        return self.request.GET.get('page_size', self.paginate_by)
     
     def get_queryset(self):
         search_query = self.request.GET.get('search', '').strip()
@@ -50,6 +54,11 @@ class AuditLogListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('search', '')
+        context['page_size'] = self.request.GET.get('page_size', self.paginate_by)
+        context['is_paginated'] = True
+        
+        # Available page size options
+        context['page_size_options'] = [25, 50, 100, 250, 500]
         
         # Prepare JSON data for each event
         for event in context['events']:

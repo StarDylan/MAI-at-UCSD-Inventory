@@ -232,7 +232,6 @@ class Command(BaseCommand):
                     defaults={
                         'description': description,
                         'color': color,
-                        'sort_order': i * 10,  # Leave space for manual reordering
                     }
                 )
                 if created:
@@ -378,7 +377,6 @@ class Command(BaseCommand):
                             'description': f'{tag_name} items in {tag_group.name}',
                             'tag_group': tag_group,
                             'color': tag_color,
-                            'sort_order': i * 10,
                         }
                     )
                     if created:

@@ -25,6 +25,13 @@
 
   <form method="POST" autocomplete="off">
     {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+          {{ error }}<br>
+        {% endfor %}
+      </div>
+    {% endif %}
     
     <!-- Item Field -->
     <div class="form-group mb-3">
@@ -45,6 +52,11 @@
             <option value="{{ item.id }}">{{ item.name }}{% if item.manufacturer %} - {{ item.manufacturer }}{% endif %}</option>
           {% endfor %}
         </select>
+        {% if form.item.errors %}
+          {% for error in form.item.errors %}
+          <div class="text-danger">{{ error }}</div>
+          {% endfor %}
+        {% endif %}
       {% endif %}
     </div>
     
@@ -53,6 +65,11 @@
       <label for="id_detail" class="form-label">Detail</label>
       <input type="text" name="detail" id="id_detail" class="form-control" placeholder="e.g. Size L, Red, 16oz" value="{{ form.detail.value|default:'' }}">
       <div class="form-text">Additional details like size, color, variant, etc.</div>
+      {% if form.detail.errors %}
+        {% for error in form.detail.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Detail Suggestions -->
@@ -70,12 +87,22 @@
           <option value="{{ org.id }}" {% if form.organization.value == org.id %}selected{% endif %}>{{ org.name }}</option>
         {% endfor %}
       </select>
+      {% if form.organization.errors %}
+        {% for error in form.organization.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Quantity Field -->
     <div class="form-group mb-3">
       <label for="id_quantity" class="form-label">Quantity to add <span>*</span></label>
       <input type="number" name="quantity" id="id_quantity" class="form-control" min="1" placeholder="e.g. 12" value="{{ form.quantity.value|default:'1' }}" required>
+      {% if form.quantity.errors %}
+        {% for error in form.quantity.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- GTIN Field -->
@@ -89,30 +116,61 @@
           Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number
         {% endif %}
       </div>
+      {% if form.gtin.errors %}
+        {% for error in form.gtin.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Location Field -->
     <div class="form-group mb-3">
       <label for="id_location" class="form-label">Stock Location <span>*</span></label>
       <input type="text" name="location" id="id_location" class="form-control" placeholder="e.g. Box A" value="{{ form.location.value|default:'' }}" required>
+      {% if form.location.errors %}
+        {% for error in form.location.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <!-- Location suggestions container -->
+    <div id="stock-location-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
+        <h6 class="text-muted mb-2">Suggested Locations</h6>
+        <ul id="stock-location-suggestions-list" class="list-unstyled"></ul>
     </div>
     
     <!-- Date Received Field -->
     <div class="form-group mb-3">
       <label for="id_date_received" class="form-label">Date Received <span>*</span></label>
       <input type="date" name="date_received" id="id_date_received" class="form-control" value="{{ form.date_received.value|date:'Y-m-d'|default:'' }}" required>
+      {% if form.date_received.errors %}
+        {% for error in form.date_received.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Expiration Date Field -->
     <div class="form-group mb-3">
       <label for="id_expiration_date" class="form-label">Expiration Date (optional)</label>
       <input type="date" name="expiration_date" id="id_expiration_date" class="form-control" value="{{ form.expiration_date.value|date:'Y-m-d'|default:'' }}">
+      {% if form.expiration_date.errors %}
+        {% for error in form.expiration_date.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Lot Number Field -->
     <div class="form-group mb-3">
       <label for="id_lot_number" class="form-label">Lot Number</label>
       <input type="text" name="lot_number" id="id_lot_number" class="form-control" placeholder="e.g. LOT2024001" value="{{ form.lot_number.value|default:'' }}">
+      {% if form.lot_number.errors %}
+        {% for error in form.lot_number.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Notes Field -->
@@ -120,6 +178,11 @@
       <label for="id_notes" class="form-label">Notes</label>
       <textarea name="notes" id="id_notes" class="form-control" rows="2" placeholder="e.g. Received in good condition, slight box damage">{{ form.notes.value|default:'' }}</textarea>
       <div class="form-text">Public Notes specific to this stock entry</div>
+      {% if form.notes.errors %}
+        {% for error in form.notes.errors %}
+        <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
     </div>
     
     <!-- Submit Button -->
@@ -127,12 +190,6 @@
       <button type="submit" class="btn btn-primary">Submit</button>
     </div>
   </form>
-
-  <!-- Location suggestions container -->
-  <div id="stock-location-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
-    <h6 class="text-muted mb-2">Suggested Locations</h6>
-    <ul id="stock-location-suggestions-list" class="list-unstyled"></ul>
-  </div>
 
   <!-- Include Select2 for the item dropdown if needed -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />

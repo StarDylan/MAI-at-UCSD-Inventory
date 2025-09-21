@@ -325,7 +325,7 @@
         <tbody>
           {% for event in checkout_audit %}
           <tr onclick="viewDiff({{ event.json_data }});">
-            <td>{{ event.created_at|date:"d-M-Y H:i:s" }}</td>
+            <td class="audit-timestamp" data-timestamp="{{ event.created_at|date:'c' }}">{{ event.created_at|date:"M d, Y H:i:s" }}</td>
             <td>{{ event.user.get_full_name|default:event.user.username }}</td>
             <td>{{ event.event }}</td>
           </tr>
@@ -680,6 +680,22 @@
     leftBlockId = $("#audit_left").attr("id");
     rightBlockId = $("#audit_right").attr("id");
     $(document).jdd(leftBlockId, rightBlockId);
+  }
+
+  // Format all audit timestamps when the page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    formatAuditTimestamps();
+  });
+
+  // Function to format all audit timestamps on the page
+  function formatAuditTimestamps() {
+    document.querySelectorAll('.audit-timestamp').forEach(function(element) {
+      const timestamp = element.getAttribute('data-timestamp');
+      if (timestamp) {
+        const date = new Date(timestamp);
+        element.textContent = date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      }
+    });
   }
 
   // Initialize DataTable for audit log

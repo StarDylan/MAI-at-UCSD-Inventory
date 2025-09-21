@@ -52,10 +52,10 @@ class TagGroupAdmin(admin.ModelAdmin):
 
 @admin.register(models.Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "tag_group", "color_display", "sort_order", "is_active")
+    list_display = ("id", "name", "tag_group", "color_display",  "is_active")
     list_filter = ("tag_group", "is_active")
     search_fields = ("id", "name", "description", "tag_group__name")
-    ordering = ("tag_group__sort_order", "tag_group__name", "sort_order", "name")
+    ordering = ("tag_group__sort_order", "tag_group__name", "name")
     autocomplete_fields = ("tag_group",)
     list_per_page = 25
     
