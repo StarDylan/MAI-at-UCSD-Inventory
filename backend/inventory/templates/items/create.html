@@ -169,8 +169,11 @@
   <!-- Custom tags section -->
   {% if form.tags.field.queryset %}
   <div class="form-group mb-3">
-    <label class="form-label"><strong>Tags</strong></label>
+    <label class="form-label"><strong>Tags</strong>{% if form.tags.field.required %} *{% endif %}</label>
     <div class="form-text mb-3">Select one or more tags that describe this item. Items can have multiple tags for flexible categorization.</div>
+    {% if form.tags.errors %} {% for error in form.tags.errors %}
+    <div class="text-danger mb-2">{{ error }}</div>
+    {% endfor %} {% endif %}
 
     <div id="tags-section">
       {% regroup form.tags.field.queryset by tag_group as tag_groups %} {% for tag_group in tag_groups %}
