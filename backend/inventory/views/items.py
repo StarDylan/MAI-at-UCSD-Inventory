@@ -294,6 +294,11 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
         Returns:
             HttpResponseRedirect: Redirect to item detail view
         """
+        # Check if at least one tag is selected
+        if not form.cleaned_data.get('tags'):
+            form.add_error('tags', 'At least one tag must be selected.')
+            return self.form_invalid(form)
+            
         # Get the current state before changes for audit logging
         before_model = models.Item.active_objects.get(pk=form.instance.pk)
         before_state = audit_log_state(before_model)
@@ -360,6 +365,11 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         Returns:
             HttpResponseRedirect: Redirect to new item's detail view
         """
+        # Check if at least one tag is selected
+        if not form.cleaned_data.get('tags'):
+            form.add_error('tags', 'At least one tag must be selected.')
+            return self.form_invalid(form)
+            
         # Call the custom save method on the form.
         # It returns a tuple of (item, stock_item).
         new_item, stock_item = form.save()
