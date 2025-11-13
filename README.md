@@ -8,7 +8,7 @@
 <h3 align="center">MAI@UCSD Inventory</h3>
 
   <p align="center">
-    An inventory software adapted from <a href="https://github.com/Talal-A/mai-inventory-mgr">UCLA MAI’s system</a>, modified to fit MAI @ UCSD's workflows and requirements.
+    An inventory software built for MAI @ UCSD's workflows and requirements.
     <br />
     <br />
     <a href="https://inventory.maiatucsd.org">View Live Site</a>
