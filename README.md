@@ -11,7 +11,7 @@
     An inventory software adapted from <a href="https://github.com/Talal-A/mai-inventory-mgr">UCLA MAI’s system</a>, modified to fit MAI @ UCSD's workflows and requirements.
     <br />
     <br />
-    <a href="https://github.com/StarDylan/MAI-at-UCSD-Inventory">View Live Site</a>
+    <a href="https://inventory-beta.maiatucsd.org">View Live Site</a>
     &middot;
     <a href="https://github.com/StarDylan/MAI-at-UCSD-Inventory/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     &middot;
