@@ -21,9 +21,11 @@
 
 
 <!-- ABOUT THE PROJECT -->
-## About The Project
+## Screenshots
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+<img width="1867" height="1027" alt="image" src="https://github.com/user-attachments/assets/a06b7189-c445-4b4c-9a29-4ecf50b6a39e" />
+
+<img width="1867" height="885" alt="image" src="https://github.com/user-attachments/assets/0243f871-609a-4a59-9b4c-6eda98945a19" />
 
 
 
