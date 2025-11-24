@@ -126,7 +126,7 @@ def checkout_detail_view(request, checkout_id):
             item.boxes = None
             item.remaining = None
 
-    # Get audit events for the checkout with user prefetch
+    # Get audit events for the checkout with user details (using select_related on user)
     checkout_audit = AuditEvent.objects.filter(
         entity_id=checkout.id
     ).select_related('user').order_by('-created_at')
