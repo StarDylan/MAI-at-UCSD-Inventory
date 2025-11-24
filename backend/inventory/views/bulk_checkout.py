@@ -105,19 +105,31 @@ def checkout_detail_view(request, checkout_id):
     """
     View and edit individual checkout details.
     """
-    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
-    checkout_items = checkout.checkout_items.all().select_related(
-        'stock_item__item', 'stock_item__organization'  # type: ignore
+    checkout = get_object_or_404(
+        CheckOut.objects
+        .select_related('organization')
+        .prefetch_related(
+            'checkout_items__stock_item__item',
+            'checkout_items__stock_item__organization'
+        ),
+        id=checkout_id
     )
+    
+    checkout_items = checkout.checkout_items.all()
 
+    # Process items in Python to calculate boxes and remaining
     for item in checkout_items:
-        item.boxes = None
         if item.stock_item.item.items_per_box is not None:
             item.boxes = item.quantity // item.stock_item.item.items_per_box
             item.remaining = item.quantity % item.stock_item.item.items_per_box
+        else:
+            item.boxes = None
+            item.remaining = None
 
-    # Get audit events for the checkout
-    checkout_audit = AuditEvent.objects.filter(entity_id=checkout.id).select_related('user').order_by('-created_at')
+    # Get audit events for the checkout with user details (using select_related on user)
+    checkout_audit = AuditEvent.objects.filter(
+        entity_id=checkout.id
+    ).select_related('user').order_by('-created_at')
 
     # Prepare audit events for template display
     for event in checkout_audit:
@@ -134,7 +146,6 @@ def checkout_detail_view(request, checkout_id):
     }
 
     return render(request, 'checkout/checkout_detail.html', context)
-
 
 @login_required
 @permission_required('inventory.change_checkout', raise_exception=True)
