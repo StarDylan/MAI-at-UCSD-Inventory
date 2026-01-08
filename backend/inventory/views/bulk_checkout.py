@@ -228,7 +228,8 @@ def export_checkout_items_view(request, checkout_id):
     # Create a new workbook and add a worksheet
     wb = Workbook()
     ws = wb.active
-    ws.title = f"Checkout {checkout.id}"
+    sheet_title = f"Checkout {checkout.id}"[:31]
+    ws.title = sheet_title
     
     # Define the column headers
     headers = [
