@@ -268,7 +268,8 @@ def export_checkout_items_view(request, checkout_id):
         total_cost = float(cost_per_item * item.quantity) if cost_per_item else 'N/A'
         ws.cell(row=row_num, column=7, value=total_cost)
         
-        ws.cell(row=row_num, column=8, value='Yes' if checkout.is_donation else 'No')  # Donation from?
+        # Show the original organization of the item in the Donation from? column
+        ws.cell(row=row_num, column=8, value=item.stock_item.organization.name if item.stock_item.organization else 'N/A')  # Donation from?
     
     # Auto-adjust column widths
     for col in ws.columns:
