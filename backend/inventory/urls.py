@@ -84,6 +84,7 @@ urlpatterns = [
     path('bulk-checkout/<uuid:checkout_id>/complete/', bulk_checkout.checkout_complete_view, name='checkout_complete'),
     path('bulk-checkout/<uuid:checkout_id>/undo/', bulk_checkout.checkout_undo_view, name='checkout_undo'),
     path('bulk-checkout/<uuid:checkout_id>/delete/', bulk_checkout.checkout_delete_view, name='checkout_delete'),
+    path('bulk-checkout/<uuid:checkout_id>/export/', bulk_checkout.export_checkout_items_view, name='checkout_export'),
     path('item/<uuid:item_uuid>/add-to-checkout/', bulk_checkout.add_to_checkout_from_item_view, name='add_to_checkout_from_item'),
     
     # Surplus Reporting

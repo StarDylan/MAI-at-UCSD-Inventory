@@ -3,18 +3,18 @@ Bulk checkout views for managing multi-item checkouts with organization tracking
 """
 
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy, reverse
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.views.generic import ListView, CreateView, DetailView
-from django.http import JsonResponse, HttpResponseRedirect
+from django.views.generic import ListView
+from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
-import json
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
 
-from inventory.forms import CheckOutForm, CheckOutItemForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
-from inventory.models import CheckOut, CheckOutItem, Item, StockItem, Organization, AuditEvent
+from inventory.forms import CheckOutForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
+from inventory.models import Item, StockItem, AuditEvent, CheckOut, CheckOutItem
 from .utils import audit_log_state, audit_log_event
 
 
@@ -215,6 +215,84 @@ def checkout_add_item_view(request, checkout_id):
         'checkout': checkout,
         'items': items,
     })
+
+
+@login_required
+@permission_required('inventory.view_checkout', raise_exception=True)
+def export_checkout_items_view(request, checkout_id):
+    """
+    Export checkout items to an Excel file.
+    """
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
+    
+    # Create a new workbook and add a worksheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Checkout {checkout.id}"
+    
+    # Define the column headers
+    headers = [
+        'Requested Product',
+        'Party',
+        'QTY',
+        'Status',
+        'Date of Pickup',
+        'Weight (lbs)',
+        'Estimated Cost of Donation',
+        'Donation from?'
+    ]
+    
+    # Add headers to the worksheet
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Get all checkout items with related data
+    checkout_items = CheckOutItem.objects.filter(checkout=checkout).select_related(
+        'stock_item__item',
+        'stock_item__organization'
+    )
+    
+    # Add data rows
+    for row_num, item in enumerate(checkout_items, 2):
+        ws.cell(row=row_num, column=1, value=item.stock_item.item.name)  # Requested Product
+        ws.cell(row=row_num, column=2, value=checkout.organization.name)  # Party
+        ws.cell(row=row_num, column=3, value=item.quantity)  # QTY
+        ws.cell(row=row_num, column=4, value='Completed' if checkout.is_completed else 'In Progress')  # Status
+        ws.cell(row=row_num, column=5, value=checkout.completed_at.date() if checkout.completed_at else 'N/A')  # Date of Pickup
+        ws.cell(row=row_num, column=6, value=float(checkout.total_weight) if checkout.total_weight else 'N/A')  # Weight (lbs)
+        
+        # Estimated Cost of Donation (using item cost if available, otherwise empty)
+        cost_per_item = item.stock_item.item.cost_per_item
+        total_cost = float(cost_per_item * item.quantity) if cost_per_item else 'N/A'
+        ws.cell(row=row_num, column=7, value=total_cost)
+        
+        ws.cell(row=row_num, column=8, value='Yes' if checkout.is_donation else 'No')  # Donation from?
+    
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except (ValueError, TypeError):
+                # Skip if cell value can't be converted to string
+                continue
+        adjusted_width = (max_length + 2) * 1.2
+        ws.column_dimensions[column].width = adjusted_width
+    
+    # Create the HttpResponse object with the appropriate Excel header
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename=checkout_{checkout.id}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    # Save the workbook to the response
+    wb.save(response)
+    return response
 
 
 @login_required
