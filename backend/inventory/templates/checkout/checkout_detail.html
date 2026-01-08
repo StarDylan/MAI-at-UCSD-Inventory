@@ -378,29 +378,31 @@
     let searchTimeout;
     let currentItem = null;
 
-    // Search for items
-    itemSearch.addEventListener("input", function () {
-      const query = this.value.trim();
+    // Search for items (only if itemSearch element exists)
+    if (itemSearch) {
+      itemSearch.addEventListener("input", function () {
+        const query = this.value.trim();
 
-      clearTimeout(searchTimeout);
+        clearTimeout(searchTimeout);
 
-      if (query.length < 2) {
-        searchResults.classList.add("d-none");
-        noSearchYet.classList.remove("d-none");
-        return;
-      }
+        if (query.length < 2) {
+          searchResults.classList.add("d-none");
+          noSearchYet.classList.remove("d-none");
+          return;
+        }
 
-      searchTimeout = setTimeout(() => {
-        fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
-          .then((response) => response.json())
-          .then((data) => {
-            displaySearchResults(data.items || []);
-          })
-          .catch((error) => {
-            console.error("Search error:", error);
-          });
-      }, 300);
-    });
+        searchTimeout = setTimeout(() => {
+          fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
+            .then((response) => response.json())
+            .then((data) => {
+              displaySearchResults(data.items || []);
+            })
+            .catch((error) => {
+              console.error("Search error:", error);
+            });
+        }, 300);
+      });
+    }
 
     // Display search results
     function displaySearchResults(items) {
