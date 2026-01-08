@@ -278,12 +278,12 @@ def export_checkout_items_view(request, checkout_id):
         max_length = 0
         column = col[0].column_letter
         for cell in col:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except (ValueError, TypeError):
-                # Skip if cell value can't be converted to string
+            value = cell.value
+            if value is None:
                 continue
+            text = str(value)
+            if len(text) > max_length:
+                max_length = len(text)
         adjusted_width = (max_length + 2) * 1.2
         ws.column_dimensions[column].width = adjusted_width
     
