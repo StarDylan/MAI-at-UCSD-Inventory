@@ -16,24 +16,25 @@
     <a href="{% url 'bulk_checkout_list' %}" class="btn btn-secondary mb-2">
       <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Checkouts
     </a>
+    <a href="{% url 'checkout_export' checkout.id %}" class="btn btn-outline-primary mb-2"> <i class="material-icons" style="vertical-align: middle">file_download</i> Export </a>
 
     {% if not checkout.is_completed and checkout_items and perms.inventory.complete_checkout %}
       {% if checkout.has_insufficient_stock %}
-        <button class="btn btn-secondary mb-2" disabled title="Cannot complete checkout - insufficient stock for some items">
-          <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
-        </button>
-      {% else %}
+    <button class="btn btn-secondary mb-2" disabled title="Cannot complete checkout - insufficient stock for some items">
+      <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
+    </button>
+    {% else %}
         <a href="{% url 'checkout_complete' checkout.id %}" class="btn btn-success mb-2">
           <i class="material-icons" style="vertical-align: middle">check</i> Complete Checkout
         </a>
       {% endif %}
     {% elif checkout.is_completed and perms.inventory.undo_checkout %}
       <form method="post" action="{% url 'checkout_undo' checkout.id %}" style="display: inline-block; margin-left: 8px;" onsubmit="return confirm('Are you sure you want to undo this checkout? This will restore stock quantities.');">
-        {% csrf_token %}
+      {% csrf_token %}
         <button type="submit" class="btn btn-warning mb-2">
           <i class="material-icons" style="vertical-align: middle">undo</i> Undo Checkout
         </button>
-      </form>
+    </form>
     {% endif %}
 
     {% if not checkout.is_completed and perms.inventory.delete_checkout %}
@@ -140,20 +141,22 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in checkout_items %}
-          {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
+          {% for item in checkout_items %} {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
           <tr class="table-danger">
-          {% elif item.stock_item.surplus_status == 'pending' %}
+            {% elif item.stock_item.surplus_status == 'pending' %}
+          </tr>
+
           <tr class="table-warning">
-          {% else %}
+            {% else %}
+          </tr>
+
           <tr>
-          {% endif %}
+            {% endif %}
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none"> {{ item.stock_item.item.name }} </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
-              {% endif %}
-              {% if item.stock_item.surplus_status == 'wanted' %}
+              {% endif %} {% if item.stock_item.surplus_status == 'wanted' %}
               <br /><span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
               {% elif item.stock_item.surplus_status == 'pending' %}
               <br /><span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
@@ -375,29 +378,31 @@
     let searchTimeout;
     let currentItem = null;
 
-    // Search for items
-    itemSearch.addEventListener("input", function () {
-      const query = this.value.trim();
+    // Search for items (only if itemSearch element exists)
+    if (itemSearch) {
+      itemSearch.addEventListener("input", function () {
+        const query = this.value.trim();
 
-      clearTimeout(searchTimeout);
+        clearTimeout(searchTimeout);
 
-      if (query.length < 2) {
-        searchResults.classList.add("d-none");
-        noSearchYet.classList.remove("d-none");
-        return;
-      }
+        if (query.length < 2) {
+          searchResults.classList.add("d-none");
+          noSearchYet.classList.remove("d-none");
+          return;
+        }
 
-      searchTimeout = setTimeout(() => {
-        fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
-          .then((response) => response.json())
-          .then((data) => {
-            displaySearchResults(data.items || []);
-          })
-          .catch((error) => {
-            console.error("Search error:", error);
-          });
-      }, 300);
-    });
+        searchTimeout = setTimeout(() => {
+          fetch(`/api/items/search/?q=${encodeURIComponent(query)}`)
+            .then((response) => response.json())
+            .then((data) => {
+              displaySearchResults(data.items || []);
+            })
+            .catch((error) => {
+              console.error("Search error:", error);
+            });
+        }, 300);
+      });
+    }
 
     // Display search results
     function displaySearchResults(items) {
@@ -450,14 +455,14 @@
         .then((response) => response.json())
         .then((data) => {
           stockItemSelect.innerHTML = '<option value="">Select stock item...</option>';
-          
+
           if (data.stock_items.length === 0) {
             stockItemSelect.innerHTML = '<option value="" disabled>No stock items available for checkout</option>';
           } else {
             data.stock_items.forEach((stockItem) => {
               const surplusWarning = stockItem.surplus_status !== 'not_wanted' ? ' ⚠️' : '';
               stockItemSelect.innerHTML += `
-                          <option value="${stockItem.id}" 
+                          <option value="${stockItem.id}"
                                   data-quantity="${stockItem.quantity}"
                                   data-location="${stockItem.location}"
                                   data-organization="${stockItem.organization}"
@@ -495,18 +500,18 @@
       if (selectedOption.value) {
         const maxQuantity = selectedOption.dataset.quantity;
         const surplusStatus = selectedOption.dataset.surplusStatus;
-        
+
         quantityInput.max = maxQuantity;
         quantityInput.value = Math.min(1, maxQuantity);
         quantityHelp.textContent = `Available: ${maxQuantity} units from ${selectedOption.dataset.location}`;
-        
+
         // Show warning for surplus items based on checkout type
         if (surplusStatus !== 'not_wanted') {
           const isDonation = {{ checkout.is_donation|yesno:"true,false" }};
           let shouldWarn = false;
           let warningText = '';
           let alertClass = 'alert-warning';
-          
+
           if (surplusStatus === 'wanted' && isDonation) {
             shouldWarn = true;
             alertClass = 'alert-danger';
@@ -515,7 +520,7 @@
             shouldWarn = true;
             warningText = '<strong>Warning:</strong> This item is pending surplus review. Please confirm before adding to checkout.';
           }
-          
+
           if (shouldWarn) {
             const warningDiv = document.createElement('div');
             warningDiv.className = `alert ${alertClass} mt-2 surplus-warning`;
