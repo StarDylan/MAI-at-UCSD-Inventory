@@ -262,7 +262,8 @@ def export_checkout_items_view(request, checkout_id):
         ws.cell(row=row_num, column=3, value=item.quantity)  # QTY
         ws.cell(row=row_num, column=4, value='Completed' if checkout.is_completed else 'In Progress')  # Status
         ws.cell(row=row_num, column=5, value=checkout.completed_at.date() if checkout.completed_at else 'N/A')  # Date of Pickup
-        ws.cell(row=row_num, column=6, value=float(checkout.total_weight) if checkout.total_weight else 'N/A')  # Weight (lbs)
+        # Weight (lbs) per item is not available; avoid repeating total checkout weight on every row
+        ws.cell(row=row_num, column=6, value='N/A')  # Weight (lbs)
         
         # Estimated Cost of Donation (using item cost if available, otherwise empty)
         cost_per_item = item.stock_item.item.cost_per_item
