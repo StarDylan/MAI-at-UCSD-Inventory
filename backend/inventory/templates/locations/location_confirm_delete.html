@@ -1,0 +1,30 @@
+{% extends "shared/base.html" %} {% block body %}
+
+<h4>Delete Location</h4>
+
+{% if messages %} {% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+{% endfor %} {% endif %}
+
+<div class="card">
+  <div class="card-body">
+    <div class="alert alert-warning">
+      <h5><i class="material-icons">warning</i> Warning</h5>
+      <p>Are you sure you want to delete the location <strong>"{{ object }}"</strong>?</p>
+      <p class="text-danger">This action cannot be undone.</p>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger"><i class="material-icons">delete</i> Yes, delete this location</button>
+      <a href="{% url 'location_list' %}" class="btn btn-secondary"> <i class="material-icons">cancel</i> Cancel </a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

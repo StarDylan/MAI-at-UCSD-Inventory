@@ -60,7 +60,9 @@
   <a href="{% url 'tag_groups_list' %}" class="list-group-item list-group-item-action">Manage tag groups</a>
   {% endif %} {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
-  {% endif %} {% if perms.inventory.delete_image %}
+  {% endif %}
+  <a href="{% url 'location_list' %}" class="list-group-item list-group-item-action">Manage locations</a>
+  {% if perms.inventory.delete_image %}
   <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
   {% endif %}
 </div>

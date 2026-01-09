@@ -117,7 +117,27 @@ class Tag(models.Model):
         return '#000000' if luminance > 186 else '#ffffff'
 
 
+class Location(models.Model):
+    """
+    Physical locations where stock items can be stored.
+    Examples: 'Warehouse A', 'Shelf B2', 'Refrigerator 3', etc.
+    """
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    name = models.CharField(max_length=100, unique=True, help_text="Name of the location (e.g., 'Warehouse A', 'Shelf B2')")
+    is_active = models.BooleanField(default=True, help_text="Whether this location is active and can be used for new stock")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ['name']
+        db_table = "location"
+
+    def __str__(self):
+        return self.name
+
+    def can_delete(self):
+        """Check if the location can be safely deleted (no associated stock items)"""
+        return not self.stock_items.exists()
 
 
 class Organization(models.Model):
@@ -207,8 +227,21 @@ class Item(models.Model):
     @property
     def aggregated_locations(self):
         """Get comma-separated list of unique locations from active stock items"""
-        locations = self.stock_items.filter(quantity__gt=0).exclude(location='').values_list('location', flat=True).distinct()
-        deduplicated_locations = sorted(set(locations))
+        # Get locations from location_new (preferred) or fall back to old location field
+        location_objects = self.stock_items.filter(
+            quantity__gt=0,
+            location_new__isnull=False
+        ).values_list('location_new__name', flat=True).distinct()
+        
+        # Also get old-style locations as fallback
+        old_locations = self.stock_items.filter(
+            quantity__gt=0,
+            location_new__isnull=True
+        ).exclude(location='').values_list('location', flat=True).distinct()
+        
+        # Combine both
+        all_locations = set(location_objects) | set(old_locations)
+        deduplicated_locations = sorted(all_locations)
         return ', '.join(deduplicated_locations) if deduplicated_locations else ""
 
     @property
@@ -276,7 +309,15 @@ class StockItem(models.Model):
         db_column="organization_id",
     )
     quantity = models.PositiveIntegerField(default=1)
-    location = models.CharField(max_length=100, blank=False, help_text="Specific location where this stock is stored")
+    location = models.CharField(max_length=100, blank=False, help_text="Specific location where this stock is stored (deprecated, will be removed)")
+    location_new = models.ForeignKey(
+        'Location',
+        related_name="stock_items",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Specific location where this stock is stored"
+    )
     gtin = models.CharField(max_length=14, blank=True, default="", help_text="Global Trade Item Number (GTIN-8, GTIN-12, GTIN-13, or GTIN-14)")
     detail = models.CharField(max_length=255, blank=True, default="", help_text="Additional details like size, color, variant, etc.")
     date_received = models.DateField()
@@ -303,7 +344,8 @@ class StockItem(models.Model):
     
     def __str__(self):
         detail_str = f" - {self.detail}" if self.detail else ""
-        return f"{self.item.name}{detail_str} - {self.quantity} units from {self.location}"
+        location_str = self.location_new.name if self.location_new else self.location
+        return f"{self.item.name}{detail_str} - {self.quantity} units from {location_str}"
     
     @property
     def is_expired(self):

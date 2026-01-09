@@ -1,0 +1,79 @@
+{% extends "shared/base.html" %} {% load static %} {% block body %}
+
+<h4 style="text-align: left; float: left">Locations</h4>
+{% if perms.inventory.add_location %}
+<a style="text-align: right; float: right" href="{% url 'location_create' %}">
+  <button class="btn btn-primary"><i class="material-icons">add</i> Add Location</button>
+</a>
+{% endif %}
+
+<div style="clear: both"></div>
+<br />
+
+{% if messages %} {% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+{% endfor %} {% endif %}
+
+<div class="card">
+  <div class="card-body">
+    {% if locations %}
+    <div class="table-responsive">
+      <table class="table table-hover" id="locations_table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Stock Items</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for location in locations %}
+          <tr>
+            <td><strong>{{ location.name }}</strong></td>
+            <td>
+              <span class="badge {% if location.is_active %}bg-success{% else %}bg-secondary{% endif %}"> {{ location.is_active|yesno:"Active,Inactive" }} </span>
+            </td>
+            <td>{{ location.stock_items.count }}</td>
+            <td class="text-right">
+              {% if perms.inventory.change_location %}
+              <a href="{% url 'location_update' location.id %}">
+                <button class="btn btn-sm btn-outline-primary"><i class="material-icons">edit</i> Edit</button>
+              </a>
+              {% endif %} {% if perms.inventory.delete_location %} {% if location.can_delete %}
+              <a href="{% url 'location_delete' location.id %}">
+                <button class="btn btn-sm btn-outline-danger"><i class="material-icons">delete</i> Delete</button>
+              </a>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled title="Cannot delete location with stock items"><i class="material-icons">delete</i> Delete</button>
+              {% endif %} {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No locations found. Create your first location to get started!</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  window.onload = function () {
+    $("#locations_table").DataTable({
+      lengthMenu: [
+        [10, 25, 50, 100, -1],
+        [10, 25, 50, 100, "All"],
+      ],
+      order: [[0, "asc"]],
+    });
+  };
+</script>
+
+{% endblock %}

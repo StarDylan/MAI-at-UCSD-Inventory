@@ -403,6 +403,14 @@ def upload_spreadsheet(request):
                         error_count += 1
                         continue
                     
+                    # Get or create Location object
+                    location_obj = None
+                    if location:
+                        location_obj, _ = models.Location.objects.get_or_create(
+                            name=location.strip(),
+                            defaults={'is_active': True}
+                        )
+                    
                     # Validate items_per_box if provided
                     if items_per_box:
                         try:
@@ -515,6 +523,7 @@ def upload_spreadsheet(request):
                             'organization': organization,
                             'quantity': quantity,
                             'location': location,
+                            'location_new': location_obj,
                             'detail': detail,
                             'date_received': date_received,
                             'expiration_date': expiration_date,
@@ -585,9 +594,10 @@ def upload_spreadsheet(request):
                         
                         # Log stock item creation
                         action_desc = "Added initial stock" if item_name_lower in created_items_map else "Added stock"
+                        location_display = stock_item.location_new.name if stock_item.location_new else stock_item.location
                         audit_log_event(
                             request.user,
-                            f"{action_desc} for \"{item.name}\" via spreadsheet import - {stock_item.quantity} units to {stock_item.location}",
+                            f"{action_desc} for \"{item.name}\" via spreadsheet import - {stock_item.quantity} units to {location_display}",
                             audit_log_state(None),
                             audit_log_state(stock_item)
                         )

@@ -17,6 +17,7 @@ from inventory.views import (
     dashboard,
     images,
     items,
+    locations,
     organizations,
     search,
     spreadsheet_import,
@@ -52,6 +53,13 @@ urlpatterns = [
     path('organizations/', organizations.OrganizationListView.as_view(), name='organization_list'),
     path('organizations/create/', organizations.OrganizationCreateView.as_view(), name='create_organization'),
     path('organizations/edit/<uuid:pk>/', organizations.OrganizationUpdateView.as_view(), name='edit_organization'),
+    
+    # Location Management
+    path('locations/', locations.LocationListView.as_view(), name='location_list'),
+    path('locations/add/', locations.LocationCreateView.as_view(), name='location_create'),
+    path('locations/<uuid:pk>/edit/', locations.LocationUpdateView.as_view(), name='location_update'),
+    path('locations/<uuid:pk>/delete/', locations.LocationDeleteView.as_view(), name='location_delete'),
+    
     # API endpoints
     path('api/audit/by_user/<int:user_id>/', audit_api.audit_by_user_api, name='audit_by_user_api'),
     path('api/audit/on_user/<int:user_id>/', audit_api.audit_on_user_api, name='audit_on_user_api'),
