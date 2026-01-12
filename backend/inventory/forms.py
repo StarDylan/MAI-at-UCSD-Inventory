@@ -171,7 +171,7 @@ class StockItemEditForm(forms.ModelForm):
         self.helper.layout = Layout(
             Field('organization'),
             Field('quantity'),
-            Field('location'),
+            Field('location_new'),
             Field('gtin', wrapper_class='field-with-errors'),  # Add a special class for GTIN field
             Field('detail'),
             Field('date_received'),
@@ -179,6 +179,19 @@ class StockItemEditForm(forms.ModelForm):
             Field('lot_number'),
             Field('notes'),
         )
+    
+    def save(self, commit=True):
+        """Save the form and update the deprecated location field from location_new"""
+        instance = super().save(commit=False)
+        
+        # Update the deprecated location field from location_new for backward compatibility
+        if instance.location_new:
+            instance.location = instance.location_new.name
+        
+        if commit:
+            instance.save()
+        
+        return instance
 
 
 class Search_QuantityAdd(forms.Form):

@@ -524,14 +524,15 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
         
         # Log the update event
         after_state = audit_log_state(self.object)
+        location_display = self.object.location_new.name if self.object.location_new else self.object.location
         audit_log_event(
             self.request.user, 
-            f"Updated \"{self.object.item.name}\" stock in location \"{self.object.location}\"", 
+            f"Updated \"{self.object.item.name}\" stock in location \"{location_display}\"", 
             before_state, 
             after_state
         )
         
-        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{self.object.location}" was successfully updated.')
+        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{location_display}" was successfully updated.')
         return response
 
     def get_success_url(self):
