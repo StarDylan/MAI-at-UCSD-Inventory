@@ -250,7 +250,13 @@ class TaggedItemWithStockForm(forms.Form):
         help_text="Value in dollars ($) per individual item",
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.0001', 'min': '0', 'placeholder': 'e.g. 10.12'})
     )
-    stock_location = forms.CharField(max_length=100, required=True, label="Stock Location", widget=forms.TextInput(attrs={'class': 'form-control'}))
+    location_new = forms.ModelChoiceField(
+        queryset=models.Location.objects.filter(is_active=True),
+        label="Stock Location",
+        help_text="Select the location where this stock is stored",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Select a location"
+    )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
         label="Date Received"
@@ -296,6 +302,7 @@ class TaggedItemWithStockForm(forms.Form):
         self.fields['tags'].queryset = active_tags
         
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+        self.fields['location_new'].queryset = models.Location.objects.filter(is_active=True).order_by('name')
 
     def clean_name(self):
         """Validates that the item name is unique."""
@@ -372,11 +379,13 @@ class TaggedItemWithStockForm(forms.Form):
                 item.tags.set(selected_tags)
             
             # Create initial StockItem
+            location_obj = data['location_new']
             stock_item = StockItem(
                 item=item,
                 organization=data['organization'],
                 quantity=data['quantity'],
-                location=data['stock_location'],
+                location=location_obj.name if location_obj else '',
+                location_new=location_obj,
                 gtin=stock_gtin,
                 detail=data['detail'],
                 date_received=data['date_received'],

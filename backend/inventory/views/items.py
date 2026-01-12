@@ -388,9 +388,10 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             
         # Log stock item creation event
         if stock_item:
+            location_display = stock_item.location_new.name if stock_item.location_new else stock_item.location
             audit_log_event(
                 self.request.user, 
-                f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{stock_item.location}\" (initial stock from {stock_item.organization.name})", 
+                f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{location_display}\" (initial stock from {stock_item.organization.name})", 
                 audit_log_state(None), 
                 audit_log_state(stock_item)
             )

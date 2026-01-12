@@ -26,6 +26,7 @@ class Command(BaseCommand):
         item_ct = ContentType.objects.get_for_model(model=models.Item)
         image_ct = ContentType.objects.get_for_model(model=models.Image)
         organization_ct = ContentType.objects.get_for_model(model=models.Organization)
+        location_ct = ContentType.objects.get_for_model(model=models.Location)
         stockitem_ct = ContentType.objects.get_for_model(model=models.StockItem)
         checkout_ct = ContentType.objects.get_for_model(model=models.CheckOut)
         tag_ct = ContentType.objects.get_for_model(model=models.Tag)
@@ -52,6 +53,9 @@ class Command(BaseCommand):
             Permission.objects.get(codename='delete_stockitem', content_type=stockitem_ct),
             
             Permission.objects.get(codename='view_checkout', content_type=checkout_ct),
+            
+            # Location view permission for members
+            Permission.objects.get(codename='view_location', content_type=location_ct),
 
         ]
 
@@ -90,6 +94,11 @@ class Command(BaseCommand):
             Permission.objects.get(codename='change_organization', content_type=organization_ct),
             Permission.objects.get(codename='delete_organization', content_type=organization_ct),
             Permission.objects.get(codename='view_organization', content_type=organization_ct),
+            
+            # Location admin permissions
+            Permission.objects.get(codename='add_location', content_type=location_ct),
+            Permission.objects.get(codename='change_location', content_type=location_ct),
+            Permission.objects.get(codename='delete_location', content_type=location_ct),
 
             # Surplus report permissions for members
             Permission.objects.get(codename='view_surplus_report', content_type=stockitem_ct),
