@@ -39,7 +39,11 @@
             <td>
               <span class="badge {% if location.is_active %}bg-success{% else %}bg-secondary{% endif %}"> {{ location.is_active|yesno:"Active,Inactive" }} </span>
             </td>
-            <td>{{ location.stock_item_count }}</td>
+            <td>
+              {% if location.stock_item_count > 0 %}
+              <a href="{% url 'public_search' %}?search={{ location.name|urlencode }}" class="text-decoration-none"> {{ location.stock_item_count }} </a>
+              {% else %} {{ location.stock_item_count }} {% endif %}
+            </td>
             <td class="text-right">
               {% if perms.inventory.change_location %}
               <a href="{% url 'location_update' location.id %}">
