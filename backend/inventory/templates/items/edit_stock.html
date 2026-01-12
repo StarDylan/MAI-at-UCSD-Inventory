@@ -27,6 +27,29 @@
   </p>
 </form>
 
+<!-- Include Select2 CSS and JS for searchable dropdowns -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js"></script>
+
+<script>
+  $(document).ready(function () {
+    // Initialize Select2 on the location field to make it searchable
+    $("#id_location_new").select2({
+      placeholder: "Search and select a location...",
+      allowClear: false,
+      width: "100%",
+    });
+
+    // Initialize Select2 on the organization field to make it searchable
+    $("#id_organization").select2({
+      placeholder: "Search and select an organization...",
+      allowClear: false,
+      width: "100%",
+    });
+  });
+</script>
+
 <!-- Barcode Scanner for GTIN input -->
 {% load static %}
 <script src="{% static 'inventory/barcode-scanner-v24.js' %}"></script>
