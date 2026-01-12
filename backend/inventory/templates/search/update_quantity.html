@@ -125,19 +125,18 @@
     
     <!-- Location Field -->
     <div class="form-group mb-3">
-      <label for="id_location" class="form-label">Stock Location <span>*</span></label>
-      <input type="text" name="location" id="id_location" class="form-control" placeholder="e.g. Box A" value="{{ form.location.value|default:'' }}" required>
-      {% if form.location.errors %}
-        {% for error in form.location.errors %}
+      <label for="id_location_new" class="form-label">Stock Location <span>*</span></label>
+      <select name="location_new" id="id_location_new" class="form-select" required>
+        <option value="">Select a location</option>
+        {% for location in form.fields.location_new.queryset %}
+          <option value="{{ location.id }}" {% if form.location_new.value == location.id %}selected{% endif %}>{{ location.name }}</option>
+        {% endfor %}
+      </select>
+      {% if form.location_new.errors %}
+        {% for error in form.location_new.errors %}
         <div class="text-danger">{{ error }}</div>
         {% endfor %}
       {% endif %}
-    </div>
-
-    <!-- Location suggestions container -->
-    <div id="stock-location-suggestions-container" style="display: none; margin-left: 1rem; margin-bottom: 1.5rem">
-        <h6 class="text-muted mb-2">Suggested Locations</h6>
-        <ul id="stock-location-suggestions-list" class="list-unstyled"></ul>
     </div>
     
     <!-- Date Received Field -->
@@ -536,6 +535,36 @@
         }
       });
     }
+  </script>
+  
+  <!-- Include Select2 CSS and JS for searchable dropdowns -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js"></script>
+  
+  <script>
+    // Initialize Select2 on location and organization dropdowns
+    $(document).ready(function() {
+      // Initialize Select2 on the location field to make it searchable
+      $("#id_location_new").select2({
+        placeholder: "Search and select a location...",
+        allowClear: true,
+        width: "100%"
+      });
+      
+      // Initialize Select2 on the organization field to make it searchable
+      $("#id_organization").select2({
+        placeholder: "Search and select an organization...",
+        allowClear: true,
+        width: "100%"
+      });
+      
+      // Initialize Select2 on the item field (if not pre-selected)
+      $("#id_item").select2({
+        placeholder: "Search and select an item...",
+        allowClear: true,
+        width: "100%"
+      });
+    });
   </script>
   
   {% endblock %}
