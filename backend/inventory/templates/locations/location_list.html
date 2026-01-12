@@ -39,13 +39,13 @@
             <td>
               <span class="badge {% if location.is_active %}bg-success{% else %}bg-secondary{% endif %}"> {{ location.is_active|yesno:"Active,Inactive" }} </span>
             </td>
-            <td>{{ location.stock_items.count }}</td>
+            <td>{{ location.stock_item_count }}</td>
             <td class="text-right">
               {% if perms.inventory.change_location %}
               <a href="{% url 'location_update' location.id %}">
                 <button class="btn btn-sm btn-outline-primary"><i class="material-icons">edit</i> Edit</button>
               </a>
-              {% endif %} {% if perms.inventory.delete_location %} {% if location.can_delete %}
+              {% endif %} {% if perms.inventory.delete_location %} {% if location.stock_item_count == 0 %}
               <a href="{% url 'location_delete' location.id %}">
                 <button class="btn btn-sm btn-outline-danger"><i class="material-icons">delete</i> Delete</button>
               </a>

@@ -2,24 +2,28 @@
 Views for managing physical locations where stock items are stored.
 """
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Count
 from django.shortcuts import redirect
 from ..models import Location
 from ..forms import LocationForm
 
 
-class LocationListView(LoginRequiredMixin, ListView):
+class LocationListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """List all locations with their active status"""
     model = Location
     template_name = 'locations/location_list.html'
     context_object_name = 'locations'
+    permission_required = 'inventory.view_location'
     
     def get_queryset(self):
-        return Location.objects.all().order_by('name')
+        # Annotate with stock item count to avoid N+1 queries
+        return Location.objects.annotate(
+            stock_item_count=Count('stock_items')
+        ).order_by('name')
 
 
 class LocationCreateView(LoginRequiredMixin, CreateView):
