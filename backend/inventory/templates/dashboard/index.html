@@ -39,6 +39,8 @@
   <a class="list-group-item list-group-item-action" href="{% url 'bulk_checkout_list' %}">View Checkouts</a>
   {% endif %}{% if perms.inventory.view_surplus_report %}
   <a href="{% url 'surplus_summary' %}" class="list-group-item list-group-item-action">Surplus Status & Reports</a>
+  {% endif %}{% if perms.inventory.view_location %}
+  <a href="{% url 'location_list' %}" class="list-group-item list-group-item-action">Manage locations</a>
   {% endif %}
 </div>
 {% endif %}
@@ -60,9 +62,7 @@
   <a href="{% url 'tag_groups_list' %}" class="list-group-item list-group-item-action">Manage tag groups</a>
   {% endif %} {% if perms.inventory.view_organization %}
   <a href="{% url 'organization_list' %}" class="list-group-item list-group-item-action">Manage organizations</a>
-  {% endif %}
-  <a href="{% url 'location_list' %}" class="list-group-item list-group-item-action">Manage locations</a>
-  {% if perms.inventory.delete_image %}
+  {% endif %} {% if perms.inventory.delete_image %}
   <a href="{% url 'delete_image_list_view' %}" class="list-group-item list-group-item-action"><div style="color: red">Delete an image</div></a>
   {% endif %}
 </div>
