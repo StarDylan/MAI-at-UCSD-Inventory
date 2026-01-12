@@ -137,9 +137,14 @@ class StockItemEditForm(forms.ModelForm):
         model = StockItem
         fields = ['organization', 'quantity', 'location_new', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
-            'date_received': forms.DateInput(attrs={'type': 'date'}),
-            'expiration_date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}),
+            'organization': forms.Select(attrs={'class': 'form-select'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'}),
+            'gtin': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1234567890123'}),
+            'detail': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Size L, Red, 16oz'}),
+            'date_received': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'expiration_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'lot_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. LOT2024001'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'e.g. Received in good condition, slight box damage'}),
         }
 
     def __init__(self, *args, **kwargs):
