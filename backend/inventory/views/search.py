@@ -164,10 +164,11 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         )
         
         # Log the check-in event
+        location_display = location_new.name if location_new else ''
         after_state = audit_log_state(stock_item)
         audit_log_event(
             self.request.user, 
-            f"Checked-in {quantity} of \"{item.name}\" into location \"{location}\"", 
+            f"Checked-in {quantity} of \"{item.name}\" into location \"{location_display}\"", 
             before_state,
             after_state
         )
