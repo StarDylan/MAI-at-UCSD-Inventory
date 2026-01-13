@@ -239,9 +239,7 @@ class Item(models.Model):
             location_new__isnull=True
         ).exclude(location='').values_list('location', flat=True).distinct()
         
-        # Combine both
-        all_locations = set(location_objects) | set(old_locations)
-        deduplicated_locations = sorted(all_locations)
+        deduplicated_locations = sorted(set(location_objects))
         return ', '.join(deduplicated_locations) if deduplicated_locations else ""
 
     @property
