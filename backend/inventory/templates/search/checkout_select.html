@@ -41,7 +41,7 @@
                 <input type="checkbox" name="stock_items" value="{{ stock.id }}" class="stock-checkbox" data-max="{{ stock.quantity }}" />
               </td>
               <td>{{ stock.detail|default:"-" }}</td>
-              <td>{{ stock.location }}</td>
+              <td>{{ stock.new_location.name }}</td>
               {% if not item.gtin %}
               <td>
                 {% if stock.gtin %}
