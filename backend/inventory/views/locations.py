@@ -154,10 +154,31 @@ class LocationMergeView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                 # Log the state before merge
                 before_state = audit_log_state(self.source_location)
                 
-                # Update all stock items to point to the target location
-                updated_count = self.source_location.stock_items.update(
-                    location_new=target_location
-                )
+                # Get all stock items that will be moved
+                stock_items = list(self.source_location.stock_items.all())
+                
+                # Update each stock item and create audit events
+                for stock_item in stock_items:
+                    # Capture state before update
+                    before_stock_state = audit_log_state(stock_item)
+                    
+                    # Update the location
+                    stock_item.location_new = target_location
+                    stock_item.save()
+                    
+                    # Capture state after update
+                    after_stock_state = audit_log_state(stock_item)
+                    
+                    # Log the stock item location change
+                    audit_log_event(
+                        self.request.user,
+                        f'Location changed from "{source_name}" to "{target_name}" '
+                        f'(via location merge)',
+                        before_stock_state,
+                        after_stock_state
+                    )
+                
+                updated_count = len(stock_items)
                 
                 # Delete the source location
                 self.source_location.delete()
