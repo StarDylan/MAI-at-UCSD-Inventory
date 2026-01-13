@@ -52,11 +52,12 @@ class LocationCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
         return response
 
 
-class LocationUpdateView(LoginRequiredMixin, UpdateView):
+class LocationUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     """Edit an existing location"""
     model = Location
     form_class = LocationForm
     template_name = 'locations/location_form.html'
+    permission_required = 'inventory.change_location'
     success_url = reverse_lazy('location_list')
     
     def form_valid(self, form):
