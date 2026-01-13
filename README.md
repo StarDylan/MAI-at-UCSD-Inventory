@@ -34,9 +34,6 @@
 
 For deploying the application see [docs/DEPLOY.md](docs/DEPLOY.md).
 
-For running the application locally, see [docs/DEV.md](docs/DEV.md)
-
-
 <!-- CONTRIBUTING -->
 ## Contributing
 
