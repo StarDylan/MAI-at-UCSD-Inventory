@@ -180,7 +180,7 @@
               <td>{{ stock.detail|default:"-" }}</td>
               <td>{{ stock.quantity }}</td>
               {% if perms.inventory.view_internalstockingdetails %}
-                <td>{{ stock.new_location.name|default:"-" }}</td>
+                <td>{{ stock.location_new.name|default:"-" }}</td>
                 {% endif %}
               <td>
                   {% if stock.expiration_date %} {{ stock.expiration_date|date:"M d, Y" }} {% if stock.is_expired %}
@@ -227,7 +227,7 @@
               <td>
                 <a href="{% url 'edit_stock_item' stock.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
                 {% if perms.inventory.delete_stockitem %}
-                <button onclick="confirmStockDelete('{{ stock.id }}','{{ stock.item.name }}','{{ stock.detail|default:"" }}','{{ stock.new_location.name }}')" class="btn btn-sm btn-outline-danger">Delete</button>
+                <button onclick="confirmStockDelete('{{ stock.id }}','{{ stock.item.name }}','{{ stock.detail|default:"" }}','{{ stock.location_new.name }}')" class="btn btn-sm btn-outline-danger">Delete</button>
                 {% endif %}
               </td>
               {% endif %}

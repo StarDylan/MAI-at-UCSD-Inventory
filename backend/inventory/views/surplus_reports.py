@@ -60,7 +60,7 @@ def export_surplus_report(request):
             stock.item.name,
             stock.detail or '',
             stock.quantity,
-            stock.new_location.name,
+            stock.location_new.name,
             stock.organization.name,
             stock.date_received.strftime('%Y-%m-%d') if stock.date_received else '',
             stock.expiration_date.strftime('%Y-%m-%d') if stock.expiration_date else '',
