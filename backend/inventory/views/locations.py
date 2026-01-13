@@ -62,15 +62,41 @@ class LocationUpdateView(LoginRequiredMixin, UpdateView):
         # Get the current state before changes for audit logging
         before_model = Location.objects.get(pk=form.instance.pk)
         before_state = audit_log_state(before_model)
+        old_name = before_model.name
         
         # Save the changes
         response = super().form_valid(form)
+        new_name = form.instance.name
         
-        # Log the update event
+        # If the location name changed, update all stock items with this location
+        if old_name != new_name:
+            with transaction.atomic():
+                stock_items = list(form.instance.stock_items.all())
+                for stock_item in stock_items:
+                    # Capture state before update
+                    before_stock_state = audit_log_state(stock_item)
+                    
+                    # Update the location string field for backward compatibility
+                    stock_item.location = new_name
+                    stock_item.save()
+                    
+                    # Capture state after update
+                    after_stock_state = audit_log_state(stock_item)
+                    
+                    # Log the stock item location name change
+                    audit_log_event(
+                        self.request.user,
+                        f'Location name changed from "{old_name}" to "{new_name}" '
+                        f'(via location rename)',
+                        before_stock_state,
+                        after_stock_state
+                    )
+        
+        # Log the location update event
         after_state = audit_log_state(form.instance)
         audit_log_event(
             self.request.user,
-            f'Updated location "{before_model.name}"',
+            f'Updated location "{old_name}"',
             before_state,
             after_state
         )
