@@ -21,15 +21,15 @@ def migrate_locations(apps, schema_editor):
                 name=location_name.strip(),
                 defaults={'is_active': True}
             )
-            location_map[location_name] = location
+            location_map[location_name.strip()] = location
             if created:
                 print(f"Created location: {location.name}")
     
     # Update stock items with the new foreign key
     updated_count = 0
     for stock_item in StockItem.objects.exclude(location=''):
-        if stock_item.location in location_map:
-            stock_item.location_new = location_map[stock_item.location]
+        if stock_item.location and stock_item.location.strip() in location_map:
+            stock_item.location_new = location_map[stock_item.location.strip()]
             stock_item.save(update_fields=['location_new'])
             updated_count += 1
     
