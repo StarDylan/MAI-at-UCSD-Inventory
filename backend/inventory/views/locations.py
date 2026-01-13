@@ -28,12 +28,13 @@ class LocationListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         ).order_by('name')
 
 
-class LocationCreateView(LoginRequiredMixin, CreateView):
+class LocationCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """Create a new location"""
     model = Location
     form_class = LocationForm
     template_name = 'locations/location_form.html'
     success_url = reverse_lazy('location_list')
+    permission_required = 'inventory.add_location'
     
     def form_valid(self, form):
         # Save the new location
