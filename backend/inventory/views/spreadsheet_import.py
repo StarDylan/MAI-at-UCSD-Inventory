@@ -15,7 +15,7 @@ from django.shortcuts import render, redirect
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
 
-from inventory.models import Item, StockItem, Organization, Tag, TagGroup
+from inventory.models import Item, StockItem, Organization, Tag, TagGroup, Location
 from .utils import audit_log_state, audit_log_event
 
 
@@ -406,7 +406,7 @@ def upload_spreadsheet(request):
                     # Get or create Location object
                     location_obj = None
                     if location:
-                        location_obj, _ = models.Location.objects.get_or_create(
+                        location_obj, _ = Location.objects.get_or_create(
                             name=location.strip(),
                             defaults={'is_active': True}
                         )
