@@ -11,6 +11,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.db import transaction
 from ..models import Location
 from ..forms import LocationForm, LocationMergeForm
+from .utils import audit_log_state, audit_log_event
 
 
 class LocationListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -35,8 +36,19 @@ class LocationCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('location_list')
     
     def form_valid(self, form):
+        # Save the new location
+        response = super().form_valid(form)
+        
+        # Log the creation event
+        audit_log_event(
+            self.request.user,
+            f'Created location "{form.instance.name}"',
+            audit_log_state(None),
+            audit_log_state(form.instance)
+        )
+        
         messages.success(self.request, f'Location "{form.instance.name}" created successfully.')
-        return super().form_valid(form)
+        return response
 
 
 class LocationUpdateView(LoginRequiredMixin, UpdateView):
@@ -47,8 +59,24 @@ class LocationUpdateView(LoginRequiredMixin, UpdateView):
     success_url = reverse_lazy('location_list')
     
     def form_valid(self, form):
+        # Get the current state before changes for audit logging
+        before_model = Location.objects.get(pk=form.instance.pk)
+        before_state = audit_log_state(before_model)
+        
+        # Save the changes
+        response = super().form_valid(form)
+        
+        # Log the update event
+        after_state = audit_log_state(form.instance)
+        audit_log_event(
+            self.request.user,
+            f'Updated location "{before_model.name}"',
+            before_state,
+            after_state
+        )
+        
         messages.success(self.request, f'Location "{form.instance.name}" updated successfully.')
-        return super().form_valid(form)
+        return response
 
 
 class LocationDeleteView(LoginRequiredMixin, DeleteView):
@@ -59,19 +87,36 @@ class LocationDeleteView(LoginRequiredMixin, DeleteView):
     
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
+        location_name = self.object.name
+        
         try:
             if not self.object.can_delete():
                 messages.error(
                     request, 
-                    f'Cannot delete location "{self.object.name}" because it has associated stock items.'
+                    f'Cannot delete location "{location_name}" because it has associated stock items.'
                 )
                 return redirect('location_list')
-            messages.success(request, f'Location "{self.object.name}" deleted successfully.')
-            return super().delete(request, *args, **kwargs)
+            
+            # Log the state before deletion
+            before_state = audit_log_state(self.object)
+            
+            # Perform the deletion
+            response = super().delete(request, *args, **kwargs)
+            
+            # Log the deletion event
+            audit_log_event(
+                request.user,
+                f'Deleted location "{location_name}"',
+                before_state,
+                audit_log_state(None)
+            )
+            
+            messages.success(request, f'Location "{location_name}" deleted successfully.')
+            return response
         except ProtectedError:
             messages.error(
                 request, 
-                f'Cannot delete location "{self.object.name}" because it is being used by stock items.'
+                f'Cannot delete location "{location_name}" because it is being used by stock items.'
             )
             return redirect('location_list')
 
@@ -106,6 +151,9 @@ class LocationMergeView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         
         try:
             with transaction.atomic():
+                # Log the state before merge
+                before_state = audit_log_state(self.source_location)
+                
                 # Update all stock items to point to the target location
                 updated_count = self.source_location.stock_items.update(
                     location_new=target_location
@@ -113,6 +161,15 @@ class LocationMergeView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                 
                 # Delete the source location
                 self.source_location.delete()
+                
+                # Log the merge event
+                audit_log_event(
+                    self.request.user,
+                    f'Merged location "{source_name}" into "{target_name}" '
+                    f'({updated_count} stock item(s) transferred)',
+                    before_state,
+                    audit_log_state(None)
+                )
                 
                 messages.success(
                     self.request,
