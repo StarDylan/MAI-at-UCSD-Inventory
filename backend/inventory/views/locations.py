@@ -162,8 +162,9 @@ class LocationMergeView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
                     # Capture state before update
                     before_stock_state = audit_log_state(stock_item)
                     
-                    # Update the location
+                    # Update both location fields for backward compatibility
                     stock_item.location_new = target_location
+                    stock_item.location = target_location.name
                     stock_item.save()
                     
                     # Capture state after update
