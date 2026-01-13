@@ -20,6 +20,24 @@ class LocationForm(forms.ModelForm):
         }
 
 
+class LocationMergeForm(forms.Form):
+    """Form for merging one location into another"""
+    target_location = forms.ModelChoiceField(
+        queryset=models.Location.objects.none(),  # Will be set in __init__
+        label='Merge into',
+        help_text='Select the location to keep. All items from the current location will be moved to this location.',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    def __init__(self, *args, source_location=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Exclude the source location from the target options
+        if source_location:
+            self.fields['target_location'].queryset = models.Location.objects.exclude(
+                id=source_location.id
+            ).order_by('name')
+
+
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization

@@ -40,7 +40,11 @@
               <a href="{% url 'location_update' location.id %}">
                 <button class="btn btn-sm btn-outline-primary"><i class="material-icons">edit</i> Edit</button>
               </a>
-              {% endif %} {% if perms.inventory.delete_location %} {% if location.stock_item_count == 0 %}
+              {% endif %} {% if perms.inventory.delete_location %}
+              <a href="{% url 'location_merge' location.id %}">
+                <button class="btn btn-sm btn-outline-warning" title="Merge this location into another location"><i class="material-icons">merge</i> Merge</button>
+              </a>
+              {% if location.stock_item_count == 0 %}
               <a href="{% url 'location_delete' location.id %}">
                 <button class="btn btn-sm btn-outline-danger"><i class="material-icons">delete</i> Delete</button>
               </a>

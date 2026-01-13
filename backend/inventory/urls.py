@@ -59,6 +59,7 @@ urlpatterns = [
     path('locations/add/', locations.LocationCreateView.as_view(), name='location_create'),
     path('locations/<uuid:pk>/edit/', locations.LocationUpdateView.as_view(), name='location_update'),
     path('locations/<uuid:pk>/delete/', locations.LocationDeleteView.as_view(), name='location_delete'),
+    path('locations/<uuid:pk>/merge/', locations.LocationMergeView.as_view(), name='location_merge'),
     
     # API endpoints
     path('api/audit/by_user/<int:user_id>/', audit_api.audit_by_user_api, name='audit_by_user_api'),
