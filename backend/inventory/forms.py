@@ -546,7 +546,7 @@ class StockItemSelectWidget(forms.Select):
             for stock_item in self.stock_items:
                 if str(stock_item.id) == str(value):
                     option['attrs']['data-quantity'] = stock_item.quantity
-                    option['attrs']['data-location'] = stock_item.location or ''
+                    option['attrs']['data-location'] = stock_item.location_new.name or ''
                     option['attrs']['data-detail'] = stock_item.detail or ''
                     break
                 

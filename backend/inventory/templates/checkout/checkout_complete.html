@@ -16,11 +16,9 @@
   <ul class="mb-2">
     {% for item in surplus_items %}
     <li>
-      <strong>{{ item.stock_item.item.name }}</strong> from {{ item.stock_item.location }}
-      {% if item.stock_item.surplus_status == 'wanted' %}
-      - <span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
-      {% else %}
-      - <span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
+      <strong>{{ item.stock_item.item.name }}</strong> from {{ item.stock_item.location_new.name }} {% if item.stock_item.surplus_status == 'wanted' %} -
+      <span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span> {% else %} -
+      <span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
       {% endif %}
     </li>
     {% endfor %}
@@ -111,22 +109,24 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in checkout.checkout_items.all %}
-          {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
+          {% for item in checkout.checkout_items.all %} {% if item.stock_item.surplus_status == 'wanted' and checkout.is_donation %}
           <tr class="table-danger">
-          {% elif item.stock_item.surplus_status == 'pending' %}
+            {% elif item.stock_item.surplus_status == 'pending' %}
+          </tr>
+
           <tr class="table-warning">
-          {% else %}
+            {% else %}
+          </tr>
+
           <tr>
-          {% endif %}
+            {% endif %}
             <td>
               <a href="{% url 'view_item' item.stock_item.item.id %}" class="text-decoration-none">
                 <strong>{{ item.stock_item.item.name }}</strong>
               </a>
               {% if item.stock_item.item.manufacturer %}
               <br /><small class="text-muted">{{ item.stock_item.item.manufacturer }}</small>
-              {% endif %}
-              {% if item.stock_item.surplus_status == 'wanted' %}
+              {% endif %} {% if item.stock_item.surplus_status == 'wanted' %}
               <br /><span class="badge bg-danger text-white">{{ item.stock_item.surplus_status_display }}</span>
               {% elif item.stock_item.surplus_status == 'pending' %}
               <br /><span class="badge bg-warning text-dark">{{ item.stock_item.surplus_status_display }}</span>
@@ -137,7 +137,7 @@
               <span class="text-muted">-</span>
               {% endif %}
             </td>
-            <td>{{ item.stock_item.location }}</td>
+            <td>{{ item.stock_item.location_new.name }}</td>
             <td>
               {% if item.stock_item.expiration_date %} {{ item.stock_item.expiration_date|date:"M d, Y" }} {% else %}
               <span class="text-muted">-</span>

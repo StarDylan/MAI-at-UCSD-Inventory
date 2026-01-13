@@ -198,7 +198,7 @@ def checkout_add_item_view(request, checkout_id):
             # Log the addition
             audit_log_event(
                 request.user,
-                f"Added {quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name}",
+                f"Added {quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location_new.name}\" to checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
                 str(checkout.id)
@@ -328,7 +328,7 @@ def checkout_remove_item_view(request, checkout_id, item_id):
         # Log the removal
         audit_log_event(
             request.user,
-            f"Removed {checkout_item.quantity} of \"{checkout_item.stock_item.item.name}\" from location \"{checkout_item.stock_item.location}\" from checkout for {checkout.organization.name}",
+            f"Removed {checkout_item.quantity} of \"{checkout_item.stock_item.item.name}\" from location \"{checkout_item.stock_item.location_new.name}\" from checkout for {checkout.organization.name}",
             audit_log_state(checkout_item),
             audit_log_state(None),
             str(checkout.id)
@@ -373,7 +373,7 @@ def checkout_edit_item_view(request, checkout_id, item_id):
             # Log the edit
             audit_log_event(
                 request.user,
-                f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location}\" "
+                f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location_new.name}\" "
                 f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                 audit_log_state(checkout_item),
                 audit_log_state(checkout_item),
@@ -436,7 +436,7 @@ def checkout_edit_item_detail_view(request, checkout_id, item_id):
                 if new_quantity != old_quantity:
                     audit_log_event(
                         request.user,
-                        f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location}\" "
+                        f"Updated quantity for \"{checkout_item.stock_item.item.name}\" in location \"{checkout_item.stock_item.location_new.name}\" "
                         f"in checkout for {checkout.organization.name} from {old_quantity} to {new_quantity}",
                         audit_log_state(checkout_item),
                         audit_log_state(checkout_item),
@@ -501,7 +501,7 @@ def checkout_complete_view(request, checkout_id):
                         if stock_item.quantity < checkout_item.quantity:
                             messages.error(
                                 request, 
-                                f'Insufficient stock for {stock_item.item.name} from {stock_item.location}. '
+                                f'Insufficient stock for {stock_item.item.name} from {stock_item.location_new.name}. '
                                 f'Available: {stock_item.quantity}, Required: {checkout_item.quantity}'
                             )
 
@@ -517,7 +517,7 @@ def checkout_complete_view(request, checkout_id):
                         # Log the stock change
                         audit_log_event(
                             request.user,
-                            f"Checked-out {checkout_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\" to {checkout.organization.name}",
+                            f"Checked-out {checkout_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location_new.name}\" to {checkout.organization.name}",
                             before_state,
                             audit_log_state(stock_item)
                         )
@@ -607,7 +607,7 @@ def checkout_undo_view(request, checkout_id):
                 # Log the restoration
                 audit_log_event(
                     request.user,
-                    f"Returned {checkout_item.quantity} of \"{stock_item.item.name}\" to location \"{stock_item.location}\" (checkout undo from {checkout.organization.name})",
+                    f"Returned {checkout_item.quantity} of \"{stock_item.item.name}\" to location \"{stock_item.location_new.name}\" (checkout undo from {checkout.organization.name})",
                     before_state,
                     audit_log_state(stock_item)
                 )
@@ -663,7 +663,7 @@ def add_to_checkout_from_item_view(request, item_uuid):
             # Log the addition
             audit_log_event(
                 request.user,
-                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location}\" to checkout for {checkout.organization.name}",
+                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location_new.name}\" to checkout for {checkout.organization.name}",
                 audit_log_state(None),
                 audit_log_state(checkout_item),
                 checkout.id
@@ -711,13 +711,13 @@ def get_stock_items_api(request, item_uuid):
         data.append({
             'id': str(stock_item.id),
             'detail': stock_item.detail,
-            'location': stock_item.location,
+            'location': stock_item.location_new.name,
             'quantity': stock_item.quantity,
             'organization': stock_item.organization.name,
             'expiration_date': stock_item.expiration_date.strftime('%Y-%m-%d') if stock_item.expiration_date else None,
             'surplus_status': stock_item.surplus_status,
             'surplus_status_display': stock_item.surplus_status_display,
-            'display_name': f"{stock_item.detail} - {stock_item.location} ({stock_item.quantity} available)"
+            'display_name': f"{stock_item.detail} - {stock_item.location_new.name} ({stock_item.quantity} available)"
         })
     
     return JsonResponse({'stock_items': data})

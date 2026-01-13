@@ -542,7 +542,7 @@ class CheckOutItem(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.quantity}x {self.stock_item.item.name} from {self.stock_item.location}"
+        return f"{self.quantity}x {self.stock_item.item.name} from {self.stock_item.location_new.name}"
     
     @property
     def total_cost(self):

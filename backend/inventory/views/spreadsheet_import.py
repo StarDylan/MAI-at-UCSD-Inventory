@@ -594,7 +594,7 @@ def upload_spreadsheet(request):
                         
                         # Log stock item creation
                         action_desc = "Added initial stock" if item_name_lower in created_items_map else "Added stock"
-                        location_display = stock_item.location_new.name if stock_item.location_new else stock_item.location
+                        location_display = stock_item.location_new.name
                         audit_log_event(
                             request.user,
                             f"{action_desc} for \"{item.name}\" via spreadsheet import - {stock_item.quantity} units to {location_display}",
