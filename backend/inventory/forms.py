@@ -9,6 +9,35 @@ from datetime import date
 from django.utils import timezone
 
 
+class LocationForm(forms.ModelForm):
+    """Form for managing physical locations where stock items are stored"""
+    class Meta:
+        model = models.Location
+        fields = ['name', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Warehouse A, Shelf B2'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class LocationMergeForm(forms.Form):
+    """Form for merging one location into another"""
+    target_location = forms.ModelChoiceField(
+        queryset=models.Location.objects.none(),  # Will be set in __init__
+        label='Merge into',
+        help_text='Select the location to keep. All items from the current location will be moved to this location.',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    def __init__(self, *args, source_location=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Exclude the source location from the target options
+        if source_location:
+            self.fields['target_location'].queryset = models.Location.objects.exclude(
+                id=source_location.id
+            ).order_by('name')
+
+
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization
@@ -20,6 +49,13 @@ class OrganizationForm(forms.ModelForm):
 
 
 class StockItemForm(forms.ModelForm):
+    location_new = forms.ModelChoiceField(
+        queryset=models.Location.objects.filter(is_active=True),
+        label="Location",
+        help_text="Select the location where this stock is stored",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
     def clean_date_received(self):
         value = self.cleaned_data.get('date_received')
         if value and (value.year < 1900 or value.year > 3000):
@@ -31,9 +67,10 @@ class StockItemForm(forms.ModelForm):
         if value and (value.year < 1900 or value.year > 3000):
             raise forms.ValidationError('Expiration date must be between 1900 and 3000.')
         return value
+        
     class Meta:
         model = StockItem
-        fields = ['organization', 'quantity', 'location', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
+        fields = ['organization', 'quantity', 'location_new', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
             'date_received': forms.DateInput(attrs={'type': 'date', 'value': date.today()}),
             'expiration_date': forms.DateInput(attrs={'type': 'date'}),
@@ -43,6 +80,7 @@ class StockItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+        self.fields['location_new'].queryset = models.Location.objects.filter(is_active=True).order_by('name')
         self.fields['date_received'].initial = date.today()
         self.fields['notes'].help_text = "Public Notes specific to this stock entry"
 
@@ -54,6 +92,13 @@ class ItemWithLocationChoiceField(forms.ModelChoiceField):
 
 
 class StockItemEditForm(forms.ModelForm):
+    location_new = forms.ModelChoiceField(
+        queryset=models.Location.objects.filter(is_active=True),
+        label="Location",
+        help_text="Select the location where this stock is stored",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
     def clean_date_received(self):
         value = self.cleaned_data.get('date_received')
         if value and (value.year < 1900 or value.year > 3000):
@@ -108,16 +153,22 @@ class StockItemEditForm(forms.ModelForm):
     """Form for editing individual stock items"""
     class Meta:
         model = StockItem
-        fields = ['organization', 'quantity', 'location', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
+        fields = ['organization', 'quantity', 'location_new', 'gtin', 'detail', 'date_received', 'expiration_date', 'lot_number', 'notes']
         widgets = {
-            'date_received': forms.DateInput(attrs={'type': 'date'}),
-            'expiration_date': forms.DateInput(attrs={'type': 'date'}),
-            'notes': forms.Textarea(attrs={'rows': 2, 'placeholder': 'e.g. Received in good condition, slight box damage'}),
+            'organization': forms.Select(attrs={'class': 'form-select'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 12'}),
+            'gtin': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1234567890123'}),
+            'detail': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Size L, Red, 16oz'}),
+            'date_received': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'expiration_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'lot_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. LOT2024001'}),
+            'notes': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'e.g. Received in good condition, slight box damage'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['organization'].queryset = Organization.objects.all().order_by('name')
+        self.fields['location_new'].queryset = models.Location.objects.filter(is_active=True).order_by('name')
         self.fields['notes'].help_text = "Public Notes specific to this stock entry"
         
         # Disable GTIN field if the item has a GTIN
@@ -138,7 +189,7 @@ class StockItemEditForm(forms.ModelForm):
         self.helper.layout = Layout(
             Field('organization'),
             Field('quantity'),
-            Field('location'),
+            Field('location_new'),
             Field('gtin', wrapper_class='field-with-errors'),  # Add a special class for GTIN field
             Field('detail'),
             Field('date_received'),
@@ -146,6 +197,19 @@ class StockItemEditForm(forms.ModelForm):
             Field('lot_number'),
             Field('notes'),
         )
+    
+    def save(self, commit=True):
+        """Save the form and update the deprecated location field from location_new"""
+        instance = super().save(commit=False)
+        
+        # Update the deprecated location field from location_new for backward compatibility
+        if instance.location_new:
+            instance.location = instance.location_new.name
+        
+        if commit:
+            instance.save()
+        
+        return instance
 
 
 class Search_QuantityAdd(forms.Form):
@@ -227,11 +291,12 @@ class Search_QuantityAdd(forms.Form):
         label="GTIN (Global Trade Item Number)",
         help_text="Optional: GTIN-8, GTIN-12, GTIN-13, or GTIN-14 barcode number"
     )
-    location = forms.CharField(
-        max_length=100,
-        required=True,
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Box A"}),
-        label="Stock Location"
+    location_new = forms.ModelChoiceField(
+        queryset=models.Location.objects.filter(is_active=True),
+        label="Stock Location",
+        help_text="Select the location where this stock is stored",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Select a location"
     )
     date_received = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -259,6 +324,9 @@ class Search_QuantityAdd(forms.Form):
         # Check if a specific item is pre-selected (from URL)
         initial_item = kwargs.pop('initial_item', None)
         super().__init__(*args, **kwargs)
+
+        # Initialize location dropdown
+        self.fields['location_new'].queryset = models.Location.objects.filter(is_active=True).order_by('name')
 
         # If POST, ensure the selected item is in the queryset so validation passes
         data = self.data or getattr(self, 'data', None)
@@ -478,7 +546,7 @@ class StockItemSelectWidget(forms.Select):
             for stock_item in self.stock_items:
                 if str(stock_item.id) == str(value):
                     option['attrs']['data-quantity'] = stock_item.quantity
-                    option['attrs']['data-location'] = stock_item.location or ''
+                    option['attrs']['data-location'] = stock_item.location_new.name or ''
                     option['attrs']['data-detail'] = stock_item.detail or ''
                     break
                 

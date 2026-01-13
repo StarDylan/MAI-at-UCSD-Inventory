@@ -60,7 +60,7 @@ def export_surplus_report(request):
             stock.item.name,
             stock.detail or '',
             stock.quantity,
-            stock.location,
+            stock.location_new.name,
             stock.organization.name,
             stock.date_received.strftime('%Y-%m-%d') if stock.date_received else '',
             stock.expiration_date.strftime('%Y-%m-%d') if stock.expiration_date else '',
@@ -219,7 +219,7 @@ def upload_surplus_report(request):
                         after_state = audit_log_state(stock_item)
                         audit_log_event(
                             request.user,
-                            f"Updated surplus status for \"{stock_item.item.name}\" in location \"{stock_item.location}\" from {old_status} to {new_status} via Excel upload",
+                            f"Updated surplus status for \"{stock_item.item.name}\" in location \"{stock_item.location_new.name}\" from {old_status} to {new_status} via Excel upload",
                             before_state,
                             after_state
                         )

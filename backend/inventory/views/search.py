@@ -136,7 +136,7 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         item = form.cleaned_data['item']
         quantity = form.cleaned_data['quantity']
         organization = form.cleaned_data['organization']
-        location = form.cleaned_data['location']
+        location_new = form.cleaned_data['location_new']
         gtin = form.cleaned_data['gtin']
         detail = form.cleaned_data['detail']
         date_received = form.cleaned_data['date_received']
@@ -153,7 +153,8 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
             item=item,
             organization=organization,
             quantity=quantity,
-            location=location,
+            location=location_new.name if location_new else '',
+            location_new=location_new,
             gtin=gtin,
             detail=detail,
             date_received=date_received,
@@ -163,10 +164,11 @@ class SearchCheckInView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         )
         
         # Log the check-in event
+        location_display = location_new.name if location_new else ''
         after_state = audit_log_state(stock_item)
         audit_log_event(
             self.request.user, 
-            f"Checked-in {quantity} of \"{item.name}\" into location \"{location}\"", 
+            f"Checked-in {quantity} of \"{item.name}\" into location \"{location_display}\"", 
             before_state,
             after_state
         )

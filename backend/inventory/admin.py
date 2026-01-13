@@ -36,7 +36,7 @@ class StockItemInline(admin.TabularInline):
     model = models.StockItem
     extra = 0
     show_change_link = True
-    fields = ("organization", "quantity", "location", "date_received", "expiration_date", "lot_number")
+    fields = ("organization", "quantity", "location", "location_new", "date_received", "expiration_date", "lot_number")
 
 
 # ---------- Core data models ----------
@@ -139,6 +139,19 @@ class OrganizationAdmin(admin.ModelAdmin):
     search_fields = ("id", "name", "description", "contact_email")
     ordering = ("name",)
     list_per_page = 25
+
+
+@admin.register(models.Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "is_active", "stock_item_count", "created_at")
+    search_fields = ("id", "name")
+    list_filter = ("is_active",)
+    ordering = ("name",)
+    list_per_page = 25
+    
+    @admin.display(description="Stock Items")
+    def stock_item_count(self, obj):
+        return obj.stock_items.count()
 
 
 @admin.register(models.StockItem)

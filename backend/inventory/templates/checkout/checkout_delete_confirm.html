@@ -91,7 +91,7 @@
               <span class="text-muted">-</span>
               {% endif %}
             </td>
-            <td>{{ item.stock_item.location }}</td>
+            <td>{{ item.stock_item.location_new.name }}</td>
             <td>
               {% if item.stock_item.expiration_date %} {{ item.stock_item.expiration_date|date:"M d, Y" }} {% else %}
               <span class="text-muted">-</span>

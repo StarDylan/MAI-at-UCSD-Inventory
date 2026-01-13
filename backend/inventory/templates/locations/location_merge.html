@@ -1,0 +1,65 @@
+{% extends "shared/base.html" %} {% block body %}
+
+<h4>Merge Location</h4>
+
+<div class="card">
+  <div class="card-body">
+    <div class="alert alert-info">
+      <h5><i class="material-icons">merge</i> Merge Location</h5>
+      <p>
+        You are about to merge <strong>"{{ source_location.name }}"</strong> into another location.
+      </p>
+      <p class="mb-0">
+        <strong>What will happen:</strong>
+      </p>
+      <ul>
+        <li>All <strong>{{ stock_item_count }}</strong> stock item(s) from "{{ source_location.name }}" will be moved to the target location</li>
+        <li>The location "{{ source_location.name }}" will be permanently deleted</li>
+        <li>This action cannot be undone</li>
+      </ul>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label for="{{ form.target_location.id_for_label }}" class="font-weight-bold">
+          {{ form.target_location.label }}
+        </label>
+        {{ form.target_location }}
+        {% if form.target_location.help_text %}
+        <small class="form-text text-muted">{{ form.target_location.help_text }}</small>
+        {% endif %}
+        {% if form.target_location.errors %}
+        <div class="text-danger">{{ form.target_location.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="mt-4">
+        <button type="submit" class="btn btn-warning">
+          <i class="material-icons">merge</i> Merge Locations
+        </button>
+        <a href="{% url 'location_list' %}" class="btn btn-secondary">
+          <i class="material-icons">cancel</i> Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Include Select2 CSS and JS for searchable dropdown -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+<script>
+  $(document).ready(function() {
+    // Initialize Select2 on the target location dropdown
+    $('#{{ form.target_location.id_for_label }}').select2({
+      placeholder: "Search and select a location to merge into...",
+      allowClear: false,
+      width: "100%"
+    });
+  });
+</script>
+
+{% endblock %}

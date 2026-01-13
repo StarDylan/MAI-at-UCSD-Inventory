@@ -388,9 +388,13 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             
         # Log stock item creation event
         if stock_item:
+            if stock_item.location_new:
+                location_display = stock_item.location_new.name
+            else:
+                location_display = "Unknown location"
             audit_log_event(
                 self.request.user, 
-                f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{stock_item.location}\" (initial stock from {stock_item.organization.name})", 
+                f"Checked-in {stock_item.quantity} of \"{new_item.name}\" into location \"{location_display}\" (initial stock from {stock_item.organization.name})", 
                 audit_log_state(None), 
                 audit_log_state(stock_item)
             )
@@ -523,14 +527,15 @@ class StockItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateVie
         
         # Log the update event
         after_state = audit_log_state(self.object)
+        location_display = self.object.location_new.name
         audit_log_event(
             self.request.user, 
-            f"Updated \"{self.object.item.name}\" stock in location \"{self.object.location}\"", 
+            f"Updated \"{self.object.item.name}\" stock in location \"{location_display}\"", 
             before_state, 
             after_state
         )
         
-        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{self.object.location}" was successfully updated.')
+        messages.success(self.request, f'Stock for "{self.object.item.name}" in location "{location_display}" was successfully updated.')
         return response
 
     def get_success_url(self):
@@ -574,7 +579,7 @@ def stock_item_delete_view(request, uuid):
     # Store info for success message before deletion
     quantity = stock_item.quantity
     item_name = stock_item.item.name
-    location = stock_item.location
+    location = stock_item.location_new.name
 
     # Log the state before deletion
     before_state = audit_log_state(stock_item)
@@ -582,7 +587,7 @@ def stock_item_delete_view(request, uuid):
     # Log the deletion event
     audit_log_event(
         request.user,
-        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location}\"",
+        f"Deleted {stock_item.quantity} of \"{stock_item.item.name}\" from location \"{stock_item.location_new.name}\"",
         before_state,
         audit_log_state(None),
         entity_id=str(stock_item.item.id)
@@ -872,8 +877,7 @@ def items_search_api(request):
         # Locations (for aggregated_locations logic, if needed)
         if item_id not in locations_by_item:
             locations_by_item[item_id] = set()
-        if stock_item.location:
-            locations_by_item[item_id].add(stock_item.location)
+        locations_by_item[item_id].add(stock_item.location_new.name)
 
     # Get total count before applying limit
     total_count = len(items_qs)
@@ -1035,7 +1039,7 @@ def public_search_api(request):
         
         # Add location search only for users with internal details permission
         if has_internal_details_perm:
-            search_conditions |= Q(location__icontains=search_query)
+            search_conditions |= Q(location_new__name__icontains=search_query)
     
     
     stock_items_query = stock_items_query.filter(search_conditions)
@@ -1153,8 +1157,8 @@ def public_search_api(request):
         prefetched_stock_items = list(item.stock_items.all())
         locations_set = set()
         for stock_item in prefetched_stock_items:
-            if stock_item.location:
-                locations_set.add(stock_item.location)
+            if stock_item.location_new.name:
+                locations_set.add(stock_item.location_new.name)
         locations = ", ".join(sorted(locations_set))
         
         # Check surplus status information for users with internal stocking details permission
