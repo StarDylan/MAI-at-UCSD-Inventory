@@ -20,7 +20,12 @@
             {% else %}
             <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN..." />
             {% endif %}
-            <small class="text-muted d-none" id="location-only-notice"></small>
+            <div class="alert alert-info d-none mt-2 mb-0 py-2 px-3" id="location-only-notice" role="status" aria-live="polite">
+              <div class="d-flex align-items-center">
+              <i class="material-icons me-2" style="font-size: 1rem">place</i>
+              <span id="location-only-notice-text"></span>
+              </div>
+            </div>
           </div>
 
           <div class="col-md-3 mb-3">
@@ -1158,17 +1163,18 @@
 
   function updateLocationOnlyNotice(params = getURLParams()) {
     const noticeEl = $('#location-only-notice');
+    const noticeTextEl = $('#location-only-notice-text');
     if (!noticeEl.length) {
       return;
     }
 
     if (params.location_uuid) {
       const locationName = (params.location || '').trim() || selectedLocationName || 'Selected location';
-      noticeEl.text(`Searching only Location "${locationName}"`);
+      noticeTextEl.text(`Searching only Location "${locationName}"`);
       noticeEl.removeClass('d-none');
     } else {
       noticeEl.addClass('d-none');
-      noticeEl.text('');
+      noticeTextEl.text('');
     }
   }
 
