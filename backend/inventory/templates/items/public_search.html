@@ -20,6 +20,7 @@
             {% else %}
             <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN..." />
             {% endif %}
+            <small class="text-muted d-none" id="location-only-notice"></small>
           </div>
 
           <div class="col-md-3 mb-3">
@@ -1069,6 +1070,7 @@
   let searchTimeout = null;
   let loadedItems = []; // Store all loaded items
   let urlOnlyLocationUuid = '';
+  let selectedLocationName = '{{ selected_location_name|default:""|escapejs }}';
   let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %}true{% else %}false{% endif %}; // Django template variable
   let currentRequest = null; // Track current AJAX request
 
@@ -1149,6 +1151,24 @@
           tagStates[tagId.trim()] = 'exclude';
         }
       });
+    }
+
+    updateLocationOnlyNotice(params);
+  }
+
+  function updateLocationOnlyNotice(params = getURLParams()) {
+    const noticeEl = $('#location-only-notice');
+    if (!noticeEl.length) {
+      return;
+    }
+
+    if (params.location_uuid) {
+      const locationName = (params.location || '').trim() || selectedLocationName || 'Selected location';
+      noticeEl.text(`Searching only Location "${locationName}"`);
+      noticeEl.removeClass('d-none');
+    } else {
+      noticeEl.addClass('d-none');
+      noticeEl.text('');
     }
   }
 
@@ -1497,6 +1517,7 @@
       $('#sort-by').val('last_updated');
       $('#sort-order').val('desc');
       urlOnlyLocationUuid = '';
+      updateLocationOnlyNotice({ location_uuid: '', location: '' });
 
       // Update counts and reload items
       if (typeof updateTagCount === 'function') {

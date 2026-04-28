@@ -949,8 +949,18 @@ def public_search_view(request):
         )
     ).order_by('sort_order', 'name')
     
+    selected_location_name = ""
+    location_uuid = request.GET.get('location_uuid', '').strip()
+    if location_uuid:
+        try:
+            location_uuid = str(UUID(location_uuid))
+            selected_location_name = models.Location.objects.filter(id=location_uuid).values_list('name', flat=True).first() or ""
+        except (ValueError, TypeError, AttributeError):
+            selected_location_name = ""
+
     context = {
         'tag_groups': tag_groups,
+        'selected_location_name': selected_location_name,
     }
     
     template = loader.get_template("items/public_search.html")
