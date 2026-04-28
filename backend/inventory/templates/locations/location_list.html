@@ -32,7 +32,7 @@
             </td>
             <td>
               {% if location.stock_item_count > 0 %}
-              <a href="{% url 'public_search' %}?search={{ location.name|urlencode }}" class="text-decoration-none"> {{ location.stock_item_count }} </a>
+              <a href="{% url 'public_search' %}?location_uuid={{ location.id }}" class="text-decoration-none"> {{ location.stock_item_count }} </a>
               {% else %} {{ location.stock_item_count }} {% endif %}
             </td>
             <td class="text-right">
