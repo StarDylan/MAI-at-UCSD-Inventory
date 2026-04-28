@@ -21,6 +21,7 @@ from inventory.forms_tags import TaggedItemForm, TaggedItemWithStockForm
 from inventory.models import Item, AuditEvent, StockItem, CheckOutItem, Tag, TagGroup
 from .utils import audit_log_state, audit_log_event
 from django.db.models import Prefetch
+from uuid import UUID
 
 def view_item_detail(request, uuid):
     """
@@ -948,8 +949,18 @@ def public_search_view(request):
         )
     ).order_by('sort_order', 'name')
     
+    selected_location_name = ""
+    location_uuid = request.GET.get('location_uuid', '').strip()
+    if location_uuid:
+        try:
+            location_uuid = str(UUID(location_uuid))
+            selected_location_name = models.Location.objects.filter(id=location_uuid).values_list('name', flat=True).first() or ""
+        except (ValueError, TypeError, AttributeError):
+            selected_location_name = ""
+
     context = {
         'tag_groups': tag_groups,
+        'selected_location_name': selected_location_name,
     }
     
     template = loader.get_template("items/public_search.html")
@@ -966,6 +977,7 @@ def public_search_api(request):
         offset: Starting position for pagination (default: 0)
         limit: Maximum number of results to return (default: 20, max: 100)
         search: General search query across name, manufacturer, GTIN, and tags
+        location_uuid: Optional location UUID to restrict items to stock at that location
         tag_groups: Comma-separated list of tag group IDs to filter by
         tags: Comma-separated list of tag IDs to filter by
         exclude_expired: Exclude expired items (true/false, default: false)
@@ -993,6 +1005,7 @@ def public_search_api(request):
     
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
+    location_uuid = request.GET.get('location_uuid', '').strip()
 
     tag_ids = request.GET.get('tags', '').strip()
     excluded_tag_ids = request.GET.get('excluded_tags', '').strip()
@@ -1015,6 +1028,20 @@ def public_search_api(request):
     # Filter for permission-based access - only show surplus-approved items for public users
     if not has_internal_details_perm:
         stock_items_query = stock_items_query.filter(surplus_status__in=['not_wanted'])
+
+    # URL-only location filter: keep only stock items at a specific location UUID.
+    if location_uuid:
+        try:
+            location_uuid = str(UUID(location_uuid))
+        except (ValueError, TypeError, AttributeError):
+            return JsonResponse({
+                'items': [],
+                'total_count': 0,
+                'offset': offset,
+                'limit': limit,
+                'has_more': False,
+            })
+        stock_items_query = stock_items_query.filter(location_new_id=location_uuid)
     
     # Apply search filter to stock items and their related items
     search_conditions = Q()
@@ -1036,10 +1063,6 @@ def public_search_api(request):
                 Q(item__tags__name__icontains=search_query) |  # Search in tag names
                 Q(item__tags__tag_group__name__icontains=search_query)  # Search in tag group names
             )
-        
-        # Add location search only for users with internal details permission
-        if has_internal_details_perm:
-            search_conditions |= Q(location_new__name__icontains=search_query)
     
     
     stock_items_query = stock_items_query.filter(search_conditions)

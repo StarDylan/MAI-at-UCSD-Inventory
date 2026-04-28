@@ -20,6 +20,12 @@
             {% else %}
             <input type="text" class="form-control" id="search-input" placeholder="Search by name, manufacturer, or GTIN..." />
             {% endif %}
+            <div class="alert alert-info d-none mt-2 mb-0 py-2 px-3" id="location-only-notice" role="status" aria-live="polite">
+              <div class="d-flex align-items-center">
+              <i class="material-icons me-2" style="font-size: 1rem">place</i>
+              <span id="location-only-notice-text"></span>
+              </div>
+            </div>
           </div>
 
           <div class="col-md-3 mb-3">
@@ -1068,6 +1074,8 @@
   let currentViewMode = 'tile'; // 'tile' or 'table'
   let searchTimeout = null;
   let loadedItems = []; // Store all loaded items
+  let urlOnlyLocationUuid = '';
+  let selectedLocationName = '{{ selected_location_name|default:""|escapejs }}';
   let hasInternalPermission = {% if perms.inventory.view_internalstockingdetails %}true{% else %}false{% endif %}; // Django template variable
   let currentRequest = null; // Track current AJAX request
 
@@ -1087,6 +1095,7 @@
     url.searchParams.delete('sort_by');
     url.searchParams.delete('sort_order');
     url.searchParams.delete('location');
+    url.searchParams.delete('location_uuid');
     url.searchParams.delete('offset');
 
     // Add new parameters
@@ -1114,6 +1123,7 @@
       sort_by: urlParams.get('sort_by') || 'last_updated',
       sort_order: urlParams.get('sort_order') || 'desc',
       location: urlParams.get('location') || '',
+      location_uuid: urlParams.get('location_uuid') || '',
     };
   }
 
@@ -1125,6 +1135,7 @@
     $('#exclude-expired').prop('checked', params.exclude_expired);
     $('#sort-by').val(params.sort_by);
     $('#sort-order').val(params.sort_order);
+    urlOnlyLocationUuid = params.location_uuid;
 
     // Set location search if available and user has permission
     if ($('#location-input').length) {
@@ -1145,6 +1156,25 @@
           tagStates[tagId.trim()] = 'exclude';
         }
       });
+    }
+
+    updateLocationOnlyNotice(params);
+  }
+
+  function updateLocationOnlyNotice(params = getURLParams()) {
+    const noticeEl = $('#location-only-notice');
+    const noticeTextEl = $('#location-only-notice-text');
+    if (!noticeEl.length) {
+      return;
+    }
+
+    if (params.location_uuid) {
+      const locationName = (params.location || '').trim() || selectedLocationName || 'Selected location';
+      noticeTextEl.text(`Searching only Location "${locationName}"`);
+      noticeEl.removeClass('d-none');
+    } else {
+      noticeEl.addClass('d-none');
+      noticeTextEl.text('');
     }
   }
 
@@ -1492,6 +1522,8 @@
       $('#exclude-expired').prop('checked', false);
       $('#sort-by').val('last_updated');
       $('#sort-order').val('desc');
+      urlOnlyLocationUuid = '';
+      updateLocationOnlyNotice({ location_uuid: '', location: '' });
 
       // Update counts and reload items
       if (typeof updateTagCount === 'function') {
@@ -1588,6 +1620,10 @@
       sort_by: $('#sort-by').val(),
       sort_order: $('#sort-order').val()
     };
+
+    if (urlOnlyLocationUuid) {
+      params.location_uuid = urlOnlyLocationUuid;
+    }
 
     // Add location search if user has permission and field is visible
     if ($('#location-search-container').is(':visible')) {
