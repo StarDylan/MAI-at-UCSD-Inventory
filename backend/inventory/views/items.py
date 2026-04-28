@@ -1053,10 +1053,6 @@ def public_search_api(request):
                 Q(item__tags__name__icontains=search_query) |  # Search in tag names
                 Q(item__tags__tag_group__name__icontains=search_query)  # Search in tag group names
             )
-        
-        # Add location search only for users with internal details permission
-        if has_internal_details_perm:
-            search_conditions |= Q(location_new__name__icontains=search_query)
     
     
     stock_items_query = stock_items_query.filter(search_conditions)
