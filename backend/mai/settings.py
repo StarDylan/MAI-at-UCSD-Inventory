@@ -77,7 +77,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-    'silk',
+    # 'silk',
 ]
 
 MIDDLEWARE = [
@@ -90,7 +90,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
-    'silk.middleware.SilkyMiddleware',
+    # 'silk.middleware.SilkyMiddleware',
 ]
 
 ROOT_URLCONF = "mai.urls"
@@ -261,11 +261,11 @@ if SENTRY_DSN:
 
 IS_BETA = env('IS_BETA')
 
-SILKY_AUTHENTICATION = True  # User must login
-SILKY_AUTHORISATION = True  # User must have permissions
+# SILKY_AUTHENTICATION = True  # User must login
+# SILKY_AUTHORISATION = True  # User must have permissions
 
-if not DEBUG:
-    SILKY_MAX_RESPONSE_BODY_SIZE = 1024
-    SILKY_MAX_RECORDED_REQUESTS = 10**4
-    SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
-    SILKY_ANALYZE_QUERIES = False
+# if not DEBUG:
+#     SILKY_MAX_RESPONSE_BODY_SIZE = 1024
+#     SILKY_MAX_RECORDED_REQUESTS = 10**4
+#     SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
+#     SILKY_ANALYZE_QUERIES = False
