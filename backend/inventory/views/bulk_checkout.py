@@ -14,7 +14,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 
 from inventory.forms import CheckOutForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
-from inventory.models import Item, StockItem, AuditEvent, CheckOut, CheckOutItem
+from inventory.models import Item, StockItem, AuditEvent, CheckOut, CheckOutItem, Location
 from .utils import audit_log_state, audit_log_event
 
 
@@ -724,6 +724,27 @@ def get_stock_items_api(request, item_uuid):
 
 
 @login_required
+@permission_required('inventory.change_checkout', raise_exception=True)
+def get_active_checkouts_api(request):
+    """
+    API endpoint to get active checkouts for the current user or all active checkouts.
+    Used by AJAX to populate checkout selection dropdowns.
+    """
+    checkouts = CheckOut.objects.filter(is_completed=False).select_related('organization').order_by('-created_at')
+    
+    data = []
+    for checkout in checkouts:
+        data.append({
+            'id': str(checkout.id),
+            'organization': checkout.organization.name,
+            'created_at': checkout.created_at.strftime('%Y-%m-%d %H:%M'),
+            'display_name': f"{checkout.organization.name} - {checkout.created_at.strftime('%Y-%m-%d %H:%M')}"
+        })
+    
+    return JsonResponse({'checkouts': data})
+
+
+@login_required
 @permission_required('inventory.delete_checkout', raise_exception=True)
 def checkout_delete_view(request, checkout_id):
     """
@@ -753,3 +774,206 @@ def checkout_delete_view(request, checkout_id):
         'items_count': checkout.total_items_count,
     }
     return render(request, 'checkout/checkout_delete_confirm.html', context)
+
+
+@login_required
+@permission_required('inventory.change_checkout', raise_exception=True)
+def checkout_bulk_add_item_view(request, checkout_id):
+    """
+    AJAX endpoint to bulk add all stock items from a specific Item to an existing checkout.
+    Creates only 1 audit event for the item, not for each stock item.
+    """
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
+    
+    if checkout.is_completed:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cannot add items to completed checkout'
+        })
+    
+    if request.method == 'POST':
+        # Handle AJAX request for bulk adding item
+        item_id = request.POST.get('item_id')
+        
+        try:
+            item = Item.objects.get(id=item_id)
+            
+            # Get all stock items for this item with quantity > 0
+            stock_items_to_add = item.stock_items.filter(quantity__gt=0)
+            
+            if not stock_items_to_add.exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No stock items available for {item.name}'
+                })
+            
+            # Get existing checkout items for this item (by item, not stock_item)
+            existing_items = CheckOutItem.objects.filter(
+                checkout=checkout,
+                stock_item__item=item
+            )
+            
+            if existing_items.exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Some stock items from "{item.name}" are already in the checkout'
+                })
+            
+            # Add all stock items to the checkout using bulk_create (single query)
+            with transaction.atomic():
+                checkout_items = [
+                    CheckOutItem(
+                        checkout=checkout,
+                        stock_item=stock_item,
+                        quantity=stock_item.quantity,
+                        notes=''
+                    )
+                    for stock_item in stock_items_to_add
+                ]
+                CheckOutItem.objects.bulk_create(checkout_items)
+                added_count = len(checkout_items)
+                
+                # Log a single audit event for this item addition (not per stock item)
+                audit_log_event(
+                    request.user,
+                    f"Bulk added all ({added_count} stock item(s)) from \"{item.name}\" to checkout for {checkout.organization.name}",
+                    audit_log_state(None),
+                    audit_log_state(item),
+                    str(checkout.id)
+                )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Added all {added_count} stock item(s) from {item.name} to checkout'
+            })
+            
+        except Item.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Item not found'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    # GET request - return error
+    return JsonResponse({
+        'success': False,
+        'error': 'Invalid request method'
+    })
+
+
+@login_required
+@permission_required('inventory.change_checkout', raise_exception=True)
+def checkout_bulk_add_location_view(request, checkout_id):
+    """
+    AJAX endpoint to bulk add all stock items from a specific Location to an existing checkout.
+    Creates 1 audit event per Item (not per stock item).
+    """
+    checkout = get_object_or_404(CheckOut.objects.select_related('organization'), id=checkout_id)
+    
+    if checkout.is_completed:
+        return JsonResponse({
+            'success': False,
+            'error': 'Cannot add items to completed checkout'
+        })
+    
+    if request.method == 'POST':
+        # Handle AJAX request for bulk adding location
+        location_id = request.POST.get('location_id')
+        
+        try:
+            location = Location.objects.get(id=location_id)
+            
+            # Get all stock items from this location with quantity > 0
+            stock_items_to_add = StockItem.objects.filter(
+                location_new=location,
+                quantity__gt=0
+            ).select_related('item')
+            
+            if not stock_items_to_add.exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No stock items available in location {location.name}'
+                })
+            
+            # Get existing checkout items from this location
+            existing_items = CheckOutItem.objects.filter(
+                checkout=checkout,
+                stock_item__location_new=location
+            )
+            
+            if existing_items.exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Some stock items from location "{location.name}" are already in the checkout'
+                })
+            
+            # Add all stock items from this location to the checkout using bulk_create (single query)
+            with transaction.atomic():
+                from django.db.models import Count
+                
+                checkout_items = [
+                    CheckOutItem(
+                        checkout=checkout,
+                        stock_item=stock_item,
+                        quantity=stock_item.quantity,
+                        notes=''
+                    )
+                    for stock_item in stock_items_to_add
+                ]
+                CheckOutItem.objects.bulk_create(checkout_items)
+                total_stock_items = len(checkout_items)
+                
+                # Get aggregated count per item using single query (no loop over stock items)
+                item_counts = (
+                    stock_items_to_add
+                    .values('item__id', 'item__name')
+                    .annotate(count=Count('id'))
+                    .order_by()
+                )
+                
+                # Create audit events from aggregated data
+                # Build a map of item_id to item instance for quick lookup
+                item_map = {str(si.item.id): si.item for si in stock_items_to_add}
+                unique_items_count = 0
+                
+                for item_data in item_counts:
+                    unique_items_count += 1
+                    item_id = str(item_data['item__id'])
+                    item_name = item_data['item__name']
+                    count = item_data['count']
+                    
+                    # Get item from our map (already in memory)
+                    item = item_map.get(item_id)
+                    if item:
+                        audit_log_event(
+                            request.user,
+                            f"Bulk added all ({count} stock item(s)) of \"{item_name}\" from location \"{location.name}\" to checkout for {checkout.organization.name}",
+                            audit_log_state(None),
+                            audit_log_state(item),
+                            str(checkout.id)
+                        )
+            return JsonResponse({
+                'success': True,
+                'message': f'Added all {total_stock_items} stock item(s) from location "{location.name}" to checkout ({unique_items_count} unique items)'
+            })
+            
+        except Location.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Location not found'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    # GET request - return error
+    return JsonResponse({
+        'success': False,
+        'error': 'Invalid request method'
+    })

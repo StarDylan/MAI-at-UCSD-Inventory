@@ -36,6 +36,9 @@
               {% else %} {{ location.stock_item_count }} {% endif %}
             </td>
             <td class="text-right">
+              {% if perms.inventory.change_checkout and location.is_active and location.stock_item_count > 0 %}
+              <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#bulkAddLocationModal" data-location-id="{{ location.id }}" data-location-name="{{ location.name }}"><i class="material-icons">shopping_cart</i> Bulk Add</button>
+              {% endif %}
               {% if perms.inventory.change_location %}
               <a href="{% url 'location_update' location.id %}">
                 <button class="btn btn-sm btn-outline-primary"><i class="material-icons">edit</i> Edit</button>
@@ -73,6 +76,129 @@
       order: [[0, "asc"]],
     });
   };
+</script>
+
+<!-- Bulk Add Location Modal -->
+<div class="modal fade" id="bulkAddLocationModal" tabindex="-1" aria-labelledby="bulkAddLocationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkAddLocationModalLabel">Bulk Add Location to Checkout</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Select an active checkout to add all available stock items from <strong id="locationNameDisplay"></strong>.</p>
+        
+        <div id="checkoutList" class="mb-3">
+          <label class="form-label">Select Checkout</label>
+          <select id="checkoutSelectLocation" class="form-select" required>
+            <option value="">Loading checkouts...</option>
+          </select>
+        </div>
+
+        <div id="bulkAddLocationError" class="alert alert-danger d-none" role="alert">
+          <ul class="mb-0" id="bulkAddLocationErrorList"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmBulkAddLocationBtn">Bulk Add Location</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const bulkAddModal = document.getElementById('bulkAddLocationModal');
+    const checkoutSelectLocation = document.getElementById('checkoutSelectLocation');
+    const confirmBulkAddLocationBtn = document.getElementById('confirmBulkAddLocationBtn');
+    const bulkAddLocationError = document.getElementById('bulkAddLocationError');
+    const locationNameDisplay = document.getElementById('locationNameDisplay');
+    let currentLocationId = '';
+
+    // Handle modal showing
+    bulkAddModal.addEventListener('show.bs.modal', async function(event) {
+      const button = event.relatedTarget;
+      currentLocationId = button.getAttribute('data-location-id');
+      const locationName = button.getAttribute('data-location-name');
+      locationNameDisplay.textContent = locationName;
+      
+      bulkAddLocationError.classList.add('d-none');
+      
+      try {
+        // Fetch active checkouts
+        const checkoutResponse = await fetch('/api/checkouts/active/');
+        const checkoutData = await checkoutResponse.json();
+        
+        checkoutSelectLocation.innerHTML = '<option value="">Select an active checkout...</option>';
+        if (checkoutData.checkouts && checkoutData.checkouts.length > 0) {
+          checkoutData.checkouts.forEach(checkout => {
+            const option = document.createElement('option');
+            option.value = checkout.id;
+            option.textContent = checkout.organization + ' - ' + checkout.created_at;
+            checkoutSelectLocation.appendChild(option);
+          });
+        } else {
+          checkoutSelectLocation.innerHTML = '<option value="">No active checkouts available</option>';
+        }
+      } catch (error) {
+        checkoutSelectLocation.innerHTML = '<option value="">Error loading checkouts</option>';
+      }
+    });
+
+    confirmBulkAddLocationBtn.addEventListener('click', async function() {
+      const checkoutId = checkoutSelectLocation.value;
+      if (!checkoutId || !currentLocationId) {
+        return;
+      }
+
+      confirmBulkAddLocationBtn.disabled = true;
+      confirmBulkAddLocationBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
+
+      try {
+        const formData = new FormData();
+        formData.append('location_id', currentLocationId);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        const response = await fetch(`/api/bulk-checkout/${checkoutId}/bulk-add-location/`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Close modal and show success message
+          const modal = bootstrap.Modal.getInstance(bulkAddModal);
+          modal.hide();
+          
+          // Show success alert
+          const alert = document.createElement('div');
+          alert.className = 'alert alert-success alert-dismissible fade show';
+          alert.innerHTML = `
+            <i class="material-icons" style="vertical-align: middle">check_circle</i>
+            ${result.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          `;
+          document.querySelector('h4').insertAdjacentElement('beforebegin', alert);
+
+          // Reload after 2 seconds
+          setTimeout(() => location.reload(), 2000);
+        } else {
+          bulkAddLocationError.classList.remove('d-none');
+          document.getElementById('bulkAddLocationErrorList').innerHTML = `<li>${result.error}</li>`;
+          confirmBulkAddLocationBtn.disabled = false;
+          confirmBulkAddLocationBtn.innerHTML = 'Bulk Add Location';
+        }
+      } catch (error) {
+        bulkAddLocationError.classList.remove('d-none');
+        document.getElementById('bulkAddLocationErrorList').innerHTML = `<li>${error.message}</li>`;
+        confirmBulkAddLocationBtn.disabled = false;
+        confirmBulkAddLocationBtn.innerHTML = 'Bulk Add Location';
+      }
+    });
+  });
 </script>
 
 {% endblock %}

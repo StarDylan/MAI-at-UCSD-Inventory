@@ -671,6 +671,34 @@ class UserEditForm(forms.ModelForm):
             
         return email
     
+class BulkAddItemForm(forms.Form):
+    """Form for bulk adding all stock items from a single Item to a checkout"""
+    item = forms.ModelChoiceField(
+        queryset=models.Item.active_objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Item",
+        help_text="Select an item to add all of its stock to the checkout"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['item'].queryset = models.Item.active_objects.all().order_by('name')
+
+
+class BulkAddLocationForm(forms.Form):
+    """Form for bulk adding all stock items from a single Location to a checkout"""
+    location = forms.ModelChoiceField(
+        queryset=models.Location.objects.filter(is_active=True),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Location",
+        help_text="Select a location to add all of its stock to the checkout"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['location'].queryset = models.Location.objects.filter(is_active=True).order_by('name')
+
+
 class CrispyLoginForm(LoginForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
