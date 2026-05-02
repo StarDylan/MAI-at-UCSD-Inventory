@@ -175,6 +175,9 @@
         const result = await response.json();
 
         if (result.success) {
+          confirmBulkAddLocationBtn.disabled = false;
+          confirmBulkAddLocationBtn.innerHTML = 'Add all stock to checkout';
+
           // Close modal and show success message
           $('#bulkAddLocationModal').modal('hide');
           
