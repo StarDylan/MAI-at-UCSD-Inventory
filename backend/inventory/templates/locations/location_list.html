@@ -188,8 +188,7 @@
           `;
           document.querySelector('h4').insertAdjacentElement('beforebegin', alert);
 
-          // Reload after 2 seconds
-          setTimeout(() => location.reload(), 2000);
+          // Keep the success message visible (no auto-reload)
         } else {
           bulkAddLocationError.classList.remove('d-none');
           document.getElementById('bulkAddLocationErrorList').innerHTML = `<li>${result.error}</li>`;

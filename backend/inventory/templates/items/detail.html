@@ -589,8 +589,7 @@
           `;
           document.querySelector('[id="page"]').insertAdjacentElement('beforebegin', alert);
 
-          // Reload after 2 seconds
-          setTimeout(() => location.reload(), 2000);
+          // Keep the success message visible (no auto-reload)
         } else {
           bulkAddError.classList.remove('d-none');
           document.getElementById('bulkAddErrorList').innerHTML = `<li>${result.error}</li>`;
