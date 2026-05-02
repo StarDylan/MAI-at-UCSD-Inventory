@@ -19,7 +19,7 @@
           <tr>
             <th scope="col">Name</th>
             <th scope="col">Status</th>
-            <th scope="col">Stock Items</th>
+            <th scope="col">Available Stock Items</th>
             <th scope="col">Actions</th>
           </tr>
         </thead>
@@ -43,7 +43,8 @@
               <a href="{% url 'location_update' location.id %}">
                 <button class="btn btn-sm btn-outline-primary"><i class="material-icons">edit</i> Edit</button>
               </a>
-              {% endif %} {% if perms.inventory.delete_location %}
+              {% endif %}
+              {% if perms.inventory.delete_location %}
               <a href="{% url 'location_merge' location.id %}">
                 <button class="btn btn-sm btn-outline-warning" title="Merge this location into another location"><i class="material-icons">merge</i> Merge</button>
               </a>
@@ -52,8 +53,9 @@
                 <button class="btn btn-sm btn-outline-danger"><i class="material-icons">delete</i> Delete</button>
               </a>
               {% else %}
-              <button class="btn btn-sm btn-outline-secondary" disabled title="Cannot delete location with stock items"><i class="material-icons">delete</i> Delete</button>
-              {% endif %} {% endif %}
+              <button class="btn btn-sm btn-outline-secondary" disabled title="Cannot delete: stock items are assigned to this location. Please edit > disable instead."><i class="material-icons">delete</i> Delete</button>
+              {% endif %}
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

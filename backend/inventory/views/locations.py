@@ -6,7 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, FormView
 from django.contrib import messages
-from django.db.models import ProtectedError, Count
+from django.db.models import ProtectedError, Count, Q
 from django.shortcuts import redirect, get_object_or_404
 from django.db import transaction
 from ..models import Location
@@ -24,7 +24,7 @@ class LocationListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     def get_queryset(self):
         # Annotate with stock item count to avoid N+1 queries
         return Location.objects.annotate(
-            stock_item_count=Count('stock_items')
+            stock_item_count=Count('stock_items', filter=Q(stock_items__quantity__gt=0), distinct=True)
         ).order_by('name')
 
 
