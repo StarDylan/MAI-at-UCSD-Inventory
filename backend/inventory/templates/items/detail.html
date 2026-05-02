@@ -30,7 +30,7 @@
 {% endif %} 
 {% if perms.inventory.change_checkout %}
 <a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Checkout</a>
-<button class="btn btn-info" data-toggle="modal" data-target="#bulkAddItemModal"><i class="material-icons">layers</i> Bulk Add to Checkout</button>
+<button class="btn btn-info" data-toggle="modal" data-target="#bulkAddItemModal"><i class="material-icons">layers</i> Add all stock to checkout</button>
 {% endif %} 
 
   <style type="text/css">
@@ -492,7 +492,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="bulkAddItemModalLabel">Bulk Add {{ item.name }} to Checkout</h5>
+        <h5 class="modal-title" id="bulkAddItemModalLabel">Add all stock to checkout</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -515,7 +515,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirmBulkAddBtn">Bulk Add Item</button>
+        <button type="button" class="btn btn-primary" id="confirmBulkAddBtn">Add all stock to checkout</button>
       </div>
     </div>
   </div>
@@ -595,13 +595,13 @@
           bulkAddError.classList.remove('d-none');
           document.getElementById('bulkAddErrorList').innerHTML = `<li>${result.error}</li>`;
           confirmBulkAddBtn.disabled = false;
-          confirmBulkAddBtn.innerHTML = 'Bulk Add Item';
+          confirmBulkAddBtn.innerHTML = 'Add all stock to checkout';
         }
       } catch (error) {
         bulkAddError.classList.remove('d-none');
         document.getElementById('bulkAddErrorList').innerHTML = `<li>${error.message}</li>`;
         confirmBulkAddBtn.disabled = false;
-        confirmBulkAddBtn.innerHTML = 'Bulk Add Item';
+        confirmBulkAddBtn.innerHTML = 'Add all stock to checkout';
       }
     });
   });
