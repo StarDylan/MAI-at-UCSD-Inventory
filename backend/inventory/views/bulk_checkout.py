@@ -855,12 +855,15 @@ def checkout_bulk_add_item_view(request, checkout_id):
                     str(checkout.id)
                 )
             
+            message_parts = []
+            if added_count > 0:
+                message_parts.append(f'Added all {added_count} stock item(s) from {item.name} to checkout')
+            if updated_count > 0:
+                message_parts.append(f'Updated {updated_count} existing item(s) to max quantity')
+
             return JsonResponse({
                 'success': True,
-                'message': (
-                    f'Added all {added_count} stock item(s) from {item.name} to checkout. '
-                    f'Updated {updated_count} existing item(s) to max quantity.'
-                )
+                'message': '. '.join(message_parts)
             })
             
         except Item.DoesNotExist:
@@ -985,12 +988,19 @@ def checkout_bulk_add_location_view(request, checkout_id):
                             audit_log_state(item),
                             str(checkout.id)
                         )
+            message_parts = []
+            if total_stock_items > 0:
+                message_parts.append(
+                    f'Added all {total_stock_items} stock item(s) from location "{location.name}" to checkout'
+                )
+            if unique_items_count > 0:
+                message_parts.append(f'{unique_items_count} unique items')
+            if updated_count > 0:
+                message_parts.append(f'Updated {updated_count} existing item(s) to max quantity')
+
             return JsonResponse({
                 'success': True,
-                'message': (
-                    f'Added all {total_stock_items} stock item(s) from location "{location.name}" to checkout '
-                    f'({unique_items_count} unique items). Updated {updated_count} existing item(s) to max quantity.'
-                )
+                'message': '. '.join(message_parts)
             })
             
         except Location.DoesNotExist:
