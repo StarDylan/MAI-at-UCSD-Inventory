@@ -863,7 +863,7 @@ def checkout_bulk_add_item_view(request, checkout_id):
 
             return JsonResponse({
                 'success': True,
-                'message': '. '.join(message_parts)
+                'message': '. '.join(message_parts) if message_parts else 'Already added.'
             })
             
         except Item.DoesNotExist:
@@ -1000,7 +1000,7 @@ def checkout_bulk_add_location_view(request, checkout_id):
 
             return JsonResponse({
                 'success': True,
-                'message': '. '.join(message_parts)
+                'message': '. '.join(message_parts) if message_parts else 'Already added.'
             })
             
         except Location.DoesNotExist:
