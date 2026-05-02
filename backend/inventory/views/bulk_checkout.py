@@ -801,6 +801,12 @@ def checkout_bulk_add_item_view(request, checkout_id):
             # Get all stock items for this item with quantity > 0
             total_available = item.stock_items.filter(quantity__gt=0).count()
 
+            # Existing checkout items for this item
+            existing_items = CheckOutItem.objects.filter(
+                checkout=checkout,
+                stock_item__item=item
+            ).select_related('stock_item')
+
             # Exclude stock items already in this checkout
             stock_items_to_add = item.stock_items.filter(
                 quantity__gt=0
@@ -812,7 +818,7 @@ def checkout_bulk_add_item_view(request, checkout_id):
                     'error': f'No stock items available for {item.name}'
                 })
             
-            if not stock_items_to_add.exists():
+            if not stock_items_to_add.exists() and not existing_items.exists():
                 return JsonResponse({
                     'success': False,
                     'error': f'All available stock items from "{item.name}" are already in the checkout'
@@ -820,6 +826,14 @@ def checkout_bulk_add_item_view(request, checkout_id):
             
             # Add all stock items to the checkout using bulk_create (single query)
             with transaction.atomic():
+                updated_count = 0
+                for checkout_item in existing_items:
+                    max_qty = checkout_item.stock_item.quantity
+                    if checkout_item.quantity < max_qty:
+                        checkout_item.quantity = max_qty
+                        checkout_item.save(update_fields=['quantity'])
+                        updated_count += 1
+
                 checkout_items = [
                     CheckOutItem(
                         checkout=checkout,
@@ -843,7 +857,10 @@ def checkout_bulk_add_item_view(request, checkout_id):
             
             return JsonResponse({
                 'success': True,
-                'message': f'Added all {added_count} stock item(s) from {item.name} to checkout'
+                'message': (
+                    f'Added all {added_count} stock item(s) from {item.name} to checkout. '
+                    f'Updated {updated_count} existing item(s) to max quantity.'
+                )
             })
             
         except Item.DoesNotExist:
@@ -892,6 +909,11 @@ def checkout_bulk_add_location_view(request, checkout_id):
                 quantity__gt=0
             ).count()
 
+            existing_items = CheckOutItem.objects.filter(
+                checkout=checkout,
+                stock_item__location_new=location
+            ).select_related('stock_item__item')
+
             # Exclude stock items already in this checkout
             stock_items_to_add = StockItem.objects.filter(
                 location_new=location,
@@ -904,7 +926,7 @@ def checkout_bulk_add_location_view(request, checkout_id):
                     'error': f'No stock items available in location {location.name}'
                 })
             
-            if not stock_items_to_add.exists():
+            if not stock_items_to_add.exists() and not existing_items.exists():
                 return JsonResponse({
                     'success': False,
                     'error': f'All available stock items from location "{location.name}" are already in the checkout'
@@ -913,6 +935,14 @@ def checkout_bulk_add_location_view(request, checkout_id):
             # Add all stock items from this location to the checkout using bulk_create (single query)
             with transaction.atomic():
                 from django.db.models import Count
+
+                updated_count = 0
+                for checkout_item in existing_items:
+                    max_qty = checkout_item.stock_item.quantity
+                    if checkout_item.quantity < max_qty:
+                        checkout_item.quantity = max_qty
+                        checkout_item.save(update_fields=['quantity'])
+                        updated_count += 1
                 
                 checkout_items = [
                     CheckOutItem(
@@ -957,7 +987,10 @@ def checkout_bulk_add_location_view(request, checkout_id):
                         )
             return JsonResponse({
                 'success': True,
-                'message': f'Added all {total_stock_items} stock item(s) from location "{location.name}" to checkout ({unique_items_count} unique items)'
+                'message': (
+                    f'Added all {total_stock_items} stock item(s) from location "{location.name}" to checkout '
+                    f'({unique_items_count} unique items). Updated {updated_count} existing item(s) to max quantity.'
+                )
             })
             
         except Location.DoesNotExist:
