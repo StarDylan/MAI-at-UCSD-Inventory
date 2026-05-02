@@ -799,24 +799,23 @@ def checkout_bulk_add_item_view(request, checkout_id):
             item = Item.objects.get(id=item_id)
             
             # Get all stock items for this item with quantity > 0
-            stock_items_to_add = item.stock_items.filter(quantity__gt=0)
+            total_available = item.stock_items.filter(quantity__gt=0).count()
+
+            # Exclude stock items already in this checkout
+            stock_items_to_add = item.stock_items.filter(
+                quantity__gt=0
+            ).exclude(checkout_items__checkout=checkout)
             
-            if not stock_items_to_add.exists():
+            if total_available == 0:
                 return JsonResponse({
                     'success': False,
                     'error': f'No stock items available for {item.name}'
                 })
             
-            # Get existing checkout items for this item (by item, not stock_item)
-            existing_items = CheckOutItem.objects.filter(
-                checkout=checkout,
-                stock_item__item=item
-            )
-            
-            if existing_items.exists():
+            if not stock_items_to_add.exists():
                 return JsonResponse({
                     'success': False,
-                    'error': f'Some stock items from "{item.name}" are already in the checkout'
+                    'error': f'All available stock items from "{item.name}" are already in the checkout'
                 })
             
             # Add all stock items to the checkout using bulk_create (single query)
@@ -888,27 +887,27 @@ def checkout_bulk_add_location_view(request, checkout_id):
             location = Location.objects.get(id=location_id)
             
             # Get all stock items from this location with quantity > 0
+            total_available = StockItem.objects.filter(
+                location_new=location,
+                quantity__gt=0
+            ).count()
+
+            # Exclude stock items already in this checkout
             stock_items_to_add = StockItem.objects.filter(
                 location_new=location,
                 quantity__gt=0
-            ).select_related('item')
+            ).exclude(checkout_items__checkout=checkout).select_related('item')
             
-            if not stock_items_to_add.exists():
+            if total_available == 0:
                 return JsonResponse({
                     'success': False,
                     'error': f'No stock items available in location {location.name}'
                 })
             
-            # Get existing checkout items from this location
-            existing_items = CheckOutItem.objects.filter(
-                checkout=checkout,
-                stock_item__location_new=location
-            )
-            
-            if existing_items.exists():
+            if not stock_items_to_add.exists():
                 return JsonResponse({
                     'success': False,
-                    'error': f'Some stock items from location "{location.name}" are already in the checkout'
+                    'error': f'All available stock items from location "{location.name}" are already in the checkout'
                 })
             
             # Add all stock items from this location to the checkout using bulk_create (single query)
