@@ -37,7 +37,7 @@
             </td>
             <td class="text-right">
               {% if perms.inventory.change_checkout and location.is_active and location.stock_item_count > 0 %}
-              <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#bulkAddLocationModal" data-location-id="{{ location.id }}" data-location-name="{{ location.name }}"><i class="material-icons">shopping_cart</i> Bulk Add</button>
+              <button class="btn btn-sm btn-outline-info" data-toggle="modal" data-target="#bulkAddLocationModal" data-location-id="{{ location.id }}" data-location-name="{{ location.name }}"><i class="material-icons">shopping_cart</i> Bulk Add</button>
               {% endif %}
               {% if perms.inventory.change_location %}
               <a href="{% url 'location_update' location.id %}">
@@ -79,29 +79,33 @@
 </script>
 
 <!-- Bulk Add Location Modal -->
-<div class="modal fade" id="bulkAddLocationModal" tabindex="-1" aria-labelledby="bulkAddLocationModalLabel" aria-hidden="true">
+<div class="modal fade" id="bulkAddLocationModal" tabindex="-1" role="dialog" aria-labelledby="bulkAddLocationModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="bulkAddLocationModalLabel">Bulk Add Location to Checkout</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
       </div>
       <div class="modal-body">
         <p class="text-muted">Select an active checkout to add all available stock items from <strong id="locationNameDisplay"></strong>.</p>
-        
-        <div id="checkoutList" class="mb-3">
-          <label class="form-label">Select Checkout</label>
-          <select id="checkoutSelectLocation" class="form-select" required>
-            <option value="">Loading checkouts...</option>
-          </select>
-        </div>
+        <form id="bulkAddLocationForm">
+          {% csrf_token %}
+          <div id="checkoutList" class="mb-3">
+            <label class="form-label">Select Checkout</label>
+            <select id="checkoutSelectLocation" class="form-select" required>
+              <option value="">Loading checkouts...</option>
+            </select>
+          </div>
 
-        <div id="bulkAddLocationError" class="alert alert-danger d-none" role="alert">
-          <ul class="mb-0" id="bulkAddLocationErrorList"></ul>
-        </div>
+          <div id="bulkAddLocationError" class="alert alert-danger d-none" role="alert">
+            <ul class="mb-0" id="bulkAddLocationErrorList"></ul>
+          </div>
+        </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="confirmBulkAddLocationBtn">Bulk Add Location</button>
       </div>
     </div>
@@ -110,15 +114,15 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const bulkAddModal = document.getElementById('bulkAddLocationModal');
     const checkoutSelectLocation = document.getElementById('checkoutSelectLocation');
     const confirmBulkAddLocationBtn = document.getElementById('confirmBulkAddLocationBtn');
     const bulkAddLocationError = document.getElementById('bulkAddLocationError');
     const locationNameDisplay = document.getElementById('locationNameDisplay');
+    const csrfToken = document.querySelector('#bulkAddLocationForm input[name=csrfmiddlewaretoken]').value;
     let currentLocationId = '';
 
     // Handle modal showing
-    bulkAddModal.addEventListener('show.bs.modal', async function(event) {
+    $('#bulkAddLocationModal').on('show.bs.modal', async function(event) {
       const button = event.relatedTarget;
       currentLocationId = button.getAttribute('data-location-id');
       const locationName = button.getAttribute('data-location-name');
@@ -159,7 +163,7 @@
       try {
         const formData = new FormData();
         formData.append('location_id', currentLocationId);
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('csrfmiddlewaretoken', csrfToken);
 
         const response = await fetch(`/api/bulk-checkout/${checkoutId}/bulk-add-location/`, {
           method: 'POST',
@@ -170,8 +174,7 @@
 
         if (result.success) {
           // Close modal and show success message
-          const modal = bootstrap.Modal.getInstance(bulkAddModal);
-          modal.hide();
+          $('#bulkAddLocationModal').modal('hide');
           
           // Show success alert
           const alert = document.createElement('div');
@@ -179,7 +182,9 @@
           alert.innerHTML = `
             <i class="material-icons" style="vertical-align: middle">check_circle</i>
             ${result.message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
           `;
           document.querySelector('h4').insertAdjacentElement('beforebegin', alert);
 

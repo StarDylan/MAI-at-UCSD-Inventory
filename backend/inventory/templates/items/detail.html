@@ -30,7 +30,7 @@
 {% endif %} 
 {% if perms.inventory.change_checkout %}
 <a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Checkout</a>
-<button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#bulkAddItemModal"><i class="material-icons">layers</i> Bulk Add to Checkout</button>
+<button class="btn btn-info" data-toggle="modal" data-target="#bulkAddItemModal"><i class="material-icons">layers</i> Bulk Add to Checkout</button>
 {% endif %} 
 
   <style type="text/css">
@@ -487,32 +487,34 @@
   };
 </script>
 
-{% endblock %}
-
 <!-- Bulk Add Item Modal -->
-<div class="modal fade" id="bulkAddItemModal" tabindex="-1" aria-labelledby="bulkAddItemModalLabel" aria-hidden="true">
+<div class="modal fade" id="bulkAddItemModal" tabindex="-1" role="dialog" aria-labelledby="bulkAddItemModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="bulkAddItemModalLabel">Bulk Add {{ item.name }} to Checkout</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
       </div>
       <div class="modal-body">
         <p class="text-muted">Select an active checkout to add all available stock items of <strong>{{ item.name }}</strong>.</p>
-        
-        <div id="checkoutList" class="mb-3">
-          <label class="form-label">Select Checkout</label>
-          <select id="checkoutSelect" class="form-select" required>
-            <option value="">Loading checkouts...</option>
-          </select>
-        </div>
+        <form id="bulkAddItemForm">
+          {% csrf_token %}
+          <div id="checkoutList" class="mb-3">
+            <label class="form-label">Select Checkout</label>
+            <select id="checkoutSelect" class="form-select" required>
+              <option value="">Loading checkouts...</option>
+            </select>
+          </div>
 
-        <div id="bulkAddError" class="alert alert-danger d-none" role="alert">
-          <ul class="mb-0" id="bulkAddErrorList"></ul>
-        </div>
+          <div id="bulkAddError" class="alert alert-danger d-none" role="alert">
+            <ul class="mb-0" id="bulkAddErrorList"></ul>
+          </div>
+        </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="confirmBulkAddBtn">Bulk Add Item</button>
       </div>
     </div>
@@ -521,14 +523,14 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const bulkAddModal = document.getElementById('bulkAddItemModal');
     const checkoutSelect = document.getElementById('checkoutSelect');
     const confirmBulkAddBtn = document.getElementById('confirmBulkAddBtn');
     const bulkAddError = document.getElementById('bulkAddError');
     const itemId = '{{ item.id }}';
+    const csrfToken = document.querySelector('#bulkAddItemForm input[name=csrfmiddlewaretoken]').value;
 
     // Load checkouts when modal opens
-    bulkAddModal.addEventListener('show.bs.modal', async function() {
+    $('#bulkAddItemModal').on('show.bs.modal', async function() {
       try {
         // Fetch active checkouts
         const checkoutResponse = await fetch('/api/checkouts/active/');
@@ -562,7 +564,7 @@
       try {
         const formData = new FormData();
         formData.append('item_id', itemId);
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('csrfmiddlewaretoken', csrfToken);
 
         const response = await fetch(`/api/bulk-checkout/${checkoutId}/bulk-add-item/`, {
           method: 'POST',
@@ -573,8 +575,7 @@
 
         if (result.success) {
           // Close modal and show success message
-          const modal = bootstrap.Modal.getInstance(bulkAddModal);
-          modal.hide();
+          $('#bulkAddItemModal').modal('hide');
           
           // Show success alert
           const alert = document.createElement('div');
@@ -582,7 +583,9 @@
           alert.innerHTML = `
             <i class="material-icons" style="vertical-align: middle">check_circle</i>
             ${result.message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
           `;
           document.querySelector('[id="page"]').insertAdjacentElement('beforebegin', alert);
 
@@ -603,3 +606,5 @@
     });
   });
 </script>
+
+{% endblock %}
