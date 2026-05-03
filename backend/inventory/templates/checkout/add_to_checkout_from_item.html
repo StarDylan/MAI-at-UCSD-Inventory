@@ -55,78 +55,75 @@
   </div>
 </div>
 
-<!-- Stock Selection Card -->
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">Available Stock</h5>
-    <small class="text-muted">
-      <label class="mb-0">
-        <input type="checkbox" id="selectAllCheckbox"> Select All
-      </label>
-    </small>
-  </div>
-  <div class="card-body">
-    {% if stock_items %}
-    <form id="multiSelectForm">
-      <div class="table-responsive">
-        <table class="table table-sm table-hover">
-          <thead>
-            <tr>
-              <th>Select</th>
-              <th>Detail</th>
-              <th>Available</th>
-              <th>Add Qty</th>
-              <th>Location</th>
-              <th>Expiration Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for stock in stock_items %}
-            <tr class="stock-item-row">
-              <td>
-                <input type="checkbox" name="stock_item_ids" value="{{ stock.id }}" class="form-check-input stock-checkbox" id="stock_{{ stock.id }}">
-              </td>
-              <td>{{ stock.detail|default:"-" }}</td>
-              <td>{{ stock.quantity }}</td>
-              <td>
-                <input type="number" name="quantity_{{ stock.id }}" value="{{ stock.quantity }}" min="1" max="{{ stock.quantity }}" class="form-control form-control-sm qty-input" style="width: 80px;" disabled>
-              </td>
-              <td>{{ stock.location_new.name|default:"-" }}</td>
-              <td>
-                {% if stock.expiration_date %}
-                  {{ stock.expiration_date|date:"M d, Y" }}
-                  {% if stock.is_expired %}
-                  <span class="badge badge-danger">Expired</span>
-                  {% endif %}
-                {% else %}
-                  <span class="text-muted">No expiration</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </form>
-    {% else %}
-    <div class="text-center py-4">
-      <i class="material-icons fa-3x text-muted mb-3">inventory_2</i>
-      <h5 class="text-muted">No Stock Available</h5>
-      <p class="text-muted">This item currently has no stock with available quantity.</p>
-    </div>
-    {% endif %}
-  </div>
-</div>
 
-<!-- Add to Checkout Form -->
-<div class="card">
   <div class="card-header">
-    <h5 class="mb-0">Checkout Details</h5>
+    <h5 class="mb-0">Add Stock to Checkout</h5>
   </div>
   <div class="card-body">
     <form method="post" id="addToCheckoutForm">
       {% csrf_token %}
 
+      <!-- Stock Selection Section at Top -->
+      <div class="mb-4">
+        <h6 class="mb-3">Select Stock Items to Add</h6>
+        <small class="text-muted d-block mb-2">
+          <label>
+            <input type="checkbox" id="selectAllCheckbox"> Select All
+          </label>
+        </small>
+        {% if stock_items %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Detail</th>
+                <th>Available</th>
+                <th>Add Qty</th>
+                <th>Location</th>
+                <th>Expiration Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for stock in stock_items %}
+              <tr class="stock-item-row">
+                <td>
+                  <input type="checkbox" name="stock_item_ids" value="{{ stock.id }}" class="stock-checkbox" id="stock_{{ stock.id }}">
+                </td>
+                <td>{{ stock.detail|default:"-" }}</td>
+                <td>{{ stock.quantity }}</td>
+                <td>
+                  <input type="number" name="quantity_{{ stock.id }}" value="{{ stock.quantity }}" min="1" max="{{ stock.quantity }}" class="form-control form-control-sm qty-input" style="width: 80px;" disabled>
+                </td>
+                <td>{{ stock.location_new.name|default:"-" }}</td>
+                <td>
+                  {% if stock.expiration_date %}
+                    {{ stock.expiration_date|date:"M d, Y" }}
+                    {% if stock.is_expired %}
+                    <span class="badge badge-danger">Expired</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">No expiration</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+          <i class="material-icons fa-3x text-muted mb-3">inventory_2</i>
+          <h5 class="text-muted">No Stock Available</h5>
+          <p class="text-muted">This item currently has no stock with available quantity.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <hr>
+
+      <!-- Checkout Details Section -->
+      <h6 class="mb-3">Checkout Details</h6>
       <div class="row">
         <div class="col-md-6">
           <div class="form-group mb-3">
