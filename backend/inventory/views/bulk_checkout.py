@@ -13,7 +13,7 @@ from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 
-from inventory.forms import CheckOutForm, CheckOutCompleteForm, AddToCheckOutForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
+from inventory.forms import CheckOutForm, CheckOutCompleteForm, CheckOutItemEditForm, CheckOutItemDetailEditForm
 from inventory.models import Item, StockItem, AuditEvent, CheckOut, CheckOutItem, Location
 from .utils import audit_log_state, audit_log_event
 
@@ -645,38 +645,75 @@ def add_to_checkout_from_item_view(request, item_uuid):
     item = get_object_or_404(Item, id=item_uuid)
     
     if request.method == 'POST':
-        form = AddToCheckOutForm(request.POST, item=item, user=request.user)
-        if form.is_valid():
-            checkout = form.cleaned_data['checkout']
-            stock_item = form.cleaned_data['stock_item']
-            quantity = form.cleaned_data['quantity']
-            notes = form.cleaned_data.get('notes', '')
-            
-            # Create the checkout item
-            checkout_item = CheckOutItem.objects.create(
-                checkout=checkout,
-                stock_item=stock_item,
-                quantity=quantity,
-                notes=notes
+        checkout_id = request.POST.get('checkout')
+        stock_item_ids = request.POST.getlist('stock_item_ids')
+        notes = request.POST.get('notes', '')
+
+        if not checkout_id:
+            messages.error(request, 'Please select a checkout.')
+        elif not stock_item_ids:
+            messages.error(request, 'Please select at least one stock item.')
+        else:
+            checkout = get_object_or_404(
+                CheckOut.objects.select_related('organization'),
+                id=checkout_id,
+                is_completed=False
             )
-            
-            # Log the addition
-            audit_log_event(
-                request.user,
-                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location_new.name}\" to checkout for {checkout.organization.name}",
-                audit_log_state(None),
-                audit_log_state(checkout_item),
-                checkout.id
-            )
-            
-            messages.success(
-                request, 
-                f'Added {quantity}x {item.name} to checkout for {checkout.organization.name}'
-            )
-            
-            return redirect('checkout_detail', checkout_id=checkout.id)
-    else:
-        form = AddToCheckOutForm(item=item, user=request.user)
+
+            stock_items = StockItem.objects.filter(
+                id__in=stock_item_ids,
+                item=item,
+                quantity__gt=0
+            ).select_related('location_new')
+
+            if stock_items.count() != len(stock_item_ids):
+                messages.error(request, 'One or more selected stock items are invalid or unavailable.')
+            else:
+                existing = CheckOutItem.objects.filter(
+                    checkout=checkout,
+                    stock_item_id__in=stock_item_ids
+                ).exists()
+                if existing:
+                    messages.error(request, 'One or more selected stock items are already in this checkout.')
+                else:
+                    added_count = 0
+                    with transaction.atomic():
+                        for stock_item in stock_items:
+                            quantity_raw = request.POST.get(f'quantity_{stock_item.id}')
+                            try:
+                                quantity = int(quantity_raw)
+                            except (TypeError, ValueError):
+                                quantity = 0
+
+                            if quantity <= 0:
+                                continue
+                            if quantity > stock_item.quantity:
+                                quantity = stock_item.quantity
+
+                            checkout_item = CheckOutItem.objects.create(
+                                checkout=checkout,
+                                stock_item=stock_item,
+                                quantity=quantity,
+                                notes=notes
+                            )
+                            added_count += 1
+
+                            audit_log_event(
+                                request.user,
+                                f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location_new.name}\" to checkout for {checkout.organization.name}",
+                                audit_log_state(None),
+                                audit_log_state(checkout_item),
+                                checkout.id
+                            )
+
+                    if added_count > 0:
+                        messages.success(
+                            request,
+                            f'Added {added_count} stock item(s) for {item.name} to checkout for {checkout.organization.name}'
+                        )
+                        return redirect('checkout_detail', checkout_id=checkout.id)
+                    else:
+                        messages.error(request, 'Please enter a quantity greater than 0 for at least one selected stock item.')
     
     # Get stock items for the template
     stock_items = item.stock_items.filter(quantity__gt=0).order_by(
@@ -687,7 +724,6 @@ def add_to_checkout_from_item_view(request, item_uuid):
     checkouts = CheckOut.objects.filter(is_completed=False).select_related('organization').order_by('-created_at')
     
     return render(request, 'checkout/add_to_checkout_from_item.html', {
-        'form': form,
         'item': item,
         'stock_items': stock_items,
         'checkouts': checkouts,

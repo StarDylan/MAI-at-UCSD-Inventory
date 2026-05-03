@@ -528,13 +528,9 @@
     const bulkAddError = document.getElementById('bulkAddError');
     const itemId = '{{ item.id }}';
     const csrfToken = document.querySelector('#bulkAddItemForm input[name=csrfmiddlewaretoken]').value;
-    const bulkAddButtonText = 'Add all stock to checkout';
 
     // Load checkouts when modal opens
     $('#bulkAddItemModal').on('show.bs.modal', async function() {
-      confirmBulkAddBtn.disabled = false;
-      confirmBulkAddBtn.innerHTML = bulkAddButtonText;
-      bulkAddError.classList.add('d-none');
       try {
         // Fetch active checkouts
         const checkoutResponse = await fetch('/api/checkouts/active/');
@@ -579,8 +575,6 @@
 
         if (result.success) {
           // Close modal and show success message
-          confirmBulkAddBtn.disabled = false;
-          confirmBulkAddBtn.innerHTML = bulkAddButtonText;
           $('#bulkAddItemModal').modal('hide');
           
           // Show success alert
@@ -600,13 +594,13 @@
           bulkAddError.classList.remove('d-none');
           document.getElementById('bulkAddErrorList').innerHTML = `<li>${result.error}</li>`;
           confirmBulkAddBtn.disabled = false;
-          confirmBulkAddBtn.innerHTML = bulkAddButtonText;
+          confirmBulkAddBtn.innerHTML = 'Add all stock to checkout';
         }
       } catch (error) {
         bulkAddError.classList.remove('d-none');
         document.getElementById('bulkAddErrorList').innerHTML = `<li>${error.message}</li>`;
         confirmBulkAddBtn.disabled = false;
-        confirmBulkAddBtn.innerHTML = bulkAddButtonText;
+        confirmBulkAddBtn.innerHTML = 'Add all stock to checkout';
       }
     });
   });
