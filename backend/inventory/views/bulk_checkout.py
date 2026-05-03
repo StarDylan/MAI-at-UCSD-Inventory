@@ -669,35 +669,30 @@ def add_to_checkout_from_item_view(request, item_uuid):
             if stock_items.count() != len(stock_item_ids):
                 messages.error(request, 'One or more selected stock items are invalid or unavailable.')
             else:
-                existing = CheckOutItem.objects.filter(
-                    checkout=checkout,
-                    stock_item_id__in=stock_item_ids
-                ).exists()
-                if existing:
-                    messages.error(request, 'One or more selected stock items are already in this checkout.')
-                else:
-                    added_count = 0
-                    with transaction.atomic():
-                        for stock_item in stock_items:
-                            quantity_raw = request.POST.get(f'quantity_{stock_item.id}')
-                            try:
-                                quantity = int(quantity_raw)
-                            except (TypeError, ValueError):
-                                quantity = 0
+                added_count = 0
+                updated_count = 0
+                with transaction.atomic():
+                    for stock_item in stock_items:
+                        quantity_raw = request.POST.get(f'quantity_{stock_item.id}')
+                        try:
+                            quantity = int(quantity_raw)
+                        except (TypeError, ValueError):
+                            quantity = 0
 
-                            if quantity <= 0:
-                                continue
-                            if quantity > stock_item.quantity:
-                                quantity = stock_item.quantity
+                        if quantity <= 0:
+                            continue
+                        if quantity > stock_item.quantity:
+                            quantity = stock_item.quantity
 
-                            checkout_item = CheckOutItem.objects.create(
-                                checkout=checkout,
-                                stock_item=stock_item,
-                                quantity=quantity,
-                                notes=notes
-                            )
+                        # Check if item already exists in checkout
+                        checkout_item, created = CheckOutItem.objects.get_or_create(
+                            checkout=checkout,
+                            stock_item=stock_item,
+                            defaults={'quantity': quantity, 'notes': notes}
+                        )
+                        
+                        if created:
                             added_count += 1
-
                             audit_log_event(
                                 request.user,
                                 f"Added {quantity} of \"{item.name}\" from location \"{stock_item.location_new.name}\" to checkout for {checkout.organization.name}",
@@ -705,9 +700,33 @@ def add_to_checkout_from_item_view(request, item_uuid):
                                 audit_log_state(checkout_item),
                                 checkout.id
                             )
+                        else:
+                            # Update existing item
+                            old_quantity = checkout_item.quantity
+                            checkout_item.quantity = quantity
+                            if notes:
+                                checkout_item.notes = notes
+                            checkout_item.save()
+                            updated_count += 1
+                            audit_log_event(
+                                request.user,
+                                f"Updated quantity of \"{item.name}\" from {old_quantity} to {quantity} in checkout for {checkout.organization.name}",
+                                audit_log_state(checkout_item),
+                                audit_log_state(checkout_item),
+                                checkout.id
+                            )
 
+                if added_count > 0 or updated_count > 0:
+                    msg_parts = []
                     if added_count > 0:
-                        messages.success(
+                        msg_parts.append(f'Added {added_count} stock item(s)')
+                    if updated_count > 0:
+                        msg_parts.append(f'Updated {updated_count} item(s)')
+                    
+                    messages.success(
+                        request,
+                        f"{', '.join(msg_parts)} for {item.name} in checkout for {checkout.organization.name}"
+                    )
                             request,
                             f'Added {added_count} stock item(s) for {item.name} to checkout for {checkout.organization.name}'
                         )
@@ -778,6 +797,27 @@ def get_active_checkouts_api(request):
         })
     
     return JsonResponse({'checkouts': data})
+
+
+@login_required
+def get_checkout_items_api(request, checkout_id):
+    """
+    API endpoint to get existing items in a checkout.
+    Returns a map of stock_item_id -> quantity for display in the form.
+    """
+    checkout = get_object_or_404(
+        CheckOut.objects.select_related('organization'),
+        id=checkout_id,
+        is_completed=False
+    )
+    
+    items = CheckOutItem.objects.filter(checkout=checkout).values('stock_item_id', 'quantity')
+    
+    data = {}
+    for item in items:
+        data[str(item['stock_item_id'])] = item['quantity']
+    
+    return JsonResponse({'existing_items': data})
 
 
 @login_required

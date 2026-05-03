@@ -73,6 +73,7 @@ urlpatterns = [
     path('api/items/<uuid:item_id>/details-gtins/', items.item_details_gtins_api, name='item_details_gtins_api'),
     path('api/items/<uuid:item_uuid>/stock-items/', bulk_checkout.get_stock_items_api, name='get_stock_items_api'),
     path('api/checkouts/active/', bulk_checkout.get_active_checkouts_api, name='get_active_checkouts_api'),
+    path('api/checkouts/<uuid:checkout_id>/items/', bulk_checkout.get_checkout_items_api, name='get_checkout_items_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
