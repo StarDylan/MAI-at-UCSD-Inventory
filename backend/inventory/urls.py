@@ -72,6 +72,8 @@ urlpatterns = [
     path('api/public-search/', items.public_search_api, name='public_search_api'),
     path('api/items/<uuid:item_id>/details-gtins/', items.item_details_gtins_api, name='item_details_gtins_api'),
     path('api/items/<uuid:item_uuid>/stock-items/', bulk_checkout.get_stock_items_api, name='get_stock_items_api'),
+    path('api/checkouts/active/', bulk_checkout.get_active_checkouts_api, name='get_active_checkouts_api'),
+    path('api/checkouts/<uuid:checkout_id>/items/', bulk_checkout.get_checkout_items_api, name='get_checkout_items_api'),
     
     # Image Management
     path('delete/image/', images.image_delete_list_view, name='delete_image_list_view'),
@@ -87,6 +89,8 @@ urlpatterns = [
     path('bulk-checkout/create/', bulk_checkout.checkout_create_view, name='checkout_create'),
     path('bulk-checkout/<uuid:checkout_id>/', bulk_checkout.checkout_detail_view, name='checkout_detail'),
     path('bulk-checkout/<uuid:checkout_id>/add-item/', bulk_checkout.checkout_add_item_view, name='checkout_add_item'),
+    path('api/bulk-checkout/<uuid:checkout_id>/bulk-add-item/', bulk_checkout.checkout_bulk_add_item_view, name='checkout_bulk_add_item'),
+    path('api/bulk-checkout/<uuid:checkout_id>/bulk-add-location/', bulk_checkout.checkout_bulk_add_location_view, name='checkout_bulk_add_location'),
     path('bulk-checkout/<uuid:checkout_id>/edit-item/<uuid:item_id>/', bulk_checkout.checkout_edit_item_view, name='checkout_edit_item'),
     path('bulk-checkout/<uuid:checkout_id>/edit-item-detail/<uuid:item_id>/', bulk_checkout.checkout_edit_item_detail_view, name='checkout_edit_item_detail'),
     path('bulk-checkout/<uuid:checkout_id>/remove-item/<uuid:item_id>/', bulk_checkout.checkout_remove_item_view, name='checkout_remove_item'),
