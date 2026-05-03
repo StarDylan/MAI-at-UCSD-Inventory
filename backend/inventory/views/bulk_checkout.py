@@ -725,14 +725,11 @@ def add_to_checkout_from_item_view(request, item_uuid):
                     
                     messages.success(
                         request,
-                        f"{', '.join(msg_parts)} for {item.name} in checkout for {checkout.organization.name}"
+                        f'Added {added_count} stock item(s) for {item.name} to checkout for {checkout.organization.name}'
                     )
-                            request,
-                            f'Added {added_count} stock item(s) for {item.name} to checkout for {checkout.organization.name}'
-                        )
-                        return redirect('checkout_detail', checkout_id=checkout.id)
-                    else:
-                        messages.error(request, 'Please enter a quantity greater than 0 for at least one selected stock item.')
+                    return redirect('checkout_detail', checkout_id=checkout.id)
+                else:
+                    messages.error(request, 'Please enter a quantity greater than 0 for at least one selected stock item.')
     
     # Get stock items for the template
     stock_items = item.stock_items.filter(quantity__gt=0).order_by(
