@@ -56,6 +56,8 @@
 </div>
 
 
+<!-- Add to Checkout Form -->
+<div class="card">
   <div class="card-header">
     <h5 class="mb-0">Add Stock to Checkout</h5>
   </div>
@@ -190,11 +192,14 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Handle Select All checkbox
-  selectAllCheckbox.addEventListener('change', function() {
+  // Handle Select All checkbox - need to monitor both click and change
+  selectAllCheckbox.addEventListener('click', function() {
+    const isNowChecked = this.checked;
     stockCheckboxes.forEach(checkbox => {
-      checkbox.checked = this.checked;
-      checkbox.dispatchEvent(new Event('change'));
+      if (checkbox.checked !== isNowChecked) {
+        checkbox.checked = isNowChecked;
+        checkbox.dispatchEvent(new Event('change'));
+      }
     });
   });
 
@@ -219,8 +224,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update Select All checkbox state
     const allChecked = Array.from(stockCheckboxes).every(cb => cb.checked);
     const someChecked = Array.from(stockCheckboxes).some(cb => cb.checked);
-    selectAllCheckbox.checked = allChecked && someChecked;
     selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    if (!someChecked) {
+      selectAllCheckbox.checked = false;
+    } else if (allChecked) {
+      selectAllCheckbox.checked = true;
+    }
   }
 
   // Initialize submit button state
