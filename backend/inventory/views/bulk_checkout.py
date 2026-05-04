@@ -119,7 +119,7 @@ def checkout_detail_view(request, checkout_id):
 
     # Process items in Python to calculate boxes and remaining
     for item in checkout_items:
-        if item.stock_item.item.items_per_box is not None:
+        if item.stock_item.item.items_per_box is not None and item.stock_item.item.items_per_box > 0:
             item.boxes = item.quantity // item.stock_item.item.items_per_box
             item.remaining = item.quantity % item.stock_item.item.items_per_box
         else:
