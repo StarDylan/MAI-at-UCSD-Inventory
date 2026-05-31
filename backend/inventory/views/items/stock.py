@@ -125,8 +125,8 @@ def transfer_stock_from_item_view(request, item_uuid):
     """
     Transfer stock items from one location to another from the item detail page.
     
-    Allows users to select a specific stock item and transfer a quantity of it to a different location.
-    If the full quantity is transferred, the original stock item is deleted. If only part of the quantity
+    Allows users to select multiple stock items with individual quantities and transfer them to a destination location.
+    If the full quantity is transferred, the original stock item location is changed. If only part of the quantity
     is transferred, a new stock item is created at the destination location with the transferred quantity,
     and the original stock item's quantity is reduced accordingly.
     
@@ -140,84 +140,114 @@ def transfer_stock_from_item_view(request, item_uuid):
     item = get_object_or_404(Item, id=item_uuid)
     
     if request.method == 'POST':
-        stock_item_id = request.POST.get('stock_item')
-        stock_item = get_object_or_404(StockItem, id=stock_item_id, item=item, quantity__gt=0)
+        destination_location_id = request.POST.get('destination_location')
+        stock_item_ids = request.POST.getlist('stock_item_ids')
+        transfer_reason = request.POST.get('transfer_reason', '')
         
-        form = StockTransferForm(source_location=stock_item.location_new, data=request.POST)
-        
-        if form.is_valid():
-            destination_location = form.cleaned_data['destination_location']
-            quantity = form.cleaned_data['quantity']
-            transfer_reason = form.cleaned_data.get('transfer_reason', '')
-            
-            if quantity <= 0:
-                messages.error(request, 'Quantity must be greater than 0.')
-            elif quantity > stock_item.quantity:
-                messages.error(request, f'Cannot transfer {quantity} units. Only {stock_item.quantity} units available.')
-            else:
-                with transaction.atomic():
-                    old_location = stock_item.location_new
-                    
-                    if quantity == stock_item.quantity:
-                        # Transfer entire stock item - just update location
-                        stock_item.location_new = destination_location
-                        stock_item.location = destination_location.name  # Update deprecated field too
-                        stock_item.save()
-                        
-                        audit_log_event(
-                            request.user,
-                            f"Transferred {quantity} units of \"{item.name}\" from {old_location.name} to {destination_location.name}" + 
-                            (f" ({transfer_reason})" if transfer_reason else ""),
-                            audit_log_state(stock_item),
-                            audit_log_state(stock_item),
-                            item.id
-                        )
-                        
-                        messages.success(
-                            request,
-                            f'Transferred {quantity} units of {item.name} from {old_location.name} to {destination_location.name}'
-                        )
-                    else:
-                        # Split the stock item - create new one at destination with transferred quantity
-                        new_stock_item = StockItem.objects.create(
-                            item=item,
-                            organization=stock_item.organization,
-                            quantity=quantity,
-                            location=destination_location.name,
-                            location_new=destination_location,
-                            gtin=stock_item.gtin,
-                            detail=stock_item.detail,
-                            date_received=stock_item.date_received,
-                            expiration_date=stock_item.expiration_date,
-                            lot_number=stock_item.lot_number,
-                            notes=f"Transferred from {old_location.name}" + 
-                                  (f" ({transfer_reason})" if transfer_reason else ""),
-                            surplus_status=stock_item.surplus_status
-                        )
-                        
-                        # Reduce original stock item quantity
-                        stock_item.quantity -= quantity
-                        stock_item.save()
-                        
-                        audit_log_event(
-                            request.user,
-                            f"Transferred {quantity} units of \"{item.name}\" from {old_location.name} to {destination_location.name}" + 
-                            (f" ({transfer_reason})" if transfer_reason else ""),
-                            audit_log_state(stock_item),
-                            audit_log_state(new_stock_item),
-                            item.id
-                        )
-                        
-                        messages.success(
-                            request,
-                            f'Transferred {quantity} units of {item.name} from {old_location.name} to {destination_location.name}. Remaining: {stock_item.quantity} units at {old_location.name}'
-                        )
-                    
-                    return redirect('view_item', uuid=item.id)
+        if not destination_location_id:
+            messages.error(request, 'Please select a destination location.')
+        elif not stock_item_ids:
+            messages.error(request, 'Please select at least one stock item to transfer.')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
+            try:
+                from inventory.models import Location
+                destination_location = Location.objects.get(id=destination_location_id)
+            except Location.DoesNotExist:
+                messages.error(request, 'Invalid destination location.')
+                stock_items = item.stock_items.filter(quantity__gt=0).order_by('detail', 'expiration_date', 'date_received')
+                locations = Location.objects.filter(is_active=True).order_by('name')
+                return render(request, 'items/transfer_stock_from_item.html', {
+                    'item': item,
+                    'stock_items': stock_items,
+                    'form': StockTransferForm(),
+                    'locations': locations,
+                })
+            
+            stock_items_to_transfer = StockItem.objects.filter(
+                id__in=stock_item_ids,
+                item=item,
+                quantity__gt=0
+            ).select_related('location_new')
+            
+            if stock_items_to_transfer.count() != len(stock_item_ids):
+                messages.error(request, 'One or more selected stock items are invalid or unavailable.')
+            else:
+                transferred_count = 0
+                split_count = 0
+                
+                with transaction.atomic():
+                    for stock_item in stock_items_to_transfer:
+                        quantity_raw = request.POST.get(f'quantity_{stock_item.id}')
+                        try:
+                            quantity = int(quantity_raw)
+                        except (TypeError, ValueError):
+                            quantity = 0
+                        
+                        if quantity <= 0 or quantity > stock_item.quantity:
+                            continue
+                        
+                        old_location = stock_item.location_new
+                        
+                        if quantity == stock_item.quantity:
+                            # Transfer entire stock item - just update location
+                            stock_item.location_new = destination_location
+                            stock_item.location = destination_location.name
+                            stock_item.save()
+                            transferred_count += 1
+                            
+                            audit_log_event(
+                                request.user,
+                                f"Transferred {quantity} units of \"{item.name}\" from {old_location.name} to {destination_location.name}" + 
+                                (f" ({transfer_reason})" if transfer_reason else ""),
+                                audit_log_state(stock_item),
+                                audit_log_state(stock_item),
+                                item.id
+                            )
+                        else:
+                            # Split the stock item - create new one at destination
+                            new_stock_item = StockItem.objects.create(
+                                item=item,
+                                organization=stock_item.organization,
+                                quantity=quantity,
+                                location=destination_location.name,
+                                location_new=destination_location,
+                                gtin=stock_item.gtin,
+                                detail=stock_item.detail,
+                                date_received=stock_item.date_received,
+                                expiration_date=stock_item.expiration_date,
+                                lot_number=stock_item.lot_number,
+                                notes=f"Transferred from {old_location.name}" + 
+                                      (f" ({transfer_reason})" if transfer_reason else ""),
+                                surplus_status=stock_item.surplus_status
+                            )
+                            
+                            stock_item.quantity -= quantity
+                            stock_item.save()
+                            split_count += 1
+                            
+                            audit_log_event(
+                                request.user,
+                                f"Transferred {quantity} units of \"{item.name}\" from {old_location.name} to {destination_location.name}" + 
+                                (f" ({transfer_reason})" if transfer_reason else ""),
+                                audit_log_state(stock_item),
+                                audit_log_state(new_stock_item),
+                                item.id
+                            )
+                
+                if transferred_count > 0 or split_count > 0:
+                    msg_parts = []
+                    if transferred_count > 0:
+                        msg_parts.append(f'{transferred_count} item(s) moved')
+                    if split_count > 0:
+                        msg_parts.append(f'{split_count} item(s) split')
+                    
+                    messages.success(
+                        request,
+                        f'Successfully transferred stock to {destination_location.name}. {" and ".join(msg_parts)}.'
+                    )
+                    return redirect('view_item', uuid=item.id)
+                else:
+                    messages.error(request, 'Please enter a valid quantity greater than 0 for at least one stock item.')
     else:
         form = StockTransferForm()
     
@@ -226,8 +256,13 @@ def transfer_stock_from_item_view(request, item_uuid):
         'detail', 'expiration_date', 'date_received'
     )
     
+    # Get all active locations for the form
+    from inventory.models import Location
+    locations = Location.objects.filter(is_active=True).order_by('name')
+    
     return render(request, 'items/transfer_stock_from_item.html', {
         'item': item,
         'stock_items': stock_items,
         'form': form,
+        'locations': locations,
     })
