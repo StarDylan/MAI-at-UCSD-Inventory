@@ -388,6 +388,53 @@ class StockItemCheckoutForm(forms.Form):
         if item:
             self.fields['stock_items'].queryset = item.stock_items.filter(quantity__gt=0).order_by('detail', 'expiration_date', 'date_received')
 
+class StockTransferForm(forms.Form):
+    """Form for transferring stock items between locations"""
+    destination_location = forms.ModelChoiceField(
+        queryset=models.Location.objects.filter(is_active=True),
+        label="Destination Location",
+        help_text="Select the location to transfer stock to",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        empty_label="Select a location"
+    )
+    quantity = forms.IntegerField(
+        min_value=1,
+        label="Quantity to Transfer",
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 5'})
+    )
+    stock_item = forms.CharField(
+        widget=forms.HiddenInput(),
+        label="Stock Item ID"
+    )
+    transfer_reason = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'e.g., Consolidation, Redistribution, etc.'}),
+        label="Transfer Reason (optional)",
+        help_text="Optional notes about why this stock is being transferred"
+    )
+    
+    def __init__(self, source_location=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Exclude the source location from the destination options
+        if source_location:
+            self.fields['destination_location'].queryset = models.Location.objects.filter(
+                is_active=True
+            ).exclude(id=source_location.id).order_by('name')
+        else:
+            self.fields['destination_location'].queryset = models.Location.objects.filter(
+                is_active=True
+            ).order_by('name')
+    
+    def clean_stock_item(self):
+        """Validate that the stock item exists"""
+        stock_item_id = self.cleaned_data.get('stock_item')
+        try:
+            StockItem.objects.get(id=stock_item_id)
+        except StockItem.DoesNotExist:
+            raise forms.ValidationError('Invalid stock item.')
+        return stock_item_id
+
+
 class CheckOutForm(forms.ModelForm):
     """Form for creating and editing bulk checkouts"""
     

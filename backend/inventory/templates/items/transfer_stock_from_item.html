@@ -1,0 +1,310 @@
+{% extends "shared/base.html" %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2>
+      <i class="material-icons text-primary">move_item</i>
+      Transfer Stock
+    </h2>
+    <p class="text-muted mb-0">Transfer {{ item.name }} to a different location</p>
+  </div>
+  <div>
+    <a href="{% url 'view_item' item.id %}" class="btn btn-secondary"> 
+      <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Item 
+    </a>
+  </div>
+</div>
+
+<!-- Item Information Card -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Item Information</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <p class="mb-1">
+          <strong>Item:</strong> 
+          <a href="{% url 'view_item' item.id %}" class="text-decoration-none">{{ item.name }}</a>
+        </p>
+        {% if item.manufacturer %}
+        <p class="text-muted mb-1">{{ item.manufacturer }}</p>
+        {% endif %}
+        <p class="mb-1"><strong>Tags:</strong> 
+          {% for tag in item.tags.all %}
+            <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">{{ tag.name }}</span>
+          {% empty %}
+            <em>No tags assigned</em>
+          {% endfor %}
+        </p>
+        {% if item.gtin %}
+        <p class="mb-1"><strong>GTIN:</strong> {{ item.gtin }}</p>
+        {% endif %}
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1">
+          <strong>Total Available:</strong>
+          <span>{{ item.total_stock_quantity }} units</span>
+        </p>
+        {% if item.items_per_box %}
+        <p class="mb-1"><strong>Items per Box:</strong> {{ item.items_per_box }}</p>
+        {% endif %}
+        <p class="mb-1"><strong>Stock Locations:</strong> {{ item.aggregated_locations }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Selection Card -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Available Stock</h5>
+  </div>
+  <div class="card-body">
+    {% if stock_items %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Detail</th>
+            <th>Quantity</th>
+            <th>Location</th>
+            <th>Expiration Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stock in stock_items %}
+          <tr class="stock-item-row" style="cursor: pointer;" onclick="selectStockItem('{{ stock.id }}', '{{ stock.quantity }}', '{{ stock.location_new.name }}', '{{ stock.detail|default:"" }}')">
+            <td>
+              <input type="radio" name="stock_item_selection" value="{{ stock.id }}" class="form-check-input" id="stock_{{ stock.id }}">
+            </td>
+            <td>{{ stock.detail|default:"-" }}</td>
+            <td>{{ stock.quantity }}</td>
+            <td>{{ stock.location_new.name|default:"-" }}</td>
+            <td>
+              {% if stock.expiration_date %}
+                {{ stock.expiration_date|date:"M d, Y" }}
+                {% if stock.is_expired %}
+                <span class="badge badge-danger">Expired</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">No expiration</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4">
+      <i class="material-icons fa-3x text-muted mb-3">inventory_2</i>
+      <h5 class="text-muted">No Stock Available</h5>
+      <p class="text-muted">This item currently has no stock with available quantity.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Transfer Form -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Transfer Details</h5>
+  </div>
+  <div class="card-body">
+    <form method="post" id="transferForm">
+      {% csrf_token %}
+      
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group mb-3">
+            <label for="id_destination_location">Destination Location</label>
+            <select name="destination_location" class="form-select" id="id_destination_location" required>
+              <option value="">Select a location...</option>
+              {% for location in form.destination_location %}
+                {% if location.id %}
+                  <option value="{{ location.id }}">{{ location.name }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <small class="form-text text-muted">Select the location to transfer stock to</small>
+            {% if form.destination_location.errors %}
+            <div class="invalid-feedback d-block">{{ form.destination_location.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="form-group mb-3">
+            <label for="id_quantity">Quantity</label>
+            <input type="number" name="quantity" value="{{ form.quantity.value|default:'' }}" min="1" class="form-control" id="id_quantity" required disabled />
+            <small class="form-text text-muted" id="quantityHelp">Select a stock item first</small>
+            {% if form.quantity.errors %}
+            <div class="invalid-feedback d-block">{{ form.quantity.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden field for selected stock item -->
+      <input type="hidden" name="stock_item" id="id_stock_item" value="{{ form.stock_item.value|default:'' }}" />
+      {% if form.stock_item.errors %}
+      <div class="alert alert-danger">
+        <strong>Stock Item Error:</strong> {{ form.stock_item.errors|join:", " }}
+      </div>
+      {% endif %}
+
+      <div class="form-group mb-3">
+        <label for="id_transfer_reason">Transfer Reason (optional)</label>
+        <textarea name="transfer_reason" class="form-control" id="id_transfer_reason" rows="2" placeholder="e.g., Consolidation, Redistribution, Storage optimization">{{ form.transfer_reason.value|default:'' }}</textarea>
+        <small class="form-text text-muted">Optional notes about why this stock is being transferred</small>
+      </div>
+
+      <div class="d-flex justify-content-between">
+        <a href="{% url 'view_item' item.id %}" class="btn btn-secondary">
+          <i class="material-icons" style="vertical-align: middle">close</i> Cancel
+        </a>
+        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+          <i class="material-icons" style="vertical-align: middle">move_item</i> Transfer Stock
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const quantityInput = document.getElementById("id_quantity");
+  const quantityHelp = document.getElementById("quantityHelp");
+  const stockItemInput = document.getElementById("id_stock_item");
+  const submitBtn = document.getElementById("submitBtn");
+  const stockRadios = document.querySelectorAll('input[name="stock_item_selection"]');
+  const destinationLocationSelect = document.getElementById("id_destination_location");
+  
+  let selectedStockItem = null;
+
+  // Function to select a stock item
+  window.selectStockItem = function(stockId, quantity, location, detail) {
+    // Update the radio button
+    const radio = document.getElementById('stock_' + stockId);
+    if (radio) {
+      radio.checked = true;
+    }
+    
+    // Store selected stock item info
+    selectedStockItem = {
+      id: stockId,
+      quantity: parseInt(quantity),
+      location: location,
+      detail: detail
+    };
+    
+    // Update hidden field
+    stockItemInput.value = stockId;
+    
+    // Enable and configure quantity input
+    quantityInput.disabled = false;
+    quantityInput.max = quantity;
+    quantityInput.value = Math.min(quantityInput.value || 1, quantity);
+    
+    // Update help text
+    let helpText = `Available: ${quantity} units`;
+    if (location) {
+      helpText += ` from ${location}`;
+    }
+    if (detail) {
+      helpText += ` (${detail})`;
+    }
+    quantityHelp.textContent = helpText;
+    
+    // Update destination location options to exclude source location
+    const currentSourceLocation = location;
+    Array.from(destinationLocationSelect.options).forEach((option) => {
+      if (option.text === currentSourceLocation) {
+        option.disabled = true;
+      } else {
+        option.disabled = false;
+      }
+    });
+    
+    // Check if we should enable submit button
+    updateSubmitButtonState();
+    
+    // Remove previous selection highlighting
+    document.querySelectorAll('.stock-item-row').forEach(row => {
+      row.classList.remove('table-active');
+    });
+    
+    // Highlight selected row
+    const selectedRow = radio.closest('tr');
+    if (selectedRow) {
+      selectedRow.classList.add('table-active');
+    }
+  };
+
+  // Handle quantity input changes
+  quantityInput.addEventListener("input", function() {
+    if (selectedStockItem && this.value > selectedStockItem.quantity) {
+      this.value = selectedStockItem.quantity;
+    }
+  });
+
+  // Handle destination location changes
+  destinationLocationSelect.addEventListener("change", function() {
+    updateSubmitButtonState();
+  });
+
+  // Update submit button state
+  function updateSubmitButtonState() {
+    if (selectedStockItem && destinationLocationSelect.value && quantityInput.value > 0) {
+      submitBtn.disabled = false;
+    } else {
+      submitBtn.disabled = true;
+    }
+  }
+
+  // Handle radio button changes directly
+  stockRadios.forEach(radio => {
+    radio.addEventListener('change', function() {
+      if (this.checked) {
+        const row = this.closest('tr');
+        const cells = row.cells;
+        const stockId = this.value;
+        const quantity = cells[2].textContent.trim();
+        const location = cells[3].textContent.trim();
+        const detail = cells[1].textContent.trim();
+        
+        selectStockItem(stockId, quantity, location === '-' ? '' : location, detail === '-' ? '' : detail);
+      }
+    });
+  });
+
+  // Restore selection if form was submitted with errors
+  const currentStockItemValue = stockItemInput.value;
+  if (currentStockItemValue) {
+    const radio = document.getElementById('stock_' + currentStockItemValue);
+    if (radio) {
+      radio.click();
+    }
+  }
+});
+</script>
+
+<style>
+.stock-item-row:hover {
+  background-color: #f8f9fa;
+}
+.table-active {
+  background-color: #e3f2fd !important;
+}
+</style>
+{% endblock %}

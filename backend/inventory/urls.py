@@ -99,6 +99,7 @@ urlpatterns = [
     path('bulk-checkout/<uuid:checkout_id>/delete/', bulk_checkout.checkout_delete_view, name='checkout_delete'),
     path('bulk-checkout/<uuid:checkout_id>/export/', bulk_checkout.export_checkout_items_view, name='checkout_export'),
     path('item/<uuid:item_uuid>/add-to-checkout/', bulk_checkout.add_to_checkout_from_item_view, name='add_to_checkout_from_item'),
+    path('item/<uuid:item_uuid>/transfer-stock/', items.transfer_stock_from_item_view, name='transfer_stock_from_item'),
     
     # Surplus Reporting
     path('surplus/summary/', surplus_reports.surplus_summary, name='surplus_summary'),
