@@ -28,6 +28,9 @@
 {% if perms.inventory.add_stockitem %}
 <a href="{% url 'search_check_in_item' item.id %}" class="btn btn-success"><i class="material-icons">add</i> Add Stock Item</a>
 {% endif %} 
+{% if perms.inventory.change_stockitem %}
+<a href="{% url 'transfer_stock_from_item' item.id %}" class="btn btn-warning"><i class="material-icons">move_down</i> Transfer Stock</a>
+{% endif %} 
 {% if perms.inventory.change_checkout %}
 <a href="{% url 'add_to_checkout_from_item' item.id %}" class="btn btn-primary"><i class="material-icons">shopping_cart</i> Add to Checkout</a>
 <button class="btn btn-info" data-toggle="modal" data-target="#bulkAddItemModal"><i class="material-icons">layers</i> Add all stock to checkout</button>

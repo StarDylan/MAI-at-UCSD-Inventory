@@ -1,0 +1,257 @@
+{% extends "shared/base.html" %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2>
+      <i class="material-icons text-primary">move_down</i>
+      Transfer Stock
+    </h2>
+    <p class="text-muted mb-0">Transfer {{ item.name }} to a different location</p>
+  </div>
+  <div>
+    <a href="{% url 'view_item' item.id %}" class="btn btn-secondary"> 
+      <i class="material-icons" style="vertical-align: middle">arrow_back</i> Back to Item 
+    </a>
+  </div>
+</div>
+
+<!-- Item Information Card -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Item Information</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <p class="mb-1">
+          <strong>Item:</strong> 
+          <a href="{% url 'view_item' item.id %}" class="text-decoration-none">{{ item.name }}</a>
+        </p>
+        {% if item.manufacturer %}
+        <p class="text-muted mb-1">{{ item.manufacturer }}</p>
+        {% endif %}
+        <p class="mb-1"><strong>Tags:</strong> 
+          {% for tag in item.tags.all %}
+            <span class="badge badge-secondary mr-1" style="background-color: {{ tag.display_color }}; color: {{ tag.text_color }};">{{ tag.name }}</span>
+          {% empty %}
+            <em>No tags assigned</em>
+          {% endfor %}
+        </p>
+        {% if item.gtin %}
+        <p class="mb-1"><strong>GTIN:</strong> {{ item.gtin }}</p>
+        {% endif %}
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1">
+          <strong>Total Available:</strong>
+          <span>{{ item.total_stock_quantity }} units</span>
+        </p>
+        {% if item.items_per_box %}
+        <p class="mb-1"><strong>Items per Box:</strong> {{ item.items_per_box }}</p>
+        {% endif %}
+        <p class="mb-1"><strong>Stock Locations:</strong> {{ item.aggregated_locations }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer Form -->
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0">Transfer Details</h5>
+  </div>
+  <div class="card-body">
+    <form method="post" id="transferForm">
+      {% csrf_token %}
+      
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Stock Selection Section (INSIDE form) -->
+      <h6 class="mb-3">Select Stock Items to Transfer</h6>
+      {% if stock_items %}
+      <div class="table-responsive mb-4">
+        <table class="table table-sm table-hover">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllCheckbox"></th>
+              <th>Detail</th>
+              <th>Available</th>
+              <th>Transfer Qty</th>
+              <th>Location</th>
+              <th>Expiration Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stock in stock_items %}
+            <tr class="stock-item-row">
+              <td>
+                <input type="checkbox" name="stock_item_ids" value="{{ stock.id }}" class="stock-checkbox" id="stock_{{ stock.id }}">
+              </td>
+              <td>{{ stock.detail|default:"-" }}</td>
+              <td>{{ stock.quantity }}</td>
+              <td>
+                <input type="number" name="quantity_{{ stock.id }}" value="{{ stock.quantity }}" min="1" max="{{ stock.quantity }}" class="form-control form-control-sm qty-input" style="width: 80px;" disabled>
+              </td>
+              <td>{{ stock.location_new.name|default:"-" }}</td>
+              <td>
+                {% if stock.expiration_date %}
+                  {{ stock.expiration_date|date:"M d, Y" }}
+                  {% if stock.is_expired %}
+                  <span class="badge badge-danger">Expired</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">No expiration</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-4">
+        <i class="material-icons fa-3x text-muted mb-3">inventory_2</i>
+        <h5 class="text-muted">No Stock Available</h5>
+        <p class="text-muted">This item currently has no stock with available quantity.</p>
+      </div>
+      {% endif %}
+
+      <hr>
+
+      <h6 class="mb-3">Transfer Details</h6>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group mb-3">
+            <label for="id_destination_location">Destination Location *</label>
+            <select name="destination_location" class="form-select" id="id_destination_location" required>
+              <option value="">Select a location...</option>
+              {% for location in locations %}
+                <option value="{{ location.id }}">{{ location.name }}</option>
+              {% endfor %}
+            </select>
+            <small class="form-text text-muted">Select the location to transfer stock to</small>
+            {% if form.destination_location.errors %}
+            <div class="invalid-feedback d-block">{{ form.destination_location.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group mb-3">
+        <label for="id_transfer_reason">Transfer Reason (optional)</label>
+        <textarea name="transfer_reason" class="form-control" id="id_transfer_reason" rows="2" placeholder="e.g., Consolidation, Redistribution, Storage optimization">{{ form.transfer_reason.value|default:'' }}</textarea>
+        <small class="form-text text-muted">Optional notes about why this stock is being transferred</small>
+      </div>
+
+      <div class="d-flex justify-content-between">
+        <a href="{% url 'view_item' item.id %}" class="btn btn-secondary">
+          <i class="material-icons" style="vertical-align: middle">close</i> Cancel
+        </a>
+        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+          <i class="material-icons" style="vertical-align: middle">move_down</i> Transfer Stock
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Include Select2 CSS and JS for searchable dropdowns -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function () {
+  // Initialize Select2 for location dropdown
+  $("#id_destination_location").select2({
+    placeholder: "Select a location...",
+    allowClear: true,
+    width: "100%",
+  });
+
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  const stockCheckboxes = document.querySelectorAll('input[name="stock_item_ids"]');
+  const qtyInputs = document.querySelectorAll('.qty-input');
+  const submitBtn = document.getElementById("submitBtn");
+  const destinationLocationSelect = document.getElementById("id_destination_location");
+  
+  // Handle individual checkbox changes
+  stockCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const row = this.closest('tr');
+      const qtyInput = row.querySelector('.qty-input');
+      
+      if (this.checked) {
+        row.classList.add('table-active');
+        qtyInput.disabled = false;
+        qtyInput.value = parseInt(qtyInput.max) || 1;
+      } else {
+        row.classList.remove('table-active');
+        qtyInput.disabled = true;
+        qtyInput.value = parseInt(qtyInput.max) || 0;
+      }
+      
+      updateSubmitButtonState();
+    });
+  });
+
+  // Handle Select All checkbox
+  selectAllCheckbox.addEventListener('click', function() {
+    const isNowChecked = this.checked;
+    stockCheckboxes.forEach(checkbox => {
+      if (checkbox.checked !== isNowChecked) {
+        checkbox.checked = isNowChecked;
+        checkbox.dispatchEvent(new Event('change'));
+      }
+    });
+  });
+
+  // Handle quantity input changes
+  qtyInputs.forEach(input => {
+    input.addEventListener('input', function() {
+      const max = parseInt(this.max);
+      if (parseInt(this.value) > max) {
+        this.value = max;
+      }
+      if (parseInt(this.value) < 1) {
+        this.value = 1;
+      }
+    });
+  });
+
+  // Handle destination location changes (Select2)
+  $("#id_destination_location").on("select2:select", function() {
+    updateSubmitButtonState();
+  }).on("select2:clear", function() {
+    updateSubmitButtonState();
+  });
+
+  // Update submit button state
+  function updateSubmitButtonState() {
+    const hasSelectedItems = Array.from(stockCheckboxes).some(cb => cb.checked);
+    const hasDestination = destinationLocationSelect.value;
+    
+    if (hasSelectedItems && hasDestination) {
+      submitBtn.disabled = false;
+    } else {
+      submitBtn.disabled = true;
+    }
+  }
+});
+</script>
+
+<style>
+.stock-item-row:hover {
+  background-color: #f8f9fa;
+}
+.table-active {
+  background-color: #e3f2fd !important;
+}
+</style>
+{% endblock %}
