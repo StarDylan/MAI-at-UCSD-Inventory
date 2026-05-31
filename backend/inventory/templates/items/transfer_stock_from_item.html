@@ -178,13 +178,14 @@
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+$(document).ready(function () {
   // Initialize Select2 for location dropdown
   $('#id_destination_location').select2({
     placeholder: 'Select a location...',
     allowClear: true,
     width: '100%'
   });
+
   const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   const stockCheckboxes = document.querySelectorAll('input[name="stock_item_ids"]');
   const qtyInputs = document.querySelectorAll('.qty-input');
