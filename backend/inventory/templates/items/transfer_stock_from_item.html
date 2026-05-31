@@ -1,4 +1,16 @@
 {% extends "shared/base.html" %}
+{% block extra_css %}
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <style>
+    .select2-container--default .select2-selection--single {
+      border-color: #dee2e6;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--single {
+      border-color: #80bdff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+  </style>
+{% endblock %}
 {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -164,8 +176,15 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+  // Initialize Select2 for location dropdown
+  $('#id_destination_location').select2({
+    placeholder: 'Select a location...',
+    allowClear: true,
+    width: '100%'
+  });
   const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   const stockCheckboxes = document.querySelectorAll('input[name="stock_item_ids"]');
   const qtyInputs = document.querySelectorAll('.qty-input');
@@ -181,7 +200,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (this.checked) {
         row.classList.add('table-active');
         qtyInput.disabled = false;
-        qtyInput.value = Math.min(parseInt(qtyInput.max) || 1, 1);
+        qtyInput.value = parseInt(qtyInput.max) || 1;
       } else {
         row.classList.remove('table-active');
         qtyInput.disabled = true;
