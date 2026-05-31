@@ -188,6 +188,7 @@ def transfer_stock_from_item_view(request, item_uuid):
                             continue
                         
                         old_location = stock_item.location_new
+                        before_state = audit_log_state(stock_item)  # Capture BEFORE state
                         
                         if quantity == stock_item.quantity:
                             # Transfer entire stock item - just update location
@@ -196,12 +197,13 @@ def transfer_stock_from_item_view(request, item_uuid):
                             stock_item.save()
                             transferred_count += 1
                             
+                            after_state = audit_log_state(stock_item)  # Capture AFTER state
                             audit_log_event(
                                 request.user,
                                 f"Transferred {quantity} units of \"{item.name}\" from {old_location.name} to {destination_location.name}" + 
                                 (f" ({transfer_reason})" if transfer_reason else ""),
-                                audit_log_state(stock_item),
-                                audit_log_state(stock_item),
+                                before_state,
+                                after_state,
                                 item.id
                             )
                         else:
@@ -217,8 +219,6 @@ def transfer_stock_from_item_view(request, item_uuid):
                                 date_received=stock_item.date_received,
                                 expiration_date=stock_item.expiration_date,
                                 lot_number=stock_item.lot_number,
-                                notes=f"Transferred from {old_location.name}" + 
-                                      (f" ({transfer_reason})" if transfer_reason else ""),
                                 surplus_status=stock_item.surplus_status
                             )
                             
@@ -226,12 +226,13 @@ def transfer_stock_from_item_view(request, item_uuid):
                             stock_item.save()
                             split_count += 1
                             
+                            after_state = audit_log_state(stock_item)  # Capture AFTER state of modified original
                             audit_log_event(
                                 request.user,
                                 f"Transferred {quantity} units of \"{item.name}\" from {old_location.name} to {destination_location.name}" + 
                                 (f" ({transfer_reason})" if transfer_reason else ""),
-                                audit_log_state(stock_item),
-                                audit_log_state(new_stock_item),
+                                before_state,
+                                after_state,
                                 item.id
                             )
                 
