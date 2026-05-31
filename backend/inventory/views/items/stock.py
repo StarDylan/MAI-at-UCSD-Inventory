@@ -138,6 +138,7 @@ def transfer_stock_from_item_view(request, item_uuid):
         HttpResponse: Rendered template with transfer form or redirect on success
     """
     item = get_object_or_404(Item, id=item_uuid)
+    form = StockTransferForm()  # Initialize form for all code paths
     
     if request.method == 'POST':
         destination_location_id = request.POST.get('destination_location')
@@ -248,8 +249,6 @@ def transfer_stock_from_item_view(request, item_uuid):
                     return redirect('view_item', uuid=item.id)
                 else:
                     messages.error(request, 'Please enter a valid quantity greater than 0 for at least one stock item.')
-    else:
-        form = StockTransferForm()
     
     # Get stock items for the template
     stock_items = item.stock_items.filter(quantity__gt=0).order_by(
