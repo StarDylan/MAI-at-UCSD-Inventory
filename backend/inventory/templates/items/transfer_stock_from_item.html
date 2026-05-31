@@ -227,8 +227,10 @@ $(document).ready(function () {
     });
   });
 
-  // Handle destination location changes
-  destinationLocationSelect.addEventListener("change", function() {
+  // Handle destination location changes (Select2)
+  $("#id_destination_location").on("select2:select", function() {
+    updateSubmitButtonState();
+  }).on("select2:clear", function() {
     updateSubmitButtonState();
   });
 
